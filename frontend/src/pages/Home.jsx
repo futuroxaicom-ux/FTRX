@@ -74,8 +74,8 @@ const Home = () => {
       <header className="dark-header">
         <div className="flex items-center justify-between w-full max-w-[1400px] mx-auto">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#00FFD1] flex items-center justify-center font-bold text-black text-xl">
-              FX
+            <div className="w-10 h-10 bg-[#00FFD1] flex items-center justify-center font-bold text-black text-sm">
+              FTRX
             </div>
             <span className="text-2xl font-bold">FuturoX AI</span>
           </div>
@@ -167,10 +167,9 @@ const Home = () => {
       <section id="ai" className="py-20 px-[7.6923%] bg-[#121212]">
         <div className="max-w-[1400px] mx-auto">
           <div className="text-center mb-16 space-y-4">
-            <h2 className="display-large">Usługi AI dla Twojego Biznesu</h2>
+            <h2 className="display-large">{t('aiServices.title')}</h2>
             <p className="body-medium text-[rgba(255,255,255,0.85)] max-w-2xl mx-auto">
-              Wykorzystaj moc sztucznej inteligencji poprzez FutureCoin. 
-              Dostęp do zaawansowanych narzędzi AI, które zrewolucjonizują Twoją firmę.
+              {t('aiServices.description')}
             </p>
           </div>
 
@@ -212,22 +211,21 @@ const Home = () => {
           {/* Info Section */}
           <div className="mt-12 bg-[#121212] border border-[rgba(255,255,255,0.25)] p-12 text-center space-y-8">
             <div className="space-y-4">
-              <h2 className="display-large">Pre-order FutureCoin</h2>
+              <h2 className="display-large">{t('preorder.title')}</h2>
               <p className="body-medium text-[rgba(255,255,255,0.85)] max-w-2xl mx-auto">
-                Bądź częścią rewolucji AI. Zamów tokeny FutureCoin już teraz i zyskaj wczesny dostęp 
-                do wszystkich usług AI od dnia premiery.
+                {t('preorder.description')}
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <div className="text-left space-y-2">
-                <p className="text-sm text-[#4D4D4D] uppercase">Dostępność</p>
-                <p className="text-xl font-bold text-[#00FFD1]">Ograniczona liczba tokenów</p>
+                <p className="text-sm text-[#4D4D4D] uppercase">{t('preorder.availability')}</p>
+                <p className="text-xl font-bold text-[#00FFD1]">{t('preorder.limitedTokens')}</p>
               </div>
               <div className="hidden sm:block w-px h-12 bg-[rgba(255,255,255,0.25)]"></div>
               <div className="text-left space-y-2">
-                <p className="text-sm text-[#4D4D4D] uppercase">Blockchain</p>
-                <p className="text-xl font-bold">Solana Network</p>
+                <p className="text-sm text-[#4D4D4D] uppercase">{t('preorder.blockchain')}</p>
+                <p className="text-xl font-bold">{t('preorder.solanaNetwork')}</p>
               </div>
             </div>
           </div>
@@ -239,10 +237,9 @@ const Home = () => {
         <div className="max-w-[1400px] mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
-              <h2 className="display-large">Zbudowany na Solana</h2>
+              <h2 className="display-large">{t('solana.title')}</h2>
               <p className="body-medium text-[rgba(255,255,255,0.85)]">
-                FutureCoin wykorzystuje moc ekosystemu Solana - jednego z najszybszych 
-                i najbardziej wydajnych blockchainów na świecie.
+                {t('solana.description')}
               </p>
               <div className="space-y-4">
                 <div className="flex items-start gap-4">
@@ -250,9 +247,9 @@ const Home = () => {
                     <Zap className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg mb-1">Ultraszybkie Transakcje</h3>
+                    <h3 className="font-semibold text-lg mb-1">{t('solana.ultraFast.title')}</h3>
                     <p className="text-[rgba(255,255,255,0.85)] text-sm">
-                      Do 65,000 transakcji na sekundę z minimalnymi kosztami.
+                      {t('solana.ultraFast.description')}
                     </p>
                   </div>
                 </div>
@@ -261,9 +258,9 @@ const Home = () => {
                     <TrendingUp className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg mb-1">Skalowalność</h3>
+                    <h3 className="font-semibold text-lg mb-1">{t('solana.scalability.title')}</h3>
                     <p className="text-[rgba(255,255,255,0.85)] text-sm">
-                      Technologia gotowa na miliony użytkowników globalnie.
+                      {t('solana.scalability.description')}
                     </p>
                   </div>
                 </div>
@@ -272,9 +269,9 @@ const Home = () => {
                     <Globe className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg mb-1">Ekologiczny</h3>
+                    <h3 className="font-semibold text-lg mb-1">{t('solana.eco.title')}</h3>
                     <p className="text-[rgba(255,255,255,0.85)] text-sm">
-                      Energooszczędny mechanizm konsensusu przyjazny dla środowiska.
+                      {t('solana.eco.description')}
                     </p>
                   </div>
                 </div>
@@ -282,27 +279,27 @@ const Home = () => {
             </div>
 
             <div className="bg-black border border-[rgba(255,255,255,0.25)] p-8 space-y-6">
-              <h3 className="text-2xl font-bold">Dlaczego Solana?</h3>
+              <h3 className="text-2xl font-bold">{t('solana.whyTitle')}</h3>
               <ul className="space-y-4 text-[rgba(255,255,255,0.85)]">
                 <li className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-[#00FFD1]"></div>
-                  Niskie koszty transakcji (~$0.00025)
+                  {t('solana.lowFees')}
                 </li>
                 <li className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-[#00FFD1]"></div>
-                  Błyskawiczne finalizacje (~400ms)
+                  {t('solana.fastFinality')}
                 </li>
                 <li className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-[#00FFD1]"></div>
-                  Rozwinięty ekosystem DeFi
+                  {t('solana.defi')}
                 </li>
                 <li className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-[#00FFD1]"></div>
-                  Rosnąca społeczność deweloperów
+                  {t('solana.community')}
                 </li>
               </ul>
               <Button className="btn-secondary w-full">
-                Więcej o Solana
+                {t('solana.learnMore')}
               </Button>
             </div>
           </div>
@@ -315,45 +312,45 @@ const Home = () => {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#00FFD1] flex items-center justify-center font-bold text-black text-xl">
-                  FC
+                <div className="w-10 h-10 bg-[#00FFD1] flex items-center justify-center font-bold text-black text-sm">
+                  FTRX
                 </div>
-                <span className="text-xl font-bold">FutureCoin</span>
+                <span className="text-xl font-bold">FuturoX AI</span>
               </div>
               <p className="text-[#4D4D4D] text-sm">
-                Rewolucja AI powered by blockchain
+                {t('footer.tagline')}
               </p>
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Produkt</h4>
+              <h4 className="font-semibold mb-4">{t('footer.product')}</h4>
               <ul className="space-y-2 text-[#4D4D4D] text-sm">
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">Usługi AI</a></li>
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">Whitepaper</a></li>
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">Roadmap</a></li>
+                <li><a href="#ai" className="hover:text-[#00FFD1] transition-colors">{t('footer.aiServices')}</a></li>
+                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.whitepaper')}</a></li>
+                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.roadmap')}</a></li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Społeczność</h4>
+              <h4 className="font-semibold mb-4">{t('footer.community')}</h4>
               <ul className="space-y-2 text-[#4D4D4D] text-sm">
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">Twitter</a></li>
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">Discord</a></li>
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">Telegram</a></li>
+                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.twitter')}</a></li>
+                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.discord')}</a></li>
+                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.telegram')}</a></li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Prawne</h4>
+              <h4 className="font-semibold mb-4">{t('footer.legal')}</h4>
               <ul className="space-y-2 text-[#4D4D4D] text-sm">
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">Regulamin</a></li>
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">Polityka Prywatności</a></li>
+                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.terms')}</a></li>
+                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.privacy')}</a></li>
               </ul>
             </div>
           </div>
 
           <div className="border-t border-[rgba(255,255,255,0.25)] pt-8 text-center text-[#4D4D4D] text-sm">
-            <p>© 2025 FutureCoin. Wszelkie prawa zastrzeżone.</p>
+            <p>{t('footer.copyright')}</p>
           </div>
         </div>
       </footer>
