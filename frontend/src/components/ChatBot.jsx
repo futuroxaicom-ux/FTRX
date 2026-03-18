@@ -11,6 +11,7 @@ export const ChatBot = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [currentLang, setCurrentLang] = useState(i18n.language);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -22,10 +23,18 @@ export const ChatBot = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Handle language change - clear messages and update current lang
   useEffect(() => {
-    // Send greeting when chat opens
+    if (i18n.language !== currentLang) {
+      setMessages([]);
+      setCurrentLang(i18n.language);
+    }
+  }, [i18n.language, currentLang]);
+
+  // Send greeting when chat opens OR when messages are empty (after language change)
+  useEffect(() => {
     if (isOpen && messages.length === 0) {
-      const greeting = getGreeting(i18n.language);
+      const greeting = getGreeting(currentLang);
       setMessages([{
         id: Date.now(),
         text: greeting,
@@ -33,7 +42,8 @@ export const ChatBot = () => {
         timestamp: new Date()
       }]);
     }
-  }, [isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, currentLang, messages.length]);
 
   const handleSendMessage = (text = inputValue) => {
     if (!text.trim()) return;
@@ -52,7 +62,7 @@ export const ChatBot = () => {
 
     // Simulate bot thinking with realistic delay
     setTimeout(() => {
-      const answer = findAnswer(text, i18n.language);
+      const answer = findAnswer(text, currentLang);
       const botMessage = {
         id: Date.now() + 1,
         text: answer,
@@ -76,7 +86,7 @@ export const ChatBot = () => {
     }
   };
 
-  const quickReplies = getQuickReplies(i18n.language);
+  const quickReplies = getQuickReplies(currentLang);
 
   return (
     <>

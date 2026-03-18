@@ -103,6 +103,27 @@
     "community": "Rosnąca społeczność deweloperów",
     "learnMore": "Więcej o Solana"
   },
+  "banners": {
+    "neuralNetworks": {
+      "title": "Zaawansowane Sieci Neuronowe",
+      "description": "Najnowocześniejsze modele głębokiego uczenia trenowane na ogromnych zbiorach danych, dostarczające inteligentne rozwiązania dla Twojego biznesu"
+    },
+    "automation": {
+      "title": "Inteligentna Automatyzacja Procesów",
+      "description": "Pozwól AI obsługiwać powtarzalne zadania, podczas gdy Ty skupiasz się na tym, co najważniejsze - rozwoju biznesu",
+      "uptime": "Dostępność",
+      "available": "24/7",
+      "faster": "Szybciej"
+    },
+    "analytics": {
+      "title": "Predykcyjna Analityka AI",
+      "description": "Przekształć surowe dane w praktyczne wnioski dzięki naszym zaawansowanym algorytmom uczenia maszynowego",
+      "secure": "Bezpieczne",
+      "cloud": "W chmurze",
+      "customizable": "Konfigurowalne",
+      "insights": "AI Wnioski"
+    }
+  },
   "footer": {
     "tagline": "Rewolucja AI powered by blockchain",
     "product": "Produkt",

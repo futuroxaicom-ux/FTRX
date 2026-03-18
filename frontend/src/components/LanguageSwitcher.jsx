@@ -27,7 +27,11 @@ export const LanguageSwitcher = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex items-center gap-2 text-white hover:text-[#00FFD1] transition-colors">
+        <Button 
+          variant="ghost" 
+          className="flex items-center gap-2 text-white hover:text-[#00FFD1] transition-colors"
+          data-testid="language-switcher"
+        >
           <Globe className="w-5 h-5" />
           <span className="hidden md:inline">{currentLanguage.flag} {currentLanguage.name}</span>
           <span className="md:hidden">{currentLanguage.flag}</span>
@@ -38,6 +42,7 @@ export const LanguageSwitcher = () => {
           <DropdownMenuItem
             key={language.code}
             onClick={() => changeLanguage(language.code)}
+            data-testid={`language-option-${language.code}`}
             className={`cursor-pointer text-white hover:bg-[rgba(0,255,209,0.1)] hover:text-[#00FFD1] ${
               i18n.language === language.code ? 'bg-[rgba(0,255,209,0.1)] text-[#00FFD1]' : ''
             }`}

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Wallet, ArrowRight } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 
 export const WalletConnect = () => {
   const { t } = useTranslation();
@@ -14,27 +13,27 @@ export const WalletConnect = () => {
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  const fetchBalance = useCallback(async () => {
+    if (!publicKey) return;
+    
+    try {
+      setLoading(true);
+      const bal = await connection.getBalance(publicKey);
+      setBalance(bal / LAMPORTS_PER_SOL);
+    } catch (error) {
+      console.error('Failed to fetch balance:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [publicKey, connection]);
+
   useEffect(() => {
     if (connected && publicKey) {
       fetchBalance();
       const interval = setInterval(fetchBalance, 10000);
       return () => clearInterval(interval);
     }
-  }, [connected, publicKey]);
-
-  const fetchBalance = async () => {
-    if (!publicKey) return;
-    
-    try {
-      setLoading(true);
-      const balance = await connection.getBalance(publicKey);
-      setBalance(balance / LAMPORTS_PER_SOL);
-    } catch (error) {
-      console.error('Failed to fetch balance:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [connected, publicKey, fetchBalance]);
 
   if (!connected) {
     return (

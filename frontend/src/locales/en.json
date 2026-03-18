@@ -103,6 +103,27 @@
     "community": "Growing developer community",
     "learnMore": "Learn More about Solana"
   },
+  "banners": {
+    "neuralNetworks": {
+      "title": "Advanced Neural Networks",
+      "description": "State-of-the-art deep learning models trained on massive datasets to deliver intelligent solutions for your business"
+    },
+    "automation": {
+      "title": "Intelligent Process Automation",
+      "description": "Let AI handle repetitive tasks while you focus on what matters most - growing your business",
+      "uptime": "Uptime",
+      "available": "Available",
+      "faster": "Faster"
+    },
+    "analytics": {
+      "title": "Predictive AI Analytics",
+      "description": "Transform raw data into actionable insights with our advanced machine learning algorithms",
+      "secure": "Secure",
+      "cloud": "Cloud-based",
+      "customizable": "Customizable",
+      "insights": "AI Insights"
+    }
+  },
   "footer": {
     "tagline": "AI revolution powered by blockchain",
     "product": "Product",

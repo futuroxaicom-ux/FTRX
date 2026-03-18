@@ -13,6 +13,7 @@ import { LivePriceChart } from '../components/LivePriceChart';
 import { SolanaInfoModal } from '../components/SolanaInfoModal';
 import { ChatBot } from '../components/ChatBot';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { AIBannerBrain, AIBannerAutomation, AIBannerAnalytics } from '../components/AIBanner';
 
 const Home = () => {
   const { t } = useTranslation();
@@ -169,6 +170,9 @@ const Home = () => {
         </div>
       </section>
 
+      {/* AI Banner 1: Neural Networks - After Hero */}
+      <AIBannerBrain />
+
       {/* AI Services Section */}
       <section id="ai" className="py-20 px-[7.6923%] bg-[#121212]">
         <div className="max-w-[1400px] mx-auto">
@@ -198,6 +202,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* AI Banner 2: Automation - After AI Services */}
+      <AIBannerAutomation />
 
       {/* Pre-order Section */}
       <section id="preorder" className="py-20 px-[7.6923%]">
@@ -249,6 +256,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* AI Banner 3: Analytics - After Pre-order */}
+      <AIBannerAnalytics />
 
       {/* Solana Section */}
       <section id="solana" className="py-20 px-[7.6923%] bg-[#121212]">
