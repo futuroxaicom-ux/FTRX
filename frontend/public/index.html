@@ -22,10 +22,59 @@
         Learn how to configure a non-root public URL by running `npm run build`.
         -->
         <title>FuturoX AI | Solana-Powered AI Token</title>
+        <style>
+            /* Force hide Emergent badge if added dynamically */
+            #emergent-badge,
+            a[href*="emergent.sh"],
+            [id*="emergent"],
+            [class*="emergent-badge"] {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+            }
+        </style>
     </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
         <div id="root"></div>
+        <script>
+            // Remove Emergent badge if added dynamically
+            (function removeBadge() {
+                const removeElements = () => {
+                    const selectors = [
+                        '#emergent-badge',
+                        'a[href*="emergent.sh"]',
+                        '[id*="emergent"]',
+                        '[class*="emergent"]'
+                    ];
+                    
+                    selectors.forEach(selector => {
+                        document.querySelectorAll(selector).forEach(el => {
+                            if (el.id === 'root') return; // Don't remove root
+                            el.remove();
+                        });
+                    });
+                };
+                
+                // Run immediately
+                removeElements();
+                
+                // Run after DOM loads
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', removeElements);
+                } else {
+                    removeElements();
+                }
+                
+                // Watch for dynamically added badges
+                const observer = new MutationObserver(removeElements);
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            })();
+        </script>
         <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.
