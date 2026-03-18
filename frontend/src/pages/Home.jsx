@@ -166,13 +166,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Live Price Chart Section */}
-      <section className="py-16 px-[7.6923%] bg-black">
-        <div className="max-w-[900px] mx-auto">
-          <LivePriceChart />
-        </div>
-      </section>
-
       {/* AI Services Section */}
       <section id="ai" className="py-20 px-[7.6923%] bg-[#121212]">
         <div className="max-w-[1400px] mx-auto">
@@ -245,6 +238,11 @@ const Home = () => {
                 <p className="text-xl font-bold">{t('preorder.solanaNetwork')}</p>
               </div>
             </div>
+          </div>
+
+          {/* Live Price Chart */}
+          <div className="mt-16">
+            <LivePriceChart />
           </div>
         </div>
       </section>
