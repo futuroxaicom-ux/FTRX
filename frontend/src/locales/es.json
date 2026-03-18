@@ -65,7 +65,21 @@
     "buyButton": "Comprar FuturoX AI",
     "processing": "Procesando...",
     "connectFirst": "Por favor conecta tu billetera para comprar tokens",
-    "terms": "Al comprar, aceptas nuestros términos y condiciones"
+    "terms": "Al comprar, aceptas nuestros términos y condiciones",
+    "buyOptions": {
+      "title": "Cómo Comprar FTRX",
+      "direct": {
+        "title": "Compra Directa",
+        "description": "Compra FTRX directamente a través de nuestra plataforma con tu billetera conectada",
+        "button": "Comprar Directo"
+      },
+      "raydium": {
+        "title": "Comprar en Raydium",
+        "description": "Intercambia FTRX en Raydium DEX - el principal DEX de Solana con liquidez profunda",
+        "button": "Comprar en Raydium",
+        "comingSoon": "El enlace estará disponible después del lanzamiento del token"
+      }
+    }
   },
   "solana": {
     "title": "Construido en Solana",

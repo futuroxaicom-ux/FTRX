@@ -8,6 +8,7 @@ import { ArrowRight, Zap, Sparkles, Globe, Clock, Cpu, TrendingUp } from 'lucide
 import Spline from '@splinetool/react-spline';
 import { WalletConnect } from '../components/WalletConnect';
 import { TokenPurchase } from '../components/TokenPurchase';
+import { BuyOptions } from '../components/BuyOptions';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 const Home = () => {
@@ -21,6 +22,7 @@ const Home = () => {
   });
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showDirectPurchase, setShowDirectPurchase] = useState(false);
 
   useEffect(() => {
     const targetDate = new Date('2026-05-10T00:00:00');
@@ -195,21 +197,28 @@ const Home = () => {
 
       {/* Pre-order Section */}
       <section id="preorder" className="py-20 px-[7.6923%]">
-        <div className="max-w-[1400px] mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
-            {/* Left - Wallet Connect */}
-            <div>
-              <WalletConnect />
-            </div>
+        <div className="max-w-[1400px] mx-auto space-y-16">
+          
+          {/* Buy Options - Direct vs Raydium */}
+          <BuyOptions onDirectBuyClick={() => setShowDirectPurchase(!showDirectPurchase)} />
 
-            {/* Right - Token Purchase */}
-            <div>
-              <TokenPurchase />
+          {/* Conditional Display: Show Direct Purchase Components when clicked */}
+          {showDirectPurchase && (
+            <div className="grid lg:grid-cols-2 gap-12 items-start">
+              {/* Left - Wallet Connect */}
+              <div>
+                <WalletConnect />
+              </div>
+
+              {/* Right - Token Purchase */}
+              <div>
+                <TokenPurchase />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Info Section */}
-          <div className="mt-12 bg-[#121212] border border-[rgba(255,255,255,0.25)] p-12 text-center space-y-8">
+          <div className="bg-[#121212] border border-[rgba(255,255,255,0.25)] p-12 text-center space-y-8">
             <div className="space-y-4">
               <h2 className="display-large">{t('preorder.title')}</h2>
               <p className="body-medium text-[rgba(255,255,255,0.85)] max-w-2xl mx-auto">
