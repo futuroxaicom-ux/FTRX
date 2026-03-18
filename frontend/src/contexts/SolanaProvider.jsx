@@ -10,8 +10,8 @@ import { clusterApiUrl } from '@solana/web3.js';
 import '@solana/wallet-adapter-react-ui/styles.css';
 
 export const SolanaProvider = ({ children }) => {
-  // Use Devnet for testing, switch to Mainnet for production
-  const network = WalletAdapterNetwork.Devnet;
+  // Use Mainnet for production (real SOL balances)
+  const network = WalletAdapterNetwork.Mainnet;
   
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
   
