@@ -14,12 +14,11 @@ export const LivePriceChart = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('SOL'); // SOL or FTRX
 
-  // Fetch Solana price from CoinGecko
+  // Fetch Solana price from backend proxy (avoids CORS)
   const fetchSolanaPrice = async () => {
     try {
-      const response = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd&include_24hr_change=true'
-      );
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
+      const response = await fetch(`${backendUrl}/api/crypto/price`);
       const data = await response.json();
       
       if (data.solana) {
@@ -31,12 +30,11 @@ export const LivePriceChart = () => {
     }
   };
 
-  // Fetch 7-day price history for chart
+  // Fetch 7-day price history for chart from backend proxy
   const fetchPriceHistory = async () => {
     try {
-      const response = await fetch(
-        'https://api.coingecko.com/api/v3/coins/solana/market_chart?vs_currency=usd&days=7&interval=daily'
-      );
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
+      const response = await fetch(`${backendUrl}/api/crypto/chart`);
       const data = await response.json();
       
       if (data.prices) {

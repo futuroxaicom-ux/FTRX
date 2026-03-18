@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List
 import uuid
 from datetime import datetime, timezone
+import httpx
 
 
 ROOT_DIR = Path(__file__).parent
@@ -65,6 +66,45 @@ async def get_status_checks():
             check['timestamp'] = datetime.fromisoformat(check['timestamp'])
     
     return status_checks
+
+# CoinGecko Proxy endpoints to avoid CORS issues
+@api_router.get("/crypto/price")
+async def get_crypto_price():
+    """Get current Solana price from CoinGecko"""
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(
+                "https://api.coingecko.com/api/v3/simple/price",
+                params={
+                    "ids": "solana",
+                    "vs_currencies": "usd",
+                    "include_24hr_change": "true"
+                },
+                timeout=10.0
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"CoinGecko API error: {e}")
+            return {"error": str(e)}
+
+@api_router.get("/crypto/chart")
+async def get_crypto_chart():
+    """Get 7-day price history for Solana from CoinGecko"""
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(
+                "https://api.coingecko.com/api/v3/coins/solana/market_chart",
+                params={
+                    "vs_currency": "usd",
+                    "days": "7",
+                    "interval": "daily"
+                },
+                timeout=10.0
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"CoinGecko API error: {e}")
+            return {"error": str(e)}
 
 # Include the router in the main app
 app.include_router(api_router)
