@@ -18,7 +18,10 @@ export const WalletConnect = () => {
     
     try {
       setLoading(true);
+      console.log('Fetching balance for:', publicKey.toString());
+      console.log('Connection endpoint:', connection.rpcEndpoint);
       const bal = await connection.getBalance(publicKey);
+      console.log('Raw balance (lamports):', bal);
       setBalance(bal / LAMPORTS_PER_SOL);
     } catch (error) {
       console.error('Failed to fetch balance:', error);
