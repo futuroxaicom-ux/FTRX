@@ -11,6 +11,7 @@ import { TokenPurchase } from '../components/TokenPurchase';
 import { BuyOptions } from '../components/BuyOptions';
 import { LivePriceChart } from '../components/LivePriceChart';
 import { SolanaInfoModal } from '../components/SolanaInfoModal';
+import { ChatBot } from '../components/ChatBot';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 const Home = () => {
@@ -380,6 +381,9 @@ const Home = () => {
         open={showSolanaModal} 
         onOpenChange={setShowSolanaModal}
       />
+
+      {/* ChatBot */}
+      <ChatBot />
     </div>
   );
 };
