@@ -6,10 +6,41 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone
 import httpx
+import time
+
+# Simple in-memory cache for CoinGecko API
+class PriceCache:
+    def __init__(self, ttl_seconds: int = 60):
+        self.ttl = ttl_seconds
+        self.price_data: Optional[Dict[str, Any]] = None
+        self.price_timestamp: float = 0
+        self.chart_data: Optional[Dict[str, Any]] = None
+        self.chart_timestamp: float = 0
+    
+    def get_price(self) -> Optional[Dict[str, Any]]:
+        if self.price_data and (time.time() - self.price_timestamp) < self.ttl:
+            return self.price_data
+        return None
+    
+    def set_price(self, data: Dict[str, Any]):
+        self.price_data = data
+        self.price_timestamp = time.time()
+    
+    def get_chart(self) -> Optional[Dict[str, Any]]:
+        if self.chart_data and (time.time() - self.chart_timestamp) < (self.ttl * 5):  # 5 min for chart
+            return self.chart_data
+        return None
+    
+    def set_chart(self, data: Dict[str, Any]):
+        self.chart_data = data
+        self.chart_timestamp = time.time()
+
+# Initialize cache with 60 second TTL for price
+price_cache = PriceCache(ttl_seconds=60)
 
 
 ROOT_DIR = Path(__file__).parent
@@ -67,10 +98,15 @@ async def get_status_checks():
     
     return status_checks
 
-# CoinGecko Proxy endpoints to avoid CORS issues
+# CoinGecko Proxy endpoints with caching to avoid rate limits
 @api_router.get("/crypto/price")
 async def get_crypto_price():
-    """Get current Solana price from CoinGecko"""
+    """Get current Solana price from CoinGecko (cached for 60 seconds)"""
+    # Check cache first
+    cached = price_cache.get_price()
+    if cached:
+        return cached
+    
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(
@@ -82,14 +118,26 @@ async def get_crypto_price():
                 },
                 timeout=10.0
             )
-            return response.json()
+            data = response.json()
+            # Cache the result
+            if "solana" in data:
+                price_cache.set_price(data)
+            return data
         except Exception as e:
             logger.error(f"CoinGecko API error: {e}")
+            # Return cached data if available, even if expired
+            if price_cache.price_data:
+                return price_cache.price_data
             return {"error": str(e)}
 
 @api_router.get("/crypto/chart")
 async def get_crypto_chart():
-    """Get 7-day price history for Solana from CoinGecko"""
+    """Get 7-day price history for Solana from CoinGecko (cached for 5 minutes)"""
+    # Check cache first
+    cached = price_cache.get_chart()
+    if cached:
+        return cached
+    
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(
@@ -101,9 +149,16 @@ async def get_crypto_chart():
                 },
                 timeout=10.0
             )
-            return response.json()
+            data = response.json()
+            # Cache the result
+            if "prices" in data:
+                price_cache.set_chart(data)
+            return data
         except Exception as e:
             logger.error(f"CoinGecko API error: {e}")
+            # Return cached data if available, even if expired
+            if price_cache.chart_data:
+                return price_cache.chart_data
             return {"error": str(e)}
 
 # Include the router in the main app
