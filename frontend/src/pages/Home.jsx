@@ -10,6 +10,7 @@ import { WalletConnect } from '../components/WalletConnect';
 import { TokenPurchase } from '../components/TokenPurchase';
 import { BuyOptions } from '../components/BuyOptions';
 import { LivePriceChart } from '../components/LivePriceChart';
+import { SolanaInfoModal } from '../components/SolanaInfoModal';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 const Home = () => {
@@ -24,6 +25,7 @@ const Home = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showDirectPurchase, setShowDirectPurchase] = useState(false);
+  const [showSolanaModal, setShowSolanaModal] = useState(false);
 
   useEffect(() => {
     const targetDate = new Date('2026-05-10T00:00:00');
@@ -313,7 +315,10 @@ const Home = () => {
                   {t('solana.community')}
                 </li>
               </ul>
-              <Button className="btn-secondary w-full">
+              <Button 
+                onClick={() => setShowSolanaModal(true)}
+                className="btn-secondary w-full"
+              >
                 {t('solana.learnMore')}
               </Button>
             </div>
@@ -369,6 +374,12 @@ const Home = () => {
           </div>
         </div>
       </footer>
+
+      {/* Solana Info Modal */}
+      <SolanaInfoModal 
+        open={showSolanaModal} 
+        onOpenChange={setShowSolanaModal}
+      />
     </div>
   );
 };
