@@ -1,0 +1,107 @@
+{
+  "nav": {
+    "aiServices": "Usługi AI",
+    "preorder": "Pre-order",
+    "solana": "Solana"
+  },
+  "hero": {
+    "badge": "Oparty na Solana Blockchain",
+    "title": "Przyszłość AI",
+    "titleHighlight": "Zaczyna się tutaj",
+    "description": "FuturoX AI to rewolucyjny token umożliwiający dostęp do najnowocześniejszych usług AI. Wykorzystaj moc sztucznej inteligencji w swoim biznesie.",
+    "countdown": "Uruchomienie Usług AI",
+    "days": "Dni",
+    "hours": "Godzin",
+    "minutes": "Minut",
+    "seconds": "Sekund",
+    "buyNow": "Kup Teraz",
+    "learnMore": "Dowiedz się więcej"
+  },
+  "aiServices": {
+    "title": "Usługi AI dla Twojego Biznesu",
+    "description": "Wykorzystaj moc sztucznej inteligencji poprzez FuturoX AI. Dostęp do zaawansowanych narzędzi AI, które zrewolucjonizują Twoją firmę.",
+    "contentGeneration": {
+      "title": "Generowanie Treści AI",
+      "description": "Automatyczne tworzenie tekstów, grafik i materiałów marketingowych przy użyciu zaawansowanych modeli AI."
+    },
+    "dataAnalysis": {
+      "title": "Analiza Danych Biznesowych",
+      "description": "Inteligentna analiza danych, predykcja trendów i wsparcie w podejmowaniu decyzji strategicznych."
+    },
+    "automation": {
+      "title": "Automatyzacja Procesów",
+      "description": "Optymalizacja workflow i automatyzacja powtarzalnych zadań z wykorzystaniem AI."
+    },
+    "assistants": {
+      "title": "Asystenci AI dla Biznesu",
+      "description": "Inteligentne chatboty i wirtualni asystenci do obsługi klientów 24/7."
+    }
+  },
+  "preorder": {
+    "title": "Pre-order FuturoX AI",
+    "description": "Bądź częścią rewolucji AI. Zamów tokeny FuturoX AI już teraz i zyskaj wczesny dostęp do wszystkich usług AI od dnia premiery.",
+    "availability": "Dostępność",
+    "limitedTokens": "Ograniczona liczba tokenów",
+    "blockchain": "Blockchain",
+    "solanaNetwork": "Sieć Solana"
+  },
+  "wallet": {
+    "connectTitle": "Połącz Portfel",
+    "connectDescription": "Połącz swój portfel Solana aby uzyskać dostęp do pre-orderu FuturoX AI",
+    "connectedTitle": "Portfel Połączony",
+    "connectedDescription": "Twój portfel Solana jest połączony",
+    "walletAddress": "Adres Portfela",
+    "balance": "Saldo SOL"
+  },
+  "purchase": {
+    "title": "Kup FuturoX AI",
+    "exchangeRate": "Kurs wymiany",
+    "amountLabel": "Kwota (SOL)",
+    "minimum": "Minimum: 0.01 SOL",
+    "youWillReceive": "Otrzymasz",
+    "network": "Sieć",
+    "devnet": "Solana Devnet",
+    "transactionFee": "Opłata Transakcyjna",
+    "buyButton": "Kup FuturoX AI",
+    "processing": "Przetwarzanie...",
+    "connectFirst": "Proszę połącz portfel aby kupić tokeny",
+    "terms": "Kupując, zgadzasz się na nasze warunki"
+  },
+  "solana": {
+    "title": "Zbudowany na Solana",
+    "description": "FuturoX AI wykorzystuje moc ekosystemu Solana - jednego z najszybszych i najbardziej wydajnych blockchainów na świecie.",
+    "ultraFast": {
+      "title": "Ultraszybkie Transakcje",
+      "description": "Do 65,000 transakcji na sekundę z minimalnymi kosztami."
+    },
+    "scalability": {
+      "title": "Skalowalność",
+      "description": "Technologia gotowa na miliony użytkowników globalnie."
+    },
+    "eco": {
+      "title": "Ekologiczny",
+      "description": "Energooszczędny mechanizm konsensusu przyjazny dla środowiska."
+    },
+    "whyTitle": "Dlaczego Solana?",
+    "lowFees": "Niskie koszty transakcji (~$0.00025)",
+    "fastFinality": "Błyskawiczne finalizacje (~400ms)",
+    "defi": "Rozwinięty ekosystem DeFi",
+    "community": "Rosnąca społeczność deweloperów",
+    "learnMore": "Więcej o Solana"
+  },
+  "footer": {
+    "tagline": "Rewolucja AI powered by blockchain",
+    "product": "Produkt",
+    "aiServices": "Usługi AI",
+    "whitepaper": "Whitepaper",
+    "roadmap": "Roadmap",
+    "community": "Społeczność",
+    "twitter": "Twitter",
+    "discord": "Discord",
+    "telegram": "Telegram",
+    "legal": "Prawne",
+    "terms": "Regulamin",
+    "privacy": "Polityka Prywatności",
+    "copyright": "© 2025 FuturoX AI. Wszelkie prawa zastrzeżone."
+  }
+}

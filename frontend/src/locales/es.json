@@ -1,0 +1,107 @@
+{
+  "nav": {
+    "aiServices": "Servicios de IA",
+    "preorder": "Pre-orden",
+    "solana": "Solana"
+  },
+  "hero": {
+    "badge": "Construido en Solana Blockchain",
+    "title": "El Futuro de la IA",
+    "titleHighlight": "Comienza Aquí",
+    "description": "FuturoX AI es un token revolucionario que permite el acceso a servicios de IA de vanguardia. Aprovecha el poder de la inteligencia artificial en tu negocio.",
+    "countdown": "Lanzamiento de Servicios IA",
+    "days": "Días",
+    "hours": "Horas",
+    "minutes": "Minutos",
+    "seconds": "Segundos",
+    "buyNow": "Comprar Ahora",
+    "learnMore": "Saber Más"
+  },
+  "aiServices": {
+    "title": "Servicios de IA para Tu Negocio",
+    "description": "Aprovecha el poder de la inteligencia artificial a través de FuturoX AI. Accede a herramientas avanzadas de IA que revolucionarán tu empresa.",
+    "contentGeneration": {
+      "title": "Generación de Contenido IA",
+      "description": "Creación automática de textos, gráficos y materiales de marketing usando modelos avanzados de IA."
+    },
+    "dataAnalysis": {
+      "title": "Análisis de Datos Empresariales",
+      "description": "Análisis inteligente de datos, predicción de tendencias y apoyo en la toma de decisiones estratégicas."
+    },
+    "automation": {
+      "title": "Automatización de Procesos",
+      "description": "Optimización del flujo de trabajo y automatización de tareas repetitivas usando IA."
+    },
+    "assistants": {
+      "title": "Asistentes IA para Negocios",
+      "description": "Chatbots inteligentes y asistentes virtuales para servicio al cliente 24/7."
+    }
+  },
+  "preorder": {
+    "title": "Pre-orden FuturoX AI",
+    "description": "Sé parte de la revolución de IA. Ordena tokens FuturoX AI ahora y obtén acceso temprano a todos los servicios de IA desde el día del lanzamiento.",
+    "availability": "Disponibilidad",
+    "limitedTokens": "Número limitado de tokens",
+    "blockchain": "Blockchain",
+    "solanaNetwork": "Red Solana"
+  },
+  "wallet": {
+    "connectTitle": "Conecta Tu Billetera",
+    "connectDescription": "Conecta tu billetera Solana para acceder a la pre-orden de FuturoX AI",
+    "connectedTitle": "Billetera Conectada",
+    "connectedDescription": "Tu billetera Solana está conectada",
+    "walletAddress": "Dirección de Billetera",
+    "balance": "Balance SOL"
+  },
+  "purchase": {
+    "title": "Comprar FuturoX AI",
+    "exchangeRate": "Tasa de cambio",
+    "amountLabel": "Cantidad (SOL)",
+    "minimum": "Mínimo: 0.01 SOL",
+    "youWillReceive": "Recibirás",
+    "network": "Red",
+    "devnet": "Solana Devnet",
+    "transactionFee": "Tarifa de Transacción",
+    "buyButton": "Comprar FuturoX AI",
+    "processing": "Procesando...",
+    "connectFirst": "Por favor conecta tu billetera para comprar tokens",
+    "terms": "Al comprar, aceptas nuestros términos y condiciones"
+  },
+  "solana": {
+    "title": "Construido en Solana",
+    "description": "FuturoX AI aprovecha el poder del ecosistema Solana - uno de los blockchains más rápidos y eficientes del mundo.",
+    "ultraFast": {
+      "title": "Transacciones Ultra-Rápidas",
+      "description": "Hasta 65,000 transacciones por segundo con costos mínimos."
+    },
+    "scalability": {
+      "title": "Escalabilidad",
+      "description": "Tecnología lista para millones de usuarios a nivel global."
+    },
+    "eco": {
+      "title": "Eco-Friendly",
+      "description": "Mecanismo de consenso energéticamente eficiente y amigable con el medio ambiente."
+    },
+    "whyTitle": "¿Por qué Solana?",
+    "lowFees": "Costos de transacción bajos (~$0.00025)",
+    "fastFinality": "Finalización ultra-rápida (~400ms)",
+    "defi": "Ecosistema DeFi desarrollado",
+    "community": "Comunidad de desarrolladores en crecimiento",
+    "learnMore": "Más sobre Solana"
+  },
+  "footer": {
+    "tagline": "Revolución IA impulsada por blockchain",
+    "product": "Producto",
+    "aiServices": "Servicios IA",
+    "whitepaper": "Whitepaper",
+    "roadmap": "Hoja de Ruta",
+    "community": "Comunidad",
+    "twitter": "Twitter",
+    "discord": "Discord",
+    "telegram": "Telegram",
+    "legal": "Legal",
+    "terms": "Términos de Servicio",
+    "privacy": "Política de Privacidad",
+    "copyright": "© 2025 FuturoX AI. Todos los derechos reservados."
+  }
+}

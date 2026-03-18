@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { ArrowRight, Zap, Sparkles, Globe, Clock, Cpu, TrendingUp } from 'lucide-react';
 import Spline from '@splinetool/react-spline';
+import { WalletConnect } from '../components/WalletConnect';
+import { TokenPurchase } from '../components/TokenPurchase';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 const Home = () => {
+  const { t } = useTranslation();
+  const { connected } = useWallet();
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
     hours: 0,
     minutes: 0,
     seconds: 0
   });
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
   useEffect(() => {
     const targetDate = new Date('2026-05-10T00:00:00');
@@ -38,23 +48,23 @@ const Home = () => {
   const aiServices = [
     {
       icon: <Sparkles className="w-8 h-8" />,
-      title: "Generowanie Treści AI",
-      description: "Automatyczne tworzenie tekstów, grafik i materiałów marketingowych przy użyciu zaawansowanych modeli AI."
+      title: t('aiServices.contentGeneration.title'),
+      description: t('aiServices.contentGeneration.description')
     },
     {
       icon: <Cpu className="w-8 h-8" />,
-      title: "Analiza Danych Biznesowych",
-      description: "Inteligentna analiza danych, predykcja trendów i wsparcie w podejmowaniu decyzji strategicznych."
+      title: t('aiServices.dataAnalysis.title'),
+      description: t('aiServices.dataAnalysis.description')
     },
     {
       icon: <Zap className="w-8 h-8" />,
-      title: "Automatyzacja Procesów",
-      description: "Optymalizacja workflow i automatyzacja powtarzalnych zadań z wykorzystaniem AI."
+      title: t('aiServices.automation.title'),
+      description: t('aiServices.automation.description')
     },
     {
       icon: <Globe className="w-8 h-8" />,
-      title: "Asystenci AI dla Biznesu",
-      description: "Inteligentne chatboty i wirtualni asystenci do obsługi klientów 24/7."
+      title: t('aiServices.assistants.title'),
+      description: t('aiServices.assistants.description')
     }
   ];
 
@@ -65,21 +75,21 @@ const Home = () => {
         <div className="flex items-center justify-between w-full max-w-[1400px] mx-auto">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#00FFD1] flex items-center justify-center font-bold text-black text-xl">
-              FC
+              FX
             </div>
-            <span className="text-2xl font-bold">FutureCoin</span>
+            <span className="text-2xl font-bold">FuturoX AI</span>
           </div>
           
           <nav className="dark-nav hidden md:flex">
-            <a href="#ai" className="dark-nav-link">Usługi AI</a>
-            <a href="#preorder" className="dark-nav-link">Pre-order</a>
-            <a href="#solana" className="dark-nav-link">Solana</a>
+            <a href="#ai" className="dark-nav-link">{t('nav.aiServices')}</a>
+            <a href="#preorder" className="dark-nav-link">{t('nav.preorder')}</a>
+            <a href="#solana" className="dark-nav-link">{t('nav.solana')}</a>
           </nav>
 
-          <Button className="btn-primary">
-            Kup Token
-            <ArrowRight className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <WalletMultiButton className="btn-primary" />
+          </div>
         </div>
       </header>
 
@@ -92,31 +102,30 @@ const Home = () => {
               <div className="inline-block px-4 py-2 bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] text-[#00FFD1] text-sm font-medium">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4" />
-                  Oparty na Solana Blockchain
+                  {t('hero.badge')}
                 </div>
               </div>
 
               <h1 className="display-huge">
-                Przyszłość AI <br />
-                <span className="text-[#00FFD1]">Zaczyna się tutaj</span>
+                {t('hero.title')} <br />
+                <span className="text-[#00FFD1]">{t('hero.titleHighlight')}</span>
               </h1>
 
               <p className="body-large text-[rgba(255,255,255,0.85)] max-w-xl">
-                FutureCoin to rewolucyjny token umożliwiający dostęp do najnowocześniejszych usług AI. 
-                Wykorzystaj moc sztucznej inteligencji w swoim biznesie.
+                {t('hero.description')}
               </p>
 
               {/* Countdown */}
               <div className="space-y-4">
                 <p className="text-sm text-[#4D4D4D] uppercase tracking-wider">
-                  Uruchomienie Usług AI
+                  {t('hero.countdown')}
                 </p>
                 <div className="grid grid-cols-4 gap-4">
                   {[
-                    { value: timeLeft.days, label: 'Dni' },
-                    { value: timeLeft.hours, label: 'Godzin' },
-                    { value: timeLeft.minutes, label: 'Minut' },
-                    { value: timeLeft.seconds, label: 'Sekund' }
+                    { value: timeLeft.days, label: t('hero.days') },
+                    { value: timeLeft.hours, label: t('hero.hours') },
+                    { value: timeLeft.minutes, label: t('hero.minutes') },
+                    { value: timeLeft.seconds, label: t('hero.seconds') }
                   ].map((item, index) => (
                     <div key={index} className="bg-[#121212] border border-[rgba(255,255,255,0.25)] p-4 text-center">
                       <div className="text-3xl font-bold text-[#00FFD1]">
@@ -131,12 +140,15 @@ const Home = () => {
               </div>
 
               <div className="flex gap-4">
-                <Button className="btn-primary">
-                  Rozpocznij Pre-order
+                <Button 
+                  className="btn-primary"
+                  onClick={() => setShowPurchaseModal(!showPurchaseModal)}
+                >
+                  {connected ? t('hero.buyNow') : t('wallet.connectTitle')}
                   <ArrowRight className="w-5 h-5" />
                 </Button>
                 <Button className="btn-secondary">
-                  Dowiedz się więcej
+                  {t('hero.learnMore')}
                 </Button>
               </div>
             </div>
@@ -185,7 +197,20 @@ const Home = () => {
       {/* Pre-order Section */}
       <section id="preorder" className="py-20 px-[7.6923%]">
         <div className="max-w-[1400px] mx-auto">
-          <div className="bg-[#121212] border border-[rgba(255,255,255,0.25)] p-12 text-center space-y-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-start">
+            {/* Left - Wallet Connect */}
+            <div>
+              <WalletConnect />
+            </div>
+
+            {/* Right - Token Purchase */}
+            <div>
+              <TokenPurchase />
+            </div>
+          </div>
+
+          {/* Info Section */}
+          <div className="mt-12 bg-[#121212] border border-[rgba(255,255,255,0.25)] p-12 text-center space-y-8">
             <div className="space-y-4">
               <h2 className="display-large">Pre-order FutureCoin</h2>
               <p className="body-medium text-[rgba(255,255,255,0.85)] max-w-2xl mx-auto">
@@ -204,16 +229,6 @@ const Home = () => {
                 <p className="text-sm text-[#4D4D4D] uppercase">Blockchain</p>
                 <p className="text-xl font-bold">Solana Network</p>
               </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Button className="btn-primary">
-                Kup na Giełdzie
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-              <Button className="btn-secondary">
-                Zobacz Whitepaper
-              </Button>
             </div>
           </div>
         </div>

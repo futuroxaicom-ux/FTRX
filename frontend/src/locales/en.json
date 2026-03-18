@@ -1,0 +1,107 @@
+{
+  "nav": {
+    "aiServices": "AI Services",
+    "preorder": "Pre-order",
+    "solana": "Solana"
+  },
+  "hero": {
+    "badge": "Built on Solana Blockchain",
+    "title": "The Future of AI",
+    "titleHighlight": "Starts Here",
+    "description": "FuturoX AI is a revolutionary token enabling access to cutting-edge AI services. Harness the power of artificial intelligence in your business.",
+    "countdown": "AI Services Launch",
+    "days": "Days",
+    "hours": "Hours",
+    "minutes": "Minutes",
+    "seconds": "Seconds",
+    "buyNow": "Buy Now",
+    "learnMore": "Learn More"
+  },
+  "aiServices": {
+    "title": "AI Services for Your Business",
+    "description": "Harness the power of artificial intelligence through FuturoX AI. Access advanced AI tools that will revolutionize your company.",
+    "contentGeneration": {
+      "title": "AI Content Generation",
+      "description": "Automatic creation of texts, graphics, and marketing materials using advanced AI models."
+    },
+    "dataAnalysis": {
+      "title": "Business Data Analysis",
+      "description": "Intelligent data analysis, trend prediction, and support in strategic decision-making."
+    },
+    "automation": {
+      "title": "Process Automation",
+      "description": "Workflow optimization and automation of repetitive tasks using AI."
+    },
+    "assistants": {
+      "title": "AI Business Assistants",
+      "description": "Intelligent chatbots and virtual assistants for 24/7 customer service."
+    }
+  },
+  "preorder": {
+    "title": "Pre-order FuturoX AI",
+    "description": "Be part of the AI revolution. Order FuturoX AI tokens now and gain early access to all AI services from launch day.",
+    "availability": "Availability",
+    "limitedTokens": "Limited number of tokens",
+    "blockchain": "Blockchain",
+    "solanaNetwork": "Solana Network"
+  },
+  "wallet": {
+    "connectTitle": "Connect Your Wallet",
+    "connectDescription": "Connect your Solana wallet to access FuturoX AI pre-order",
+    "connectedTitle": "Wallet Connected",
+    "connectedDescription": "Your Solana wallet is connected",
+    "walletAddress": "Wallet Address",
+    "balance": "SOL Balance"
+  },
+  "purchase": {
+    "title": "Purchase FuturoX AI",
+    "exchangeRate": "Exchange rate",
+    "amountLabel": "Amount (SOL)",
+    "minimum": "Minimum: 0.01 SOL",
+    "youWillReceive": "You Will Receive",
+    "network": "Network",
+    "devnet": "Solana Devnet",
+    "transactionFee": "Transaction Fee",
+    "buyButton": "Purchase FuturoX AI",
+    "processing": "Processing...",
+    "connectFirst": "Please connect your wallet to purchase tokens",
+    "terms": "By purchasing, you agree to our terms and conditions"
+  },
+  "solana": {
+    "title": "Built on Solana",
+    "description": "FuturoX AI leverages the power of the Solana ecosystem - one of the fastest and most efficient blockchains in the world.",
+    "ultraFast": {
+      "title": "Ultra-Fast Transactions",
+      "description": "Up to 65,000 transactions per second with minimal costs."
+    },
+    "scalability": {
+      "title": "Scalability",
+      "description": "Technology ready for millions of users globally."
+    },
+    "eco": {
+      "title": "Eco-Friendly",
+      "description": "Energy-efficient consensus mechanism friendly to the environment."
+    },
+    "whyTitle": "Why Solana?",
+    "lowFees": "Low transaction costs (~$0.00025)",
+    "fastFinality": "Lightning-fast finality (~400ms)",
+    "defi": "Developed DeFi ecosystem",
+    "community": "Growing developer community",
+    "learnMore": "Learn More about Solana"
+  },
+  "footer": {
+    "tagline": "AI revolution powered by blockchain",
+    "product": "Product",
+    "aiServices": "AI Services",
+    "whitepaper": "Whitepaper",
+    "roadmap": "Roadmap",
+    "community": "Community",
+    "twitter": "Twitter",
+    "discord": "Discord",
+    "telegram": "Telegram",
+    "legal": "Legal",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "copyright": "© 2025 FuturoX AI. All rights reserved."
+  }
+}
