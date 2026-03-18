@@ -9,6 +9,7 @@ import Spline from '@splinetool/react-spline';
 import { WalletConnect } from '../components/WalletConnect';
 import { TokenPurchase } from '../components/TokenPurchase';
 import { BuyOptions } from '../components/BuyOptions';
+import { LivePriceChart } from '../components/LivePriceChart';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 const Home = () => {
@@ -162,6 +163,13 @@ const Home = () => {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Live Price Chart Section */}
+      <section className="py-16 px-[7.6923%] bg-black">
+        <div className="max-w-[900px] mx-auto">
+          <LivePriceChart />
         </div>
       </section>
 

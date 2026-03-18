@@ -29,4 +29,17 @@ export const TOKEN_CONFIG = {
   decimals: 9,
   // Add token address after deployment
   address: 'FTRX_TOKEN_ADDRESS_PLACEHOLDER',
+  
+  // Price API Configuration (for LivePriceChart)
+  // After token launch, you can use Jupiter Price API or your own backend
+  priceAPI: {
+    // Option 1: Jupiter Price API (recommended)
+    jupiter: 'https://price.jup.ag/v4/price?ids=FTRX_TOKEN_ADDRESS',
+    
+    // Option 2: Your custom backend endpoint
+    custom: '/api/token/price',
+    
+    // Option 3: CoinGecko (if token gets listed)
+    coingecko: 'https://api.coingecko.com/api/v3/simple/price?ids=futurox-ai&vs_currencies=usd',
+  }
 };
