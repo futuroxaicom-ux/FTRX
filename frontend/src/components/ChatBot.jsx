@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageCircle, X, Send, Bot, User } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Mail, Sparkles } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { findAnswer, getGreeting, getQuickReplies } from '../utils/chatKnowledge';
@@ -50,7 +50,7 @@ export const ChatBot = () => {
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate bot thinking
+    // Simulate bot thinking with realistic delay
     setTimeout(() => {
       const answer = findAnswer(text, i18n.language);
       const botMessage = {
@@ -62,7 +62,7 @@ export const ChatBot = () => {
       
       setMessages(prev => [...prev, botMessage]);
       setIsTyping(false);
-    }, 800);
+    }, 1200);
   };
 
   const handleQuickReply = (reply) => {
@@ -80,92 +80,169 @@ export const ChatBot = () => {
 
   return (
     <>
-      {/* Floating Chat Button */}
+      {/* Floating Chat Button - Futuristic */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 w-16 h-16 bg-[#00FFD1] hover:bg-[#00E5BD] rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 z-50 group"
-          style={{ animation: 'pulse 2s infinite' }}
+          className="fixed bottom-6 right-6 w-16 h-16 rounded-full flex items-center justify-center shadow-2xl z-50 group overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, #00FFD1 0%, #00D4AA 100%)',
+            animation: 'float 3s ease-in-out infinite'
+          }}
         >
-          <MessageCircle className="w-7 h-7 text-black" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-ping"></span>
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full"></span>
+          {/* Glow effect */}
+          <div className="absolute inset-0 rounded-full animate-ping opacity-30" 
+               style={{ background: 'linear-gradient(135deg, #00FFD1 0%, #00D4AA 100%)' }}></div>
+          
+          {/* Bot icon with sparkle */}
+          <div className="relative">
+            <Bot className="w-7 h-7 text-black animate-pulse" />
+            <Sparkles className="w-3 h-3 text-black absolute -top-1 -right-1 animate-spin" style={{ animationDuration: '3s' }} />
+          </div>
+          
+          {/* Notification badge */}
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-bounce">
+            AI
+          </span>
         </button>
       )}
 
-      {/* Chat Window */}
+      {/* Chat Window - Futuristic Design */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-[380px] h-[600px] bg-[#121212] border border-[rgba(0,255,209,0.3)] shadow-2xl z-50 flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="bg-[#00FFD1] p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center">
-                <Bot className="w-6 h-6 text-[#00FFD1]" />
+        <div 
+          className="fixed bottom-6 right-6 w-[400px] h-[650px] shadow-2xl z-50 flex flex-col overflow-hidden"
+          style={{
+            background: 'linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%)',
+            border: '1px solid rgba(0, 255, 209, 0.3)',
+            borderRadius: '24px',
+            boxShadow: '0 0 60px rgba(0, 255, 209, 0.2)'
+          }}
+        >
+          {/* Header - Futuristic with animated gradient */}
+          <div 
+            className="p-5 flex items-center justify-between relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #00FFD1 0%, #00D4AA 50%, #00FFD1 100%)',
+              backgroundSize: '200% 200%',
+              animation: 'gradient 3s ease infinite'
+            }}
+          >
+            {/* Animated background particles */}
+            <div className="absolute inset-0 overflow-hidden opacity-20">
+              <div className="absolute w-32 h-32 bg-white rounded-full blur-3xl animate-pulse" style={{ top: '-50%', left: '-20%' }}></div>
+              <div className="absolute w-24 h-24 bg-white rounded-full blur-2xl animate-pulse" style={{ bottom: '-30%', right: '-10%', animationDelay: '1s' }}></div>
+            </div>
+
+            <div className="flex items-center gap-3 relative z-10">
+              {/* Animated Bot Avatar */}
+              <div className="relative">
+                <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center relative overflow-hidden">
+                  <Bot className="w-6 h-6 text-[#00FFD1] animate-pulse" />
+                  <div className="absolute inset-0 rounded-full border-2 border-[#00FFD1] animate-spin" style={{ animationDuration: '8s' }}></div>
+                </div>
+                {/* Pulse ring */}
+                <div className="absolute inset-0 rounded-full border-2 border-black animate-ping"></div>
               </div>
+              
               <div>
-                <h3 className="font-bold text-black">FuturoX AI Assistant</h3>
-                <p className="text-xs text-black/70">Online • Instant replies</p>
+                <h3 className="font-bold text-black text-lg flex items-center gap-2">
+                  FuturoX AI Assistant
+                  <Sparkles className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />
+                </h3>
+                <p className="text-xs text-black/70 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></span>
+                  Online • Instant AI replies
+                </p>
               </div>
             </div>
+            
             <button
               onClick={() => setIsOpen(false)}
-              className="text-black hover:text-black/70 transition-colors"
+              className="text-black hover:text-black/70 transition-all hover:rotate-90 duration-300 relative z-10"
             >
-              <X className="w-5 h-5" />
+              <X className="w-6 h-6" />
             </button>
           </div>
 
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-black">
+          {/* Messages Area with subtle grid pattern */}
+          <div 
+            className="flex-1 overflow-y-auto p-5 space-y-4 relative"
+            style={{
+              background: 'linear-gradient(180deg, #000000 0%, #0a0a0a 100%)',
+              backgroundImage: `
+                linear-gradient(rgba(0, 255, 209, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 209, 0.03) 1px, transparent 1px)
+              `,
+              backgroundSize: '20px 20px'
+            }}
+          >
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex gap-3 ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                style={{
+                  animation: 'slideIn 0.3s ease-out'
+                }}
               >
-                {/* Avatar */}
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                {/* Avatar with glow */}
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 relative ${
                   message.sender === 'bot' 
-                    ? 'bg-[rgba(0,255,209,0.1)]' 
-                    : 'bg-[rgba(255,255,255,0.1)]'
+                    ? 'bg-gradient-to-br from-[#00FFD1] to-[#00D4AA]' 
+                    : 'bg-gradient-to-br from-[#4D4D4D] to-[#2a2a2a]'
                 }`}>
                   {message.sender === 'bot' ? (
-                    <Bot className="w-4 h-4 text-[#00FFD1]" />
+                    <>
+                      <Bot className="w-5 h-5 text-black" />
+                      <div className="absolute inset-0 rounded-full animate-ping opacity-30 bg-[#00FFD1]"></div>
+                    </>
                   ) : (
-                    <User className="w-4 h-4 text-white" />
+                    <User className="w-5 h-5 text-white" />
                   )}
                 </div>
 
-                {/* Message Bubble */}
-                <div className={`max-w-[70%] ${
+                {/* Message Bubble with gradient and glow */}
+                <div className={`max-w-[75%] p-4 backdrop-blur-sm relative ${
                   message.sender === 'bot'
-                    ? 'bg-[#1a1a1a] border border-[rgba(0,255,209,0.2)]'
-                    : 'bg-[#00FFD1] text-black'
-                } p-3 rounded-lg`}>
-                  <p className={`text-sm whitespace-pre-line ${
-                    message.sender === 'bot' ? 'text-white' : 'text-black'
+                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] border border-[rgba(0,255,209,0.3)]'
+                    : 'bg-gradient-to-br from-[#00FFD1] to-[#00D4AA] text-black'
+                } rounded-2xl shadow-lg`}
+                style={{
+                  ...(message.sender === 'bot' && {
+                    boxShadow: '0 4px 20px rgba(0, 255, 209, 0.15)'
+                  })
+                }}>
+                  {message.sender === 'bot' && (
+                    <div className="absolute -left-1 top-4 w-2 h-2 bg-[#00FFD1] rounded-full animate-pulse"></div>
+                  )}
+                  
+                  <p className={`text-sm whitespace-pre-line leading-relaxed ${
+                    message.sender === 'bot' ? 'text-white' : 'text-black font-medium'
                   }`}>
                     {message.text}
                   </p>
-                  <p className={`text-xs mt-1 ${
+                  
+                  <p className={`text-xs mt-2 flex items-center gap-1 ${
                     message.sender === 'bot' ? 'text-[#4D4D4D]' : 'text-black/60'
                   }`}>
+                    <span className="w-1 h-1 rounded-full bg-current"></span>
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
               </div>
             ))}
 
-            {/* Typing Indicator */}
+            {/* Typing Indicator - Enhanced */}
             {isTyping && (
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-[rgba(0,255,209,0.1)] flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-[#00FFD1]" />
+              <div className="flex gap-3" style={{ animation: 'slideIn 0.3s ease-out' }}>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00FFD1] to-[#00D4AA] flex items-center justify-center relative">
+                  <Bot className="w-5 h-5 text-black" />
+                  <div className="absolute inset-0 rounded-full animate-ping opacity-30 bg-[#00FFD1]"></div>
                 </div>
-                <div className="bg-[#1a1a1a] border border-[rgba(0,255,209,0.2)] p-3 rounded-lg">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-[#00FFD1] rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-[#00FFD1] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-2 h-2 bg-[#00FFD1] rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] border border-[rgba(0,255,209,0.3)] p-4 rounded-2xl shadow-lg">
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 bg-[#00FFD1] rounded-full animate-bounce"></div>
+                    <div className="w-2.5 h-2.5 bg-[#00FFD1] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2.5 h-2.5 bg-[#00FFD1] rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                   </div>
                 </div>
               </div>
@@ -174,16 +251,22 @@ export const ChatBot = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Replies */}
+          {/* Quick Replies - Enhanced */}
           {messages.length <= 1 && !isTyping && (
-            <div className="p-3 bg-[#121212] border-t border-[rgba(255,255,255,0.1)]">
-              <p className="text-xs text-[#4D4D4D] mb-2">Quick questions:</p>
+            <div className="px-5 py-3 bg-[#0a0a0a] border-t border-[rgba(0,255,209,0.1)]">
+              <p className="text-xs text-[#00FFD1] mb-3 flex items-center gap-2 font-semibold">
+                <Sparkles className="w-3 h-3" />
+                Quick questions:
+              </p>
               <div className="flex flex-wrap gap-2">
                 {quickReplies.slice(0, 3).map((reply, index) => (
                   <button
                     key={index}
                     onClick={() => handleQuickReply(reply)}
-                    className="text-xs px-3 py-1.5 bg-[rgba(0,255,209,0.1)] text-[#00FFD1] border border-[rgba(0,255,209,0.3)] hover:bg-[rgba(0,255,209,0.2)] transition-colors"
+                    className="text-xs px-4 py-2 bg-gradient-to-r from-[rgba(0,255,209,0.1)] to-[rgba(0,255,209,0.05)] text-[#00FFD1] border border-[rgba(0,255,209,0.3)] hover:bg-gradient-to-r hover:from-[rgba(0,255,209,0.2)] hover:to-[rgba(0,255,209,0.1)] transition-all duration-300 rounded-full font-medium"
+                    style={{
+                      animation: `slideUp 0.3s ease-out ${index * 0.1}s backwards`
+                    }}
                   >
                     {reply}
                   </button>
@@ -192,42 +275,111 @@ export const ChatBot = () => {
             </div>
           )}
 
-          {/* Input Area */}
-          <div className="p-4 bg-[#121212] border-t border-[rgba(255,255,255,0.1)]">
-            <div className="flex gap-2">
-              <Input
-                ref={inputRef}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type your question..."
-                className="flex-1 bg-black border-[rgba(255,255,255,0.2)] text-white placeholder:text-[#4D4D4D] focus:border-[#00FFD1]"
-              />
+          {/* Contact Support CTA - Animated */}
+          <div className="px-5 py-3 bg-gradient-to-r from-[rgba(0,255,209,0.05)] to-[rgba(0,255,209,0.1)] border-t border-[rgba(0,255,209,0.2)]">
+            <div className="flex items-center gap-3">
+              {/* Animated bot pointing to email */}
+              <div className="relative">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#00FFD1] to-[#00D4AA] rounded-full flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-black" />
+                </div>
+                {/* Pointing arrow animation */}
+                <div className="absolute -right-2 top-1/2 -translate-y-1/2">
+                  <div className="text-[#00FFD1] animate-bounce" style={{ animationDuration: '1.5s' }}>
+                    →
+                  </div>
+                </div>
+              </div>
+              
+              <a 
+                href="mailto:support@futuroxai.com"
+                className="flex-1 flex items-center gap-2 text-xs text-white hover:text-[#00FFD1] transition-colors group"
+              >
+                <Mail className="w-4 h-4 group-hover:animate-pulse" />
+                <div>
+                  <p className="font-semibold">Need human help?</p>
+                  <p className="text-[#00FFD1]">support@futuroxai.com</p>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          {/* Input Area - Futuristic */}
+          <div className="p-5 bg-[#0a0a0a] border-t border-[rgba(0,255,209,0.2)]">
+            <div className="flex gap-3">
+              <div className="flex-1 relative">
+                <Input
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type your question..."
+                  className="bg-black/50 border-[rgba(0,255,209,0.3)] text-white placeholder:text-[#4D4D4D] focus:border-[#00FFD1] pr-12 h-12 rounded-full backdrop-blur-sm"
+                  style={{
+                    boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.5)'
+                  }}
+                />
+                {inputValue && (
+                  <Sparkles className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00FFD1] animate-spin" style={{ animationDuration: '3s' }} />
+                )}
+              </div>
               <Button
                 onClick={() => handleSendMessage()}
                 disabled={!inputValue.trim()}
-                className="bg-[#00FFD1] hover:bg-[#00E5BD] text-black px-4"
+                className="h-12 w-12 rounded-full bg-gradient-to-r from-[#00FFD1] to-[#00D4AA] hover:from-[#00E5BD] hover:to-[#00C4AA] text-black disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center p-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                style={{
+                  boxShadow: '0 4px 20px rgba(0, 255, 209, 0.3)'
+                }}
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-5 h-5" />
               </Button>
             </div>
-            <p className="text-xs text-[#4D4D4D] mt-2 text-center">
-              Powered by FuturoX AI • support@futuroxai.com
-            </p>
           </div>
         </div>
       )}
 
       <style jsx>{`
-        @keyframes pulse {
+        @keyframes float {
           0%, 100% {
-            box-shadow: 0 0 0 0 rgba(0, 255, 209, 0.7);
+            transform: translateY(0px);
           }
           50% {
-            box-shadow: 0 0 0 10px rgba(0, 255, 209, 0);
+            transform: translateY(-10px);
+          }
+        }
+
+        @keyframes gradient {
+          0%, 100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
+
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
       `}</style>
     </>
   );
 };
+

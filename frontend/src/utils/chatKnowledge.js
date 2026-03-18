@@ -197,7 +197,58 @@ export const chatKnowledge = {
 // Function to find matching answer
 export const findAnswer = (question, language = 'en') => {
   const knowledge = chatKnowledge[language] || chatKnowledge.en;
-  const lowerQuestion = question.toLowerCase();
+  const lowerQuestion = question.toLowerCase().trim();
+  
+  // Handle greetings and casual conversation
+  const greetings = ['hi', 'hello', 'hey', 'yo', 'sup', 'howdy', 'hola', 'cześć', 'siema', 'czesc'];
+  const thanks = ['thanks', 'thank you', 'thx', 'ty', 'tysm', 'gracias', 'dziękuję', 'dzięki', 'dziekuje', 'thks'];
+  const goodbye = ['bye', 'goodbye', 'see you', 'cya', 'bb', 'adios', 'pa', 'do widzenia'];
+  const confirmations = ['ok', 'okay', 'k', 'kk', 'alright', 'got it', 'understood', 'cool', 'nice'];
+  
+  // Check for greetings
+  if (greetings.some(greeting => lowerQuestion === greeting || lowerQuestion.startsWith(greeting + ' '))) {
+    return getGreeting(language);
+  }
+  
+  // Check for thanks
+  if (thanks.some(thank => lowerQuestion.includes(thank))) {
+    const responses = {
+      en: "You're welcome! 😊 Is there anything else you'd like to know about FuturoX AI?",
+      es: "¡De nada! 😊 ¿Hay algo más que quieras saber sobre FuturoX AI?",
+      pl: "Nie ma za co! 😊 Czy jest coś jeszcze, o co chciałbyś zapytać o FuturoX AI?"
+    };
+    return responses[language] || responses.en;
+  }
+  
+  // Check for goodbye
+  if (goodbye.some(bye => lowerQuestion.includes(bye))) {
+    const responses = {
+      en: "Goodbye! 👋 Feel free to come back anytime if you have more questions. Have a great day!",
+      es: "¡Adiós! 👋 Vuelve cuando quieras si tienes más preguntas. ¡Que tengas un gran día!",
+      pl: "Do widzenia! 👋 Wróć kiedy chcesz jeśli będziesz mieć więcej pytań. Miłego dnia!"
+    };
+    return responses[language] || responses.en;
+  }
+  
+  // Check for confirmations
+  if (confirmations.some(conf => lowerQuestion === conf)) {
+    const responses = {
+      en: "Great! 👍 Do you have any other questions about FuturoX AI, FTRX token, or our AI services?",
+      es: "¡Genial! 👍 ¿Tienes alguna otra pregunta sobre FuturoX AI, el token FTRX o nuestros servicios de IA?",
+      pl: "Świetnie! 👍 Czy masz jakieś inne pytania o FuturoX AI, token FTRX lub nasze usługi AI?"
+    };
+    return responses[language] || responses.en;
+  }
+  
+  // Handle "I don't know" / "idk"
+  if (lowerQuestion.includes('idk') || lowerQuestion.includes("don't know") || lowerQuestion.includes('no sé') || lowerQuestion.includes('nie wiem')) {
+    const responses = {
+      en: "No worries! I'm here to help. Try asking:\n• What is FuturoX AI?\n• How to buy FTRX?\n• When is the launch?\n\nOr type any question about our project! 😊",
+      es: "¡No te preocupes! Estoy aquí para ayudar. Intenta preguntar:\n• ¿Qué es FuturoX AI?\n• ¿Cómo comprar FTRX?\n• ¿Cuándo es el lanzamiento?\n\n¡O escribe cualquier pregunta sobre nuestro proyecto! 😊",
+      pl: "Nie martw się! Jestem tutaj aby pomóc. Spróbuj zapytać:\n• Co to jest FuturoX AI?\n• Jak kupić FTRX?\n• Kiedy jest uruchomienie?\n\nLub wpisz dowolne pytanie o nasz projekt! 😊"
+    };
+    return responses[language] || responses.en;
+  }
   
   // Check each FAQ for keyword matches
   for (const faq of knowledge.faqs) {
