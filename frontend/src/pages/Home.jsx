@@ -101,11 +101,11 @@ const Home = () => {
       </header>
 
       {/* Hero Section with Countdown and Spline */}
-      <section className="pt-32 pb-20 px-[7.6923%] relative overflow-hidden">
+      <section className="pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-[7.6923%] relative overflow-hidden">
         <div className="max-w-[1400px] mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
             {/* Left Content */}
-            <div className="space-y-8">
+            <div className="space-y-6 sm:space-y-8">
               <div className="inline-block px-4 py-2 bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] text-[#00FFD1] text-sm font-medium">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4" />
@@ -113,12 +113,12 @@ const Home = () => {
                 </div>
               </div>
 
-              <h1 className="display-huge">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
                 {t('hero.title')} <br />
                 <span className="text-[#00FFD1]">{t('hero.titleHighlight')}</span>
               </h1>
 
-              <p className="body-large text-[rgba(255,255,255,0.85)] max-w-xl">
+              <p className="text-base sm:text-lg text-[rgba(255,255,255,0.85)] max-w-xl">
                 {t('hero.description')}
               </p>
 
@@ -127,18 +127,18 @@ const Home = () => {
                 <p className="text-sm text-[#4D4D4D] uppercase tracking-wider">
                   {t('hero.countdown')}
                 </p>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-4 gap-2 sm:gap-4">
                   {[
                     { value: timeLeft.days, label: t('hero.days') },
                     { value: timeLeft.hours, label: t('hero.hours') },
                     { value: timeLeft.minutes, label: t('hero.minutes') },
                     { value: timeLeft.seconds, label: t('hero.seconds') }
                   ].map((item, index) => (
-                    <div key={index} className="bg-[#121212] border border-[rgba(255,255,255,0.25)] p-4 text-center">
-                      <div className="text-3xl font-bold text-[#00FFD1]">
+                    <div key={index} className="bg-[#121212] border border-[rgba(255,255,255,0.25)] p-2 sm:p-4 text-center">
+                      <div className="text-xl sm:text-3xl font-bold text-[#00FFD1]">
                         {String(item.value).padStart(2, '0')}
                       </div>
-                      <div className="text-xs text-[#4D4D4D] mt-1 uppercase">
+                      <div className="text-[10px] sm:text-xs text-[#4D4D4D] mt-1 uppercase">
                         {item.label}
                       </div>
                     </div>
@@ -146,23 +146,23 @@ const Home = () => {
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Button 
-                  className="btn-primary"
+                  className="btn-primary w-full sm:w-auto"
                   onClick={() => setShowPurchaseModal(!showPurchaseModal)}
                 >
                   {connected ? t('hero.buyNow') : t('wallet.connectTitle')}
                   <ArrowRight className="w-5 h-5" />
                 </Button>
-                <Button className="btn-secondary">
+                <Button className="btn-secondary w-full sm:w-auto">
                   {t('hero.learnMore')}
                 </Button>
               </div>
             </div>
 
             {/* Right - Spline 3D */}
-            <div className="relative h-[700px] w-full flex items-center justify-center">
-              <div style={{ width: '700px', height: '700px', overflow: 'visible', position: 'relative' }}>
+            <div className="relative h-[400px] md:h-[700px] w-full hidden md:flex items-center justify-center">
+              <div style={{ width: '100%', maxWidth: '700px', height: '100%', overflow: 'visible', position: 'relative' }}>
                 <Spline scene="https://prod.spline.design/NbVmy6DPLhY-5Lvg/scene.splinecode" />
               </div>
             </div>
