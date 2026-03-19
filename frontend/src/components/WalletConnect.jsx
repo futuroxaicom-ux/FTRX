@@ -10,21 +10,41 @@ export const WalletConnect = () => {
   const { t } = useTranslation();
   const { publicKey, connected } = useWallet();
   const { connection } = useConnection();
-  const [balance, setBalance] = useState(0);
+  const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const fetchBalance = useCallback(async () => {
-    if (!publicKey) return;
+    if (!publicKey || !connection) return;
     
     try {
       setLoading(true);
-      console.log('Fetching balance for:', publicKey.toString());
-      console.log('Connection endpoint:', connection.rpcEndpoint);
+      setError(null);
       const bal = await connection.getBalance(publicKey);
-      console.log('Raw balance (lamports):', bal);
       setBalance(bal / LAMPORTS_PER_SOL);
-    } catch (error) {
-      console.error('Failed to fetch balance:', error);
+    } catch (err) {
+      console.error('Failed to fetch balance:', err);
+      setError('Failed to load balance');
+      // Try again with a fallback
+      try {
+        const response = await fetch(`https://api.mainnet-beta.solana.com`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'getBalance',
+            params: [publicKey.toString()]
+          })
+        });
+        const data = await response.json();
+        if (data.result?.value !== undefined) {
+          setBalance(data.result.value / LAMPORTS_PER_SOL);
+          setError(null);
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback also failed:', fallbackErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -33,8 +53,11 @@ export const WalletConnect = () => {
   useEffect(() => {
     if (connected && publicKey) {
       fetchBalance();
-      const interval = setInterval(fetchBalance, 10000);
+      const interval = setInterval(fetchBalance, 15000); // Every 15 seconds
       return () => clearInterval(interval);
+    } else {
+      setBalance(null);
+      setError(null);
     }
   }, [connected, publicKey, fetchBalance]);
 
@@ -76,7 +99,15 @@ export const WalletConnect = () => {
         <div className="space-y-2">
           <p className="text-sm text-[#4D4D4D] uppercase">{t('wallet.balance')}</p>
           <p className="text-3xl font-bold text-[#00FFD1]">
-            {loading ? 'Loading...' : balance.toFixed(4)} SOL
+            {loading ? (
+              <span className="animate-pulse">Loading...</span>
+            ) : error ? (
+              <span className="text-red-400 text-lg">{error}</span>
+            ) : balance !== null ? (
+              `${balance.toFixed(4)} SOL`
+            ) : (
+              '-- SOL'
+            )}
           </p>
         </div>
 
