@@ -4,7 +4,12 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Wallet } from 'lucide-react';
+import { Wallet, Smartphone } from 'lucide-react';
+
+// Detect if user is on mobile
+const isMobileDevice = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
 
 export const WalletConnect = () => {
   const { t } = useTranslation();
@@ -13,6 +18,11 @@ export const WalletConnect = () => {
   const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(isMobileDevice());
+  }, []);
 
   const fetchBalance = useCallback(async () => {
     if (!publicKey) return;
@@ -66,8 +76,16 @@ export const WalletConnect = () => {
             {t('wallet.connectDescription')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex justify-center">
-          <WalletMultiButton className="btn-primary" />
+        <CardContent className="space-y-4">
+          <div className="flex justify-center">
+            <WalletMultiButton className="btn-primary" />
+          </div>
+          {isMobile && (
+            <div className="flex items-center gap-2 p-3 bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] text-[#00FFD1] text-xs sm:text-sm">
+              <Smartphone className="w-4 h-4 flex-shrink-0" />
+              <span>{t('wallet.mobileInfo')}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
     );

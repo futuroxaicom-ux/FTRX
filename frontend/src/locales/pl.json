@@ -51,7 +51,8 @@
     "connectedTitle": "Portfel Połączony",
     "connectedDescription": "Twój portfel Solana jest połączony",
     "walletAddress": "Adres Portfela",
-    "balance": "Saldo SOL"
+    "balance": "Saldo SOL",
+    "mobileInfo": "Na urządzeniu mobilnym otwórz tę stronę w przeglądarce aplikacji Phantom"
   },
   "purchase": {
     "title": "Kup FuturoX AI",

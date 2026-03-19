@@ -51,7 +51,8 @@
     "connectedTitle": "Billetera Conectada",
     "connectedDescription": "Tu billetera Solana está conectada",
     "walletAddress": "Dirección de Billetera",
-    "balance": "Balance SOL"
+    "balance": "Balance SOL",
+    "mobileInfo": "En dispositivo móvil, abre esta página en el navegador de la app Phantom"
   },
   "purchase": {
     "title": "Comprar FuturoX AI",

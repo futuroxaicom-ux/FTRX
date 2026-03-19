@@ -51,7 +51,8 @@
     "connectedTitle": "Wallet Connected",
     "connectedDescription": "Your Solana wallet is connected",
     "walletAddress": "Wallet Address",
-    "balance": "SOL Balance"
+    "balance": "SOL Balance",
+    "mobileInfo": "On mobile device, open this page in Phantom app browser"
   },
   "purchase": {
     "title": "Purchase FuturoX AI",

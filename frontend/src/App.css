@@ -159,8 +159,8 @@
 /* Responsive */
 @media (max-width: 767px) {
   .dark-header {
-    padding: 16px 20px;
-    height: 70px;
+    padding: 10px 12px;
+    height: 56px;
   }
   
   .dark-nav {
@@ -168,11 +168,27 @@
   }
   
   .display-huge {
-    font-size: 36px;
+    font-size: 32px;
   }
   
   .display-large {
-    font-size: 32px;
+    font-size: 24px;
+  }
+  
+  .body-medium {
+    font-size: 14px;
+  }
+  
+  /* Fix section padding on mobile */
+  section {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  
+  /* Fix cards on mobile */
+  .space-y-6, .space-y-8 {
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
@@ -187,6 +203,23 @@
   font-weight: 500 !important;
   transition: all 0.4s ease-in-out !important;
   min-height: 56px !important;
+  white-space: nowrap !important;
+}
+
+/* Mobile wallet button - smaller */
+@media (max-width: 767px) {
+  .wallet-adapter-button {
+    padding: 8px 10px !important;
+    font-size: 11px !important;
+    min-height: 40px !important;
+    max-width: 120px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  
+  .wallet-adapter-button-start-icon {
+    display: none !important;
+  }
 }
 
 .wallet-adapter-button:hover:not([disabled]) {
