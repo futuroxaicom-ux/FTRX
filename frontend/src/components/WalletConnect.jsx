@@ -15,36 +15,29 @@ export const WalletConnect = () => {
   const [error, setError] = useState(null);
 
   const fetchBalance = useCallback(async () => {
-    if (!publicKey || !connection) return;
+    if (!publicKey) return;
     
     try {
       setLoading(true);
       setError(null);
-      const bal = await connection.getBalance(publicKey);
-      setBalance(bal / LAMPORTS_PER_SOL);
+      
+      // Use backend proxy to avoid CORS issues
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
+      const response = await fetch(`${backendUrl}/api/solana/balance/${publicKey.toString()}`);
+      const data = await response.json();
+      
+      if (data.sol !== undefined) {
+        setBalance(data.sol);
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        // Fallback to direct connection
+        const bal = await connection.getBalance(publicKey);
+        setBalance(bal / LAMPORTS_PER_SOL);
+      }
     } catch (err) {
       console.error('Failed to fetch balance:', err);
-      setError('Failed to load balance');
-      // Try again with a fallback
-      try {
-        const response = await fetch(`https://api.mainnet-beta.solana.com`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'getBalance',
-            params: [publicKey.toString()]
-          })
-        });
-        const data = await response.json();
-        if (data.result?.value !== undefined) {
-          setBalance(data.result.value / LAMPORTS_PER_SOL);
-          setError(null);
-        }
-      } catch (fallbackErr) {
-        console.error('Fallback also failed:', fallbackErr);
-      }
+      setError('Unable to load balance');
     } finally {
       setLoading(false);
     }
@@ -53,7 +46,7 @@ export const WalletConnect = () => {
   useEffect(() => {
     if (connected && publicKey) {
       fetchBalance();
-      const interval = setInterval(fetchBalance, 15000); // Every 15 seconds
+      const interval = setInterval(fetchBalance, 20000); // Every 20 seconds
       return () => clearInterval(interval);
     } else {
       setBalance(null);

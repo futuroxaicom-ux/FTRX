@@ -161,6 +161,49 @@ async def get_crypto_chart():
                 return price_cache.chart_data
             return {"error": str(e)}
 
+# Solana RPC Proxy to avoid CORS issues
+@api_router.post("/solana/rpc")
+async def solana_rpc_proxy(request: dict):
+    """Proxy requests to Solana RPC to avoid CORS issues in browser"""
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                "https://api.mainnet-beta.solana.com",
+                json=request,
+                headers={"Content-Type": "application/json"},
+                timeout=15.0
+            )
+            return response.json()
+        except Exception as e:
+            logger.error(f"Solana RPC error: {e}")
+            return {"error": str(e)}
+
+@api_router.get("/solana/balance/{address}")
+async def get_solana_balance(address: str):
+    """Get SOL balance for a wallet address"""
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                "https://api.mainnet-beta.solana.com",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "getBalance",
+                    "params": [address]
+                },
+                headers={"Content-Type": "application/json"},
+                timeout=15.0
+            )
+            data = response.json()
+            if "result" in data and "value" in data["result"]:
+                lamports = data["result"]["value"]
+                sol = lamports / 1_000_000_000  # Convert lamports to SOL
+                return {"address": address, "lamports": lamports, "sol": sol}
+            return {"error": "Invalid response from Solana RPC", "raw": data}
+        except Exception as e:
+            logger.error(f"Solana balance error: {e}")
+            return {"error": str(e)}
+
 # Include the router in the main app
 app.include_router(api_router)
 
