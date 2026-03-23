@@ -82,17 +82,27 @@ export const Roadmap = () => {
 
   return (
     <section id="roadmap" className="py-12 sm:py-20 px-4 sm:px-[7.6923%] bg-black relative overflow-hidden">
-      {/* Background effects */}
+      {/* Animated background effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-0 w-96 h-96 bg-[#00FFD1] opacity-5 blur-[150px] rounded-full"></div>
-        <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-[#00FFD1] opacity-5 blur-[150px] rounded-full"></div>
+        <div className="absolute top-1/4 left-0 w-96 h-96 bg-[#00FFD1] opacity-5 blur-[150px] rounded-full animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-[#00FFD1] opacity-5 blur-[150px] rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
+        {/* Floating particles */}
+        <div className="absolute top-20 left-1/4 w-1 h-1 bg-[#00FFD1] rounded-full opacity-40 animate-float"></div>
+        <div className="absolute top-1/3 right-1/4 w-2 h-2 bg-[#00FFD1] rounded-full opacity-30 animate-float" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-[#00FFD1] rounded-full opacity-50 animate-float" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-2/3 right-1/3 w-1 h-1 bg-[#00FFD1] rounded-full opacity-40 animate-float" style={{animationDelay: '1.5s'}}></div>
+        {/* Grid pattern */}
+        <div className="absolute inset-0 opacity-[0.02]" style={{
+          backgroundImage: `linear-gradient(#00FFD1 1px, transparent 1px), linear-gradient(90deg, #00FFD1 1px, transparent 1px)`,
+          backgroundSize: '60px 60px'
+        }}></div>
       </div>
 
       <div className="max-w-[1400px] mx-auto relative z-10">
         {/* Header */}
         <div className="text-center mb-8 sm:mb-16 space-y-3 sm:space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] text-[#00FFD1] text-sm font-medium mb-4">
-            <Target className="w-4 h-4" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] text-[#00FFD1] text-sm font-medium mb-4 animate-pulse">
+            <Target className="w-4 h-4 animate-spin" style={{animationDuration: '10s'}} />
             {t('roadmap.badge')}
           </div>
           <h2 className="text-2xl sm:text-4xl md:text-5xl font-semibold text-white">
@@ -105,8 +115,10 @@ export const Roadmap = () => {
 
         {/* Timeline */}
         <div className="relative">
-          {/* Vertical line for desktop */}
-          <div className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0 w-0.5 bg-[rgba(255,255,255,0.1)]"></div>
+          {/* Animated vertical line for desktop */}
+          <div className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0 w-0.5 bg-[rgba(255,255,255,0.1)] overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#00FFD1] via-transparent to-transparent animate-pulse" style={{animationDuration: '3s'}}></div>
+          </div>
 
           <div className="space-y-8 lg:space-y-0">
             {phases.map((phase, index) => (
@@ -115,29 +127,49 @@ export const Roadmap = () => {
                 className={`relative lg:flex lg:items-start ${
                   index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'
                 }`}
+                style={{animationDelay: `${index * 0.2}s`}}
               >
                 {/* Timeline dot and connector for desktop */}
                 <div className="hidden lg:flex absolute left-1/2 transform -translate-x-1/2 flex-col items-center">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center z-10 ${getStatusColor(phase.status)}`}>
-                    {phase.icon}
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center z-10 transition-all duration-500 hover:scale-110 ${getStatusColor(phase.status)} ${
+                    phase.status === 'completed' ? 'animate-pulse shadow-[0_0_20px_rgba(0,255,209,0.5)]' : 
+                    phase.status === 'in-progress' ? 'animate-pulse shadow-[0_0_15px_rgba(0,255,209,0.3)]' : ''
+                  }`}>
+                    <div className={phase.status === 'in-progress' ? 'animate-bounce' : ''} style={{animationDuration: '2s'}}>
+                      {phase.icon}
+                    </div>
                   </div>
                   {index < phases.length - 1 && (
-                    <div className={`w-0.5 h-32 ${getLineColor(phase.status)}`}></div>
+                    <div className={`w-0.5 h-32 ${getLineColor(phase.status)} relative overflow-hidden`}>
+                      {phase.status === 'completed' && (
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white to-transparent opacity-30 animate-shimmer"></div>
+                      )}
+                    </div>
                   )}
                 </div>
 
                 {/* Content card */}
                 <div className={`lg:w-[calc(50%-3rem)] ${index % 2 === 0 ? 'lg:pr-12' : 'lg:pl-12'}`}>
-                  <div className={`bg-[#121212] border p-5 sm:p-6 transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,255,209,0.1)] ${
+                  <div className={`bg-[#121212] border p-5 sm:p-6 transition-all duration-500 hover:shadow-[0_0_40px_rgba(0,255,209,0.15)] hover:translate-y-[-4px] group relative overflow-hidden ${
                     phase.status === 'completed' 
                       ? 'border-[#00FFD1]' 
                       : phase.status === 'in-progress'
                         ? 'border-[rgba(0,255,209,0.5)]'
-                        : 'border-[rgba(255,255,255,0.1)]'
+                        : 'border-[rgba(255,255,255,0.1)] hover:border-[rgba(0,255,209,0.3)]'
                   }`}>
+                    {/* Shimmer effect on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(0,255,209,0.05)] to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
+                    
+                    {/* Glow corner for completed */}
+                    {phase.status === 'completed' && (
+                      <div className="absolute -top-10 -right-10 w-20 h-20 bg-[#00FFD1] opacity-10 blur-[40px] rounded-full"></div>
+                    )}
+                    
                     {/* Mobile icon */}
-                    <div className="lg:hidden flex items-center gap-3 mb-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getStatusColor(phase.status)}`}>
+                    <div className="lg:hidden flex items-center gap-3 mb-4 relative z-10">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${getStatusColor(phase.status)} ${
+                        phase.status === 'in-progress' ? 'animate-pulse' : ''
+                      }`}>
                         {phase.icon}
                       </div>
                       <div>
@@ -151,7 +183,7 @@ export const Roadmap = () => {
                     </div>
 
                     {/* Desktop phase label */}
-                    <div className="hidden lg:block mb-2">
+                    <div className="hidden lg:block mb-2 relative z-10">
                       <span className={`text-xs font-semibold uppercase ${
                         phase.status === 'completed' ? 'text-[#00FFD1]' : 
                         phase.status === 'in-progress' ? 'text-[#00FFD1]' : 'text-[#4D4D4D]'
@@ -160,17 +192,21 @@ export const Roadmap = () => {
                       </span>
                     </div>
 
-                    <h3 className="text-lg sm:text-xl font-bold text-white mb-4">{phase.title}</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-white mb-4 group-hover:text-[#00FFD1] transition-colors relative z-10">{phase.title}</h3>
 
-                    <ul className="space-y-2.5">
+                    <ul className="space-y-2.5 relative z-10">
                       {phase.items.map((item, itemIndex) => (
-                        <li key={itemIndex} className="flex items-start gap-2.5">
+                        <li 
+                          key={itemIndex} 
+                          className="flex items-start gap-2.5 hover:translate-x-1 transition-transform duration-200"
+                          style={{animationDelay: `${itemIndex * 0.1}s`}}
+                        >
                           {item.done ? (
-                            <CheckCircle className="w-5 h-5 text-[#00FFD1] flex-shrink-0 mt-0.5" />
+                            <CheckCircle className="w-5 h-5 text-[#00FFD1] flex-shrink-0 mt-0.5 animate-pulse" style={{animationDuration: '2s'}} />
                           ) : (
-                            <Circle className="w-5 h-5 text-[#4D4D4D] flex-shrink-0 mt-0.5" />
+                            <Circle className="w-5 h-5 text-[#4D4D4D] flex-shrink-0 mt-0.5 group-hover:text-[rgba(0,255,209,0.5)] transition-colors" />
                           )}
-                          <span className={`text-sm ${item.done ? 'text-white' : 'text-[rgba(255,255,255,0.6)]'}`}>
+                          <span className={`text-sm transition-colors ${item.done ? 'text-white' : 'text-[rgba(255,255,255,0.6)] group-hover:text-[rgba(255,255,255,0.8)]'}`}>
                             {item.text}
                           </span>
                         </li>
@@ -178,13 +214,13 @@ export const Roadmap = () => {
                     </ul>
 
                     {/* Status badge */}
-                    <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.1)]">
-                      <span className={`text-xs px-3 py-1 rounded-full ${
+                    <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.1)] relative z-10">
+                      <span className={`text-xs px-3 py-1 rounded-full transition-all duration-300 ${
                         phase.status === 'completed' 
-                          ? 'bg-[rgba(0,255,209,0.2)] text-[#00FFD1]' 
+                          ? 'bg-[rgba(0,255,209,0.2)] text-[#00FFD1] shadow-[0_0_10px_rgba(0,255,209,0.3)]' 
                           : phase.status === 'in-progress'
-                            ? 'bg-[rgba(255,193,7,0.2)] text-yellow-400'
-                            : 'bg-[rgba(255,255,255,0.1)] text-[#4D4D4D]'
+                            ? 'bg-[rgba(255,193,7,0.2)] text-yellow-400 animate-pulse'
+                            : 'bg-[rgba(255,255,255,0.1)] text-[#4D4D4D] group-hover:bg-[rgba(0,255,209,0.1)] group-hover:text-[#00FFD1]'
                       }`}>
                         {phase.status === 'completed' && t('roadmap.statusCompleted')}
                         {phase.status === 'in-progress' && t('roadmap.statusInProgress')}

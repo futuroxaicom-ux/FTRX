@@ -396,8 +396,8 @@ const Home = () => {
               <h4 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">{t('footer.product')}</h4>
               <ul className="space-y-2 text-[#4D4D4D] text-xs sm:text-sm">
                 <li><a href="#ai" className="hover:text-[#00FFD1] transition-colors">{t('footer.aiServices')}</a></li>
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.whitepaper')}</a></li>
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.roadmap')}</a></li>
+                <li><a href="#tokenomics" className="hover:text-[#00FFD1] transition-colors">{t('footer.whitepaper')}</a></li>
+                <li><a href="#roadmap" className="hover:text-[#00FFD1] transition-colors">{t('footer.roadmap')}</a></li>
               </ul>
             </div>
 
