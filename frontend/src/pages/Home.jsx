@@ -211,12 +211,6 @@ const Home = () => {
       {/* AI Banner 2: Automation - After AI Services */}
       <AIBannerAutomation />
 
-      {/* Tokenomics Section */}
-      <Tokenomics />
-
-      {/* Whitelist Section */}
-      <Whitelist />
-
       {/* Roadmap Section */}
       <Roadmap />
 
@@ -350,6 +344,12 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Tokenomics Section - After Solana */}
+      <Tokenomics />
+
+      {/* Whitelist Section - After Tokenomics */}
+      <Whitelist />
 
       {/* Footer */}
       <footer className="border-t border-[rgba(255,255,255,0.25)] py-8 sm:py-12 px-4 sm:px-[7.6923%]">
