@@ -365,9 +365,10 @@ const Home = () => {
             <div>
               <h4 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">{t('footer.community')}</h4>
               <ul className="space-y-2 text-[#4D4D4D] text-xs sm:text-sm">
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.twitter')}</a></li>
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.discord')}</a></li>
-                <li><a href="#" className="hover:text-[#00FFD1] transition-colors">{t('footer.telegram')}</a></li>
+                <li><a href="https://x.com/FuturoxAI" target="_blank" rel="noopener noreferrer" className="hover:text-[#00FFD1] transition-colors">Twitter / X</a></li>
+                <li><a href="https://www.facebook.com/profile.php?id=61577565175491" target="_blank" rel="noopener noreferrer" className="hover:text-[#00FFD1] transition-colors">Facebook</a></li>
+                <li><a href="https://www.instagram.com/futuroxaicoin/" target="_blank" rel="noopener noreferrer" className="hover:text-[#00FFD1] transition-colors">Instagram</a></li>
+                <li><a href="https://www.tiktok.com/@futuroxai" target="_blank" rel="noopener noreferrer" className="hover:text-[#00FFD1] transition-colors">TikTok</a></li>
               </ul>
             </div>
 
