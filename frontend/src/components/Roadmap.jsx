@@ -101,8 +101,8 @@ export const Roadmap = () => {
       <div className="max-w-[1400px] mx-auto relative z-10">
         {/* Header */}
         <div className="text-center mb-8 sm:mb-16 space-y-3 sm:space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] text-[#00FFD1] text-sm font-medium mb-4 animate-pulse">
-            <Target className="w-4 h-4 animate-spin" style={{animationDuration: '10s'}} />
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] text-[#00FFD1] text-sm font-medium mb-4">
+            <Target className="w-4 h-4" />
             {t('roadmap.badge')}
           </div>
           <h2 className="text-2xl sm:text-4xl md:text-5xl font-semibold text-white">
@@ -132,17 +132,17 @@ export const Roadmap = () => {
                 {/* Timeline dot and connector for desktop */}
                 <div className="hidden lg:flex absolute left-1/2 transform -translate-x-1/2 flex-col items-center">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center z-10 transition-all duration-500 hover:scale-110 ${getStatusColor(phase.status)} ${
-                    phase.status === 'completed' ? 'animate-pulse shadow-[0_0_20px_rgba(0,255,209,0.5)]' : 
-                    phase.status === 'in-progress' ? 'animate-pulse shadow-[0_0_15px_rgba(0,255,209,0.3)]' : ''
+                    phase.status === 'completed' ? 'shadow-[0_0_20px_rgba(0,255,209,0.4)]' : 
+                    phase.status === 'in-progress' ? 'shadow-[0_0_15px_rgba(0,255,209,0.3)]' : ''
                   }`}>
-                    <div className={phase.status === 'in-progress' ? 'animate-bounce' : ''} style={{animationDuration: '2s'}}>
+                    <div className={phase.status === 'in-progress' ? 'animate-pulse' : ''} style={{animationDuration: '3s'}}>
                       {phase.icon}
                     </div>
                   </div>
                   {index < phases.length - 1 && (
                     <div className={`w-0.5 h-32 ${getLineColor(phase.status)} relative overflow-hidden`}>
                       {phase.status === 'completed' && (
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white to-transparent opacity-30 animate-shimmer"></div>
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white to-transparent opacity-20" style={{animation: 'shimmer 4s ease-in-out infinite'}}></div>
                       )}
                     </div>
                   )}
@@ -202,7 +202,7 @@ export const Roadmap = () => {
                           style={{animationDelay: `${itemIndex * 0.1}s`}}
                         >
                           {item.done ? (
-                            <CheckCircle className="w-5 h-5 text-[#00FFD1] flex-shrink-0 mt-0.5 animate-pulse" style={{animationDuration: '2s'}} />
+                            <CheckCircle className="w-5 h-5 text-[#00FFD1] flex-shrink-0 mt-0.5" />
                           ) : (
                             <Circle className="w-5 h-5 text-[#4D4D4D] flex-shrink-0 mt-0.5 group-hover:text-[rgba(0,255,209,0.5)] transition-colors" />
                           )}
@@ -219,7 +219,7 @@ export const Roadmap = () => {
                         phase.status === 'completed' 
                           ? 'bg-[rgba(0,255,209,0.2)] text-[#00FFD1] shadow-[0_0_10px_rgba(0,255,209,0.3)]' 
                           : phase.status === 'in-progress'
-                            ? 'bg-[rgba(255,193,7,0.2)] text-yellow-400 animate-pulse'
+                            ? 'bg-[rgba(255,193,7,0.2)] text-yellow-400'
                             : 'bg-[rgba(255,255,255,0.1)] text-[#4D4D4D] group-hover:bg-[rgba(0,255,209,0.1)] group-hover:text-[#00FFD1]'
                       }`}>
                         {phase.status === 'completed' && t('roadmap.statusCompleted')}
