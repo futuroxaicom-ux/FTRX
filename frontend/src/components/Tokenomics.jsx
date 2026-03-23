@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { PieChart, Coins, Lock, TrendingUp, Clock } from 'lucide-react';
+import { Coins, Lock } from 'lucide-react';
 
 export const Tokenomics = () => {
   const { t } = useTranslation();
@@ -144,22 +144,15 @@ export const Tokenomics = () => {
           </div>
         </div>
 
-        {/* Vesting Info */}
-        <div className="mt-8 sm:mt-12 grid sm:grid-cols-3 gap-4">
-          <div className="bg-[#121212] border border-[rgba(255,255,255,0.1)] p-4 sm:p-6 text-center">
-            <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-[#00FFD1] mx-auto mb-3" />
-            <p className="text-xs sm:text-sm text-[#4D4D4D] uppercase mb-1">{t('tokenomics.vestingDuration')}</p>
-            <p className="text-xl sm:text-2xl font-bold text-white">2 {t('tokenomics.days')}</p>
-          </div>
-          <div className="bg-[#121212] border border-[rgba(255,255,255,0.1)] p-4 sm:p-6 text-center">
-            <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-[#00FFD1] mx-auto mb-3" />
-            <p className="text-xs sm:text-sm text-[#4D4D4D] uppercase mb-1">{t('tokenomics.cliff')}</p>
-            <p className="text-xl sm:text-2xl font-bold text-white">0 {t('tokenomics.days')}</p>
-          </div>
-          <div className="bg-[#121212] border border-[rgba(255,255,255,0.1)] p-4 sm:p-6 text-center">
-            <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-[#00FFD1] mx-auto mb-3" />
-            <p className="text-xs sm:text-sm text-[#4D4D4D] uppercase mb-1">{t('tokenomics.liquidity')}</p>
-            <p className="text-xl sm:text-2xl font-bold text-[#00FFD1]">{t('tokenomics.locked')}</p>
+        {/* Liquidity Locked Info */}
+        <div className="mt-8 sm:mt-12 flex justify-center">
+          <div className="bg-[#121212] border border-[rgba(0,255,209,0.3)] p-6 sm:p-8 text-center inline-flex items-center gap-4">
+            <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-[#00FFD1]" />
+            <div className="text-left">
+              <p className="text-xs sm:text-sm text-[#4D4D4D] uppercase mb-1">{t('tokenomics.liquidity')}</p>
+              <p className="text-xl sm:text-2xl font-bold text-[#00FFD1]">{t('tokenomics.locked')}</p>
+              <p className="text-xs text-[rgba(255,255,255,0.6)]">Raydium DEX</p>
+            </div>
           </div>
         </div>
       </div>

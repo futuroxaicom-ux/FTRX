@@ -4,7 +4,8 @@
     "preorder": "Pre-order",
     "solana": "Solana",
     "tokenomics": "Tokenomika",
-    "whitelist": "Whitelist"
+    "whitelist": "Whitelist",
+    "roadmap": "Roadmapa"
   },
   "hero": {
     "badge": "Oparty na Solana Blockchain",
@@ -185,5 +186,45 @@
     "invalidEmail": "Proszę podać prawidłowy adres email",
     "invalidWallet": "Proszę podać prawidłowy adres portfela Solana",
     "error": "Coś poszło nie tak. Spróbuj ponownie."
+  },
+  "roadmap": {
+    "badge": "Roadmapa Projektu",
+    "title": "Nasza Podróż",
+    "description": "Śledź nasz postęp w budowaniu przyszłości usług AI opartych na blockchainie.",
+    "statusCompleted": "Ukończone",
+    "statusInProgress": "W Trakcie",
+    "statusUpcoming": "Nadchodzące",
+    "phase1": {
+      "phase": "Faza 1",
+      "title": "Fundament i Start",
+      "item1": "Rozwój koncepcji projektu",
+      "item2": "Uruchomienie strony internetowej",
+      "item3": "Obecność w mediach społecznościowych",
+      "item4": "Budowanie społeczności"
+    },
+    "phase2": {
+      "phase": "Faza 2",
+      "title": "Uruchomienie Tokena",
+      "item1": "Stworzenie tokena FTRX na Solana",
+      "item2": "Listing na Raydium DEX",
+      "item3": "Kampania marketingowa",
+      "item4": "Ogłoszenia partnerstwa"
+    },
+    "phase3": {
+      "phase": "Faza 3",
+      "title": "Rozwój Usług AI",
+      "item1": "Platforma generowania treści AI",
+      "item2": "Narzędzia analizy danych biznesowych",
+      "item3": "Funkcje automatyzacji procesów",
+      "item4": "Program testów beta"
+    },
+    "phase4": {
+      "phase": "Faza 4",
+      "title": "Ekspansja Ekosystemu",
+      "item1": "Pełne uruchomienie usług AI",
+      "item2": "Aplikacja mobilna",
+      "item3": "Dodatkowe listingi na giełdach",
+      "item4": "Globalna ekspansja"
+    }
   }
 }

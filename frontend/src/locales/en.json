@@ -4,7 +4,8 @@
     "preorder": "Pre-order",
     "solana": "Solana",
     "tokenomics": "Tokenomics",
-    "whitelist": "Whitelist"
+    "whitelist": "Whitelist",
+    "roadmap": "Roadmap"
   },
   "hero": {
     "badge": "Built on Solana Blockchain",
@@ -185,5 +186,45 @@
     "invalidEmail": "Please enter a valid email address",
     "invalidWallet": "Please enter a valid Solana wallet address",
     "error": "Something went wrong. Please try again."
+  },
+  "roadmap": {
+    "badge": "Project Roadmap",
+    "title": "Our Journey",
+    "description": "Follow our progress as we build the future of AI-powered blockchain services.",
+    "statusCompleted": "Completed",
+    "statusInProgress": "In Progress",
+    "statusUpcoming": "Upcoming",
+    "phase1": {
+      "phase": "Phase 1",
+      "title": "Foundation & Launch",
+      "item1": "Project concept development",
+      "item2": "Website launch",
+      "item3": "Social media presence",
+      "item4": "Community building"
+    },
+    "phase2": {
+      "phase": "Phase 2",
+      "title": "Token Launch",
+      "item1": "FTRX token creation on Solana",
+      "item2": "Raydium DEX listing",
+      "item3": "Marketing campaign",
+      "item4": "Partnership announcements"
+    },
+    "phase3": {
+      "phase": "Phase 3",
+      "title": "AI Services Development",
+      "item1": "AI content generation platform",
+      "item2": "Business data analysis tools",
+      "item3": "Process automation features",
+      "item4": "Beta testing program"
+    },
+    "phase4": {
+      "phase": "Phase 4",
+      "title": "Ecosystem Expansion",
+      "item1": "Full AI services launch",
+      "item2": "Mobile application",
+      "item3": "Additional exchange listings",
+      "item4": "Global expansion"
+    }
   }
 }

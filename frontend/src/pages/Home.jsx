@@ -16,6 +16,7 @@ import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { AIBannerBrain, AIBannerAutomation, AIBannerAnalytics } from '../components/AIBanner';
 import { Tokenomics } from '../components/Tokenomics';
 import { Whitelist } from '../components/Whitelist';
+import { Roadmap } from '../components/Roadmap';
 
 const Home = () => {
   const { t } = useTranslation();
@@ -93,6 +94,7 @@ const Home = () => {
             <a href="#ai" className="dark-nav-link">{t('nav.aiServices')}</a>
             <a href="#tokenomics" className="dark-nav-link">{t('nav.tokenomics')}</a>
             <a href="#whitelist" className="dark-nav-link">{t('nav.whitelist')}</a>
+            <a href="#roadmap" className="dark-nav-link">{t('nav.roadmap')}</a>
             <a href="#solana" className="dark-nav-link">{t('nav.solana')}</a>
           </nav>
 
@@ -215,6 +217,12 @@ const Home = () => {
       {/* Whitelist Section */}
       <Whitelist />
 
+      {/* Roadmap Section */}
+      <Roadmap />
+
+      {/* AI Banner 3: Analytics - Before Pre-order */}
+      <AIBannerAnalytics />
+
       {/* Pre-order Section */}
       <section id="preorder" className="py-12 sm:py-20 px-4 sm:px-[7.6923%]">
         <div className="max-w-[1400px] mx-auto space-y-8 sm:space-y-16">
@@ -265,9 +273,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      {/* AI Banner 3: Analytics - After Pre-order */}
-      <AIBannerAnalytics />
 
       {/* Solana Section */}
       <section id="solana" className="py-12 sm:py-20 px-4 sm:px-[7.6923%] bg-[#121212]">
