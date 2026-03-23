@@ -14,6 +14,8 @@ import { SolanaInfoModal } from '../components/SolanaInfoModal';
 import { ChatBot } from '../components/ChatBot';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { AIBannerBrain, AIBannerAutomation, AIBannerAnalytics } from '../components/AIBanner';
+import { Tokenomics } from '../components/Tokenomics';
+import { Whitelist } from '../components/Whitelist';
 
 const Home = () => {
   const { t } = useTranslation();
@@ -89,7 +91,8 @@ const Home = () => {
           
           <nav className="dark-nav hidden md:flex">
             <a href="#ai" className="dark-nav-link">{t('nav.aiServices')}</a>
-            <a href="#preorder" className="dark-nav-link">{t('nav.preorder')}</a>
+            <a href="#tokenomics" className="dark-nav-link">{t('nav.tokenomics')}</a>
+            <a href="#whitelist" className="dark-nav-link">{t('nav.whitelist')}</a>
             <a href="#solana" className="dark-nav-link">{t('nav.solana')}</a>
           </nav>
 
@@ -205,6 +208,12 @@ const Home = () => {
 
       {/* AI Banner 2: Automation - After AI Services */}
       <AIBannerAutomation />
+
+      {/* Tokenomics Section */}
+      <Tokenomics />
+
+      {/* Whitelist Section */}
+      <Whitelist />
 
       {/* Pre-order Section */}
       <section id="preorder" className="py-12 sm:py-20 px-4 sm:px-[7.6923%]">

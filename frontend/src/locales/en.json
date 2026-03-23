@@ -2,7 +2,9 @@
   "nav": {
     "aiServices": "AI Services",
     "preorder": "Pre-order",
-    "solana": "Solana"
+    "solana": "Solana",
+    "tokenomics": "Tokenomics",
+    "whitelist": "Whitelist"
   },
   "hero": {
     "badge": "Built on Solana Blockchain",
@@ -139,5 +141,49 @@
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "copyright": "© 2025 FuturoX AI. All rights reserved."
+  },
+  "tokenomics": {
+    "badge": "Token Distribution",
+    "title": "FTRX Tokenomics",
+    "description": "Transparent and fair distribution designed for long-term growth and community trust.",
+    "totalSupply": "Total Supply",
+    "bondingCurve": "Bonding Curve",
+    "bondingCurveDesc": "Dynamic pricing mechanism for fair token distribution",
+    "poolMigration": "Pool Migration",
+    "poolMigrationDesc": "Liquidity locked on Raydium DEX",
+    "vesting": "Team Vesting",
+    "vestingDesc": "Team allocation with linear vesting schedule",
+    "vestingDuration": "Vesting Duration",
+    "cliff": "Cliff Period",
+    "liquidity": "Liquidity",
+    "locked": "Locked",
+    "days": "Days"
+  },
+  "whitelist": {
+    "badge": "Early Access",
+    "title": "Join the Whitelist",
+    "description": "Be among the first to access FuturoX AI token sale. Get exclusive benefits and early access.",
+    "benefitsTitle": "Whitelist Benefits",
+    "benefit1Title": "Early Access",
+    "benefit1Desc": "Get priority access to the token pre-sale before public launch",
+    "benefit2Title": "Guaranteed Allocation",
+    "benefit2Desc": "Secure your spot with guaranteed token allocation",
+    "benefit3Title": "Exclusive Updates",
+    "benefit3Desc": "Receive exclusive news and project updates directly",
+    "formTitle": "Reserve Your Spot",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "your@email.com",
+    "walletLabel": "Solana Wallet Address (optional)",
+    "walletPlaceholder": "Your Solana wallet address",
+    "walletHint": "Add your wallet to speed up the purchase process",
+    "submitButton": "Join Whitelist",
+    "submitting": "Submitting...",
+    "successTitle": "You're on the list!",
+    "successMessage": "Thank you for joining! We'll notify you about exclusive offers and launch updates.",
+    "addAnother": "Add Another Email",
+    "privacy": "We respect your privacy. Your data will only be used for FuturoX AI updates.",
+    "invalidEmail": "Please enter a valid email address",
+    "invalidWallet": "Please enter a valid Solana wallet address",
+    "error": "Something went wrong. Please try again."
   }
 }

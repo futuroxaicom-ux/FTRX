@@ -69,6 +69,20 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
+class WhitelistEntry(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: str
+    wallet_address: Optional[str] = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class WhitelistCreate(BaseModel):
+    email: str
+    wallet_address: Optional[str] = None
+    timestamp: Optional[str] = None
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
@@ -203,6 +217,33 @@ async def get_solana_balance(address: str):
         except Exception as e:
             logger.error(f"Solana balance error: {e}")
             return {"error": str(e)}
+
+# Whitelist endpoints
+@api_router.post("/whitelist")
+async def add_to_whitelist(entry: WhitelistCreate):
+    """Add email and wallet to whitelist"""
+    # Check if email already exists
+    existing = await db.whitelist.find_one({"email": entry.email}, {"_id": 0})
+    if existing:
+        return {"success": False, "detail": "Email already registered"}
+    
+    whitelist_obj = WhitelistEntry(
+        email=entry.email,
+        wallet_address=entry.wallet_address
+    )
+    
+    doc = whitelist_obj.model_dump()
+    doc['timestamp'] = doc['timestamp'].isoformat()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.whitelist.insert_one(doc)
+    return {"success": True, "message": "Successfully added to whitelist"}
+
+@api_router.get("/whitelist/count")
+async def get_whitelist_count():
+    """Get total number of whitelist entries"""
+    count = await db.whitelist.count_documents({})
+    return {"count": count}
 
 # Include the router in the main app
 app.include_router(api_router)

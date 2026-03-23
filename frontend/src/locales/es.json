@@ -2,7 +2,9 @@
   "nav": {
     "aiServices": "Servicios de IA",
     "preorder": "Pre-orden",
-    "solana": "Solana"
+    "solana": "Solana",
+    "tokenomics": "Tokenomics",
+    "whitelist": "Whitelist"
   },
   "hero": {
     "badge": "Construido en Solana Blockchain",
@@ -139,5 +141,49 @@
     "terms": "Términos de Servicio",
     "privacy": "Política de Privacidad",
     "copyright": "© 2025 FuturoX AI. Todos los derechos reservados."
+  },
+  "tokenomics": {
+    "badge": "Distribución de Tokens",
+    "title": "Tokenomics FTRX",
+    "description": "Distribución transparente y justa diseñada para el crecimiento a largo plazo y la confianza de la comunidad.",
+    "totalSupply": "Suministro Total",
+    "bondingCurve": "Bonding Curve",
+    "bondingCurveDesc": "Mecanismo de precios dinámico para una distribución justa de tokens",
+    "poolMigration": "Migración de Liquidez",
+    "poolMigrationDesc": "Liquidez bloqueada en Raydium DEX",
+    "vesting": "Vesting del Equipo",
+    "vestingDesc": "Asignación del equipo con calendario de vesting lineal",
+    "vestingDuration": "Duración del Vesting",
+    "cliff": "Período Cliff",
+    "liquidity": "Liquidez",
+    "locked": "Bloqueada",
+    "days": "Días"
+  },
+  "whitelist": {
+    "badge": "Acceso Anticipado",
+    "title": "Únete a la Whitelist",
+    "description": "Sé de los primeros en acceder a la venta de tokens FuturoX AI. Obtén beneficios exclusivos.",
+    "benefitsTitle": "Beneficios de la Whitelist",
+    "benefit1Title": "Acceso Anticipado",
+    "benefit1Desc": "Obtén acceso prioritario a la pre-venta antes del lanzamiento público",
+    "benefit2Title": "Asignación Garantizada",
+    "benefit2Desc": "Asegura tu lugar con asignación de tokens garantizada",
+    "benefit3Title": "Actualizaciones Exclusivas",
+    "benefit3Desc": "Recibe noticias exclusivas y actualizaciones del proyecto",
+    "formTitle": "Reserva Tu Lugar",
+    "emailLabel": "Correo Electrónico",
+    "emailPlaceholder": "tu@email.com",
+    "walletLabel": "Dirección de Billetera Solana (opcional)",
+    "walletPlaceholder": "Tu dirección de billetera Solana",
+    "walletHint": "Añade tu billetera para acelerar el proceso de compra",
+    "submitButton": "Unirse a la Whitelist",
+    "submitting": "Enviando...",
+    "successTitle": "¡Estás en la lista!",
+    "successMessage": "¡Gracias por unirte! Te notificaremos sobre ofertas exclusivas y actualizaciones.",
+    "addAnother": "Añadir Otro Email",
+    "privacy": "Respetamos tu privacidad. Tus datos solo se usarán para actualizaciones de FuturoX AI.",
+    "invalidEmail": "Por favor ingresa un correo electrónico válido",
+    "invalidWallet": "Por favor ingresa una dirección de billetera Solana válida",
+    "error": "Algo salió mal. Por favor intenta de nuevo."
   }
 }
