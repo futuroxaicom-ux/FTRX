@@ -88,15 +88,19 @@ export const Whitelist = () => {
     <section id="whitelist" className="py-12 sm:py-20 px-4 sm:px-[7.6923%] bg-[#121212] relative overflow-hidden">
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#00FFD1] opacity-5 blur-[150px] rounded-full"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#00FFD1] opacity-5 blur-[150px] rounded-full"></div>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#00FFD1] opacity-5 blur-[150px] rounded-full animate-pulse"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#00FFD1] opacity-5 blur-[150px] rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
+        {/* Animated particles */}
+        <div className="absolute top-1/4 right-1/4 w-1 h-1 bg-[#00FFD1] rounded-full opacity-40 animate-float"></div>
+        <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-[#00FFD1] rounded-full opacity-30 animate-float" style={{animationDelay: '0.7s'}}></div>
+        <div className="absolute top-1/2 right-1/3 w-1 h-1 bg-[#00FFD1] rounded-full opacity-50 animate-float" style={{animationDelay: '1.4s'}}></div>
       </div>
 
       <div className="max-w-[1400px] mx-auto relative z-10">
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12 space-y-3 sm:space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] text-[#00FFD1] text-sm font-medium mb-4">
-            <Rocket className="w-4 h-4" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] text-[#00FFD1] text-sm font-medium mb-4 animate-pulse">
+            <Rocket className="w-4 h-4 animate-bounce" style={{animationDuration: '2s'}} />
             {t('whitelist.badge')}
           </div>
           <h2 className="text-2xl sm:text-4xl md:text-5xl font-semibold text-white">
@@ -116,13 +120,17 @@ export const Whitelist = () => {
             {benefits.map((benefit, index) => (
               <div 
                 key={index}
-                className="flex gap-4 p-4 sm:p-5 bg-black border border-[rgba(255,255,255,0.1)] hover:border-[rgba(0,255,209,0.3)] transition-all duration-300"
+                className="flex gap-4 p-4 sm:p-5 bg-black border border-[rgba(255,255,255,0.1)] hover:border-[rgba(0,255,209,0.3)] transition-all duration-300 hover:translate-x-2 hover:shadow-[0_0_20px_rgba(0,255,209,0.1)] group relative overflow-hidden"
+                style={{animationDelay: `${index * 0.15}s`}}
               >
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[rgba(0,255,209,0.1)] flex items-center justify-center text-[#00FFD1] flex-shrink-0">
+                {/* Shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(0,255,209,0.03)] to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
+                
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[rgba(0,255,209,0.1)] flex items-center justify-center text-[#00FFD1] flex-shrink-0 group-hover:bg-[rgba(0,255,209,0.2)] group-hover:scale-110 transition-all duration-300 relative z-10">
                   {benefit.icon}
                 </div>
-                <div>
-                  <h4 className="text-base sm:text-lg font-semibold text-white mb-1">{benefit.title}</h4>
+                <div className="relative z-10">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-1 group-hover:text-[#00FFD1] transition-colors">{benefit.title}</h4>
                   <p className="text-sm text-[rgba(255,255,255,0.7)]">{benefit.description}</p>
                 </div>
               </div>

@@ -218,43 +218,54 @@ const Home = () => {
       <AIBannerAnalytics />
 
       {/* Pre-order Section */}
-      <section id="preorder" className="py-12 sm:py-20 px-4 sm:px-[7.6923%]">
-        <div className="max-w-[1400px] mx-auto space-y-8 sm:space-y-16">
+      <section id="preorder" className="py-12 sm:py-20 px-4 sm:px-[7.6923%] relative overflow-hidden particles-bg">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-20 left-10 w-32 h-32 bg-[#00FFD1] opacity-5 rounded-full blur-[80px] animate-float"></div>
+          <div className="absolute bottom-20 right-10 w-48 h-48 bg-[#00FFD1] opacity-5 rounded-full blur-[100px] animate-float" style={{animationDelay: '1s'}}></div>
+          <div className="absolute top-1/2 left-1/4 w-2 h-2 bg-[#00FFD1] rounded-full opacity-30 animate-pulse"></div>
+          <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-[#00FFD1] rounded-full opacity-40 animate-pulse" style={{animationDelay: '0.5s'}}></div>
+        </div>
+        
+        <div className="max-w-[1400px] mx-auto space-y-8 sm:space-y-16 relative z-10">
           
           {/* Buy Options - Direct vs Raydium */}
           <BuyOptions onDirectBuyClick={() => setShowDirectPurchase(!showDirectPurchase)} />
 
           {/* Conditional Display: Show Direct Purchase Components when clicked */}
           {showDirectPurchase && (
-            <div className="grid lg:grid-cols-2 gap-6 sm:gap-12 items-start">
+            <div className="grid lg:grid-cols-2 gap-6 sm:gap-12 items-start animate-fade-in-up">
               {/* Left - Wallet Connect */}
-              <div>
+              <div className="card-hover-lift">
                 <WalletConnect />
               </div>
 
               {/* Right - Token Purchase */}
-              <div>
+              <div className="card-hover-lift" style={{animationDelay: '0.2s'}}>
                 <TokenPurchase />
               </div>
             </div>
           )}
 
           {/* Info Section */}
-          <div className="bg-[#121212] border border-[rgba(255,255,255,0.25)] p-6 sm:p-12 text-center space-y-6 sm:space-y-8">
-            <div className="space-y-3 sm:space-y-4">
+          <div className="bg-[#121212] border border-[rgba(255,255,255,0.25)] p-6 sm:p-12 text-center space-y-6 sm:space-y-8 relative overflow-hidden group hover:border-[rgba(0,255,209,0.3)] transition-all duration-500">
+            {/* Shimmer effect on hover */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(0,255,209,0.05)] to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
+            
+            <div className="space-y-3 sm:space-y-4 relative z-10">
               <h2 className="text-2xl sm:text-4xl md:text-5xl font-semibold text-white">{t('preorder.title')}</h2>
               <p className="text-sm sm:text-lg text-[rgba(255,255,255,0.85)] max-w-2xl mx-auto">
                 {t('preorder.description')}
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <div className="text-left space-y-2">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center relative z-10">
+              <div className="text-left space-y-2 p-4 bg-black/30 hover:bg-black/50 transition-colors duration-300">
                 <p className="text-xs sm:text-sm text-[#4D4D4D] uppercase">{t('preorder.availability')}</p>
-                <p className="text-lg sm:text-xl font-bold text-[#00FFD1]">{t('preorder.limitedTokens')}</p>
+                <p className="text-lg sm:text-xl font-bold text-[#00FFD1] animate-pulse">{t('preorder.limitedTokens')}</p>
               </div>
               <div className="hidden sm:block w-px h-12 bg-[rgba(255,255,255,0.25)]"></div>
-              <div className="text-left space-y-2">
+              <div className="text-left space-y-2 p-4 bg-black/30 hover:bg-black/50 transition-colors duration-300">
                 <p className="text-xs sm:text-sm text-[#4D4D4D] uppercase">{t('preorder.blockchain')}</p>
                 <p className="text-lg sm:text-xl font-bold">{t('preorder.solanaNetwork')}</p>
               </div>
@@ -269,8 +280,19 @@ const Home = () => {
       </section>
 
       {/* Solana Section */}
-      <section id="solana" className="py-12 sm:py-20 px-4 sm:px-[7.6923%] bg-[#121212]">
-        <div className="max-w-[1400px] mx-auto">
+      <section id="solana" className="py-12 sm:py-20 px-4 sm:px-[7.6923%] bg-[#121212] relative overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-[#00FFD1] opacity-5 blur-[100px]"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-[#00FFD1] opacity-5 blur-[100px]"></div>
+          {/* Animated grid lines */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+            backgroundImage: `linear-gradient(#00FFD1 1px, transparent 1px), linear-gradient(90deg, #00FFD1 1px, transparent 1px)`,
+            backgroundSize: '50px 50px'
+          }}></div>
+        </div>
+        
+        <div className="max-w-[1400px] mx-auto relative z-10">
           <div className="grid md:grid-cols-2 gap-8 sm:gap-12 items-center">
             <div className="space-y-4 sm:space-y-6">
               <h2 className="text-2xl sm:text-4xl md:text-5xl font-semibold text-white">{t('solana.title')}</h2>
@@ -278,34 +300,34 @@ const Home = () => {
                 {t('solana.description')}
               </p>
               <div className="space-y-3 sm:space-y-4">
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[rgba(0,255,209,0.1)] flex items-center justify-center text-[#00FFD1] flex-shrink-0">
+                <div className="flex items-start gap-3 sm:gap-4 group hover:translate-x-2 transition-transform duration-300">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[rgba(0,255,209,0.1)] flex items-center justify-center text-[#00FFD1] flex-shrink-0 group-hover:bg-[rgba(0,255,209,0.2)] group-hover:scale-110 transition-all duration-300">
                     <Zap className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-base sm:text-lg mb-1">{t('solana.ultraFast.title')}</h3>
+                    <h3 className="font-semibold text-base sm:text-lg mb-1 group-hover:text-[#00FFD1] transition-colors">{t('solana.ultraFast.title')}</h3>
                     <p className="text-[rgba(255,255,255,0.85)] text-xs sm:text-sm">
                       {t('solana.ultraFast.description')}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[rgba(0,255,209,0.1)] flex items-center justify-center text-[#00FFD1] flex-shrink-0">
+                <div className="flex items-start gap-3 sm:gap-4 group hover:translate-x-2 transition-transform duration-300">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[rgba(0,255,209,0.1)] flex items-center justify-center text-[#00FFD1] flex-shrink-0 group-hover:bg-[rgba(0,255,209,0.2)] group-hover:scale-110 transition-all duration-300">
                     <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-base sm:text-lg mb-1">{t('solana.scalability.title')}</h3>
+                    <h3 className="font-semibold text-base sm:text-lg mb-1 group-hover:text-[#00FFD1] transition-colors">{t('solana.scalability.title')}</h3>
                     <p className="text-[rgba(255,255,255,0.85)] text-xs sm:text-sm">
                       {t('solana.scalability.description')}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[rgba(0,255,209,0.1)] flex items-center justify-center text-[#00FFD1] flex-shrink-0">
+                <div className="flex items-start gap-3 sm:gap-4 group hover:translate-x-2 transition-transform duration-300">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[rgba(0,255,209,0.1)] flex items-center justify-center text-[#00FFD1] flex-shrink-0 group-hover:bg-[rgba(0,255,209,0.2)] group-hover:scale-110 transition-all duration-300">
                     <Globe className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-base sm:text-lg mb-1">{t('solana.eco.title')}</h3>
+                    <h3 className="font-semibold text-base sm:text-lg mb-1 group-hover:text-[#00FFD1] transition-colors">{t('solana.eco.title')}</h3>
                     <p className="text-[rgba(255,255,255,0.85)] text-xs sm:text-sm">
                       {t('solana.eco.description')}
                     </p>
@@ -314,29 +336,32 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="bg-black border border-[rgba(255,255,255,0.25)] p-5 sm:p-8 space-y-4 sm:space-y-6">
-              <h3 className="text-xl sm:text-2xl font-bold">{t('solana.whyTitle')}</h3>
-              <ul className="space-y-3 sm:space-y-4 text-[rgba(255,255,255,0.85)] text-sm sm:text-base">
-                <li className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-[#00FFD1]"></div>
+            <div className="bg-black border border-[rgba(255,255,255,0.25)] p-5 sm:p-8 space-y-4 sm:space-y-6 relative overflow-hidden group hover:border-[rgba(0,255,209,0.5)] transition-all duration-500 card-hover-lift">
+              {/* Glow effect */}
+              <div className="absolute -top-20 -right-20 w-40 h-40 bg-[#00FFD1] opacity-0 group-hover:opacity-10 blur-[60px] transition-opacity duration-500"></div>
+              
+              <h3 className="text-xl sm:text-2xl font-bold relative z-10">{t('solana.whyTitle')}</h3>
+              <ul className="space-y-3 sm:space-y-4 text-[rgba(255,255,255,0.85)] text-sm sm:text-base relative z-10">
+                <li className="flex items-center gap-3 hover:translate-x-1 transition-transform duration-200">
+                  <div className="w-2 h-2 bg-[#00FFD1] animate-pulse"></div>
                   {t('solana.lowFees')}
                 </li>
-                <li className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-[#00FFD1]"></div>
+                <li className="flex items-center gap-3 hover:translate-x-1 transition-transform duration-200">
+                  <div className="w-2 h-2 bg-[#00FFD1] animate-pulse" style={{animationDelay: '0.2s'}}></div>
                   {t('solana.fastFinality')}
                 </li>
-                <li className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-[#00FFD1]"></div>
+                <li className="flex items-center gap-3 hover:translate-x-1 transition-transform duration-200">
+                  <div className="w-2 h-2 bg-[#00FFD1] animate-pulse" style={{animationDelay: '0.4s'}}></div>
                   {t('solana.defi')}
                 </li>
-                <li className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-[#00FFD1]"></div>
+                <li className="flex items-center gap-3 hover:translate-x-1 transition-transform duration-200">
+                  <div className="w-2 h-2 bg-[#00FFD1] animate-pulse" style={{animationDelay: '0.6s'}}></div>
                   {t('solana.community')}
                 </li>
               </ul>
               <Button 
                 onClick={() => setShowSolanaModal(true)}
-                className="btn-secondary w-full text-sm sm:text-base"
+                className="btn-secondary w-full text-sm sm:text-base relative z-10 hover:shadow-[0_0_20px_rgba(0,255,209,0.3)] transition-shadow duration-300"
               >
                 {t('solana.learnMore')}
               </Button>
