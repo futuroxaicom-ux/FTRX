@@ -1,173 +1,139 @@
-<analysis>**original_problem_statement:** The user wants to build a cryptocurrency website named FuturoX AI (originally FutureCoin) with the ticker FTRX.
+<analysis>**original_problem_statement:** The user wants to build a cryptocurrency landing page named FuturoX AI with the ticker FTRX on the Solana ecosystem. 
+PRODUCT REQUIREMENTS: 
+- Multi-language support (EN, ES, PL).
+- Solana wallet connection (Phantom, Solflare).
+- Real-time SOL and FTRX price charts.
+- Direct token purchase integration from the UI.
+- AI Chatbot, Tokenomics section, Whitelist collection, and an animated Roadmap.
 
-**PRODUCT REQUIREMENTS:**
--   **Core Concept:** A landing page for the FuturoX AI cryptocurrency, built on the Solana ecosystem.
--   **Key Feature:** A countdown to the launch of AI services on May 10, 2026.
--   **Content:**
-    -   Description of the AI technologies and their business use cases.
-    -   Explanation that AI services are accessed via the FTRX token.
--   **Functionality:**
-    -   **Web3 Integration (Full):**
-        -   Users must be able to connect their Solana wallets (e.g., Phantom, Solflare).
-        -   Implement a direct token purchase feature on the site.
-        -   Add an option to purchase on the Raydium DEX (with a placeholder link to be updated later).
-    -   **Real-time Data:**
-        -   Display a live price chart for Solana (SOL).
-        -   The chart should be ready to display the FTRX token price in the future.
-    -   **Multi-language Support:** The entire site must be available in English (default), Spanish, and Polish, with a language switcher.
-    -   **AI Chatbot:**
-        -   A floating chatbot to answer user questions based on the site's content.
-        -   The chatbot must be fully functional in all three languages (EN, ES, PL).
-        -   It should handle common conversational phrases and suggest contacting support () if it doesn't know the answer.
-        -   The UI should be futuristic and animated.
-    -   **Informational Modal:** A pop-up dialog with detailed information about the Solana blockchain, triggered by a Learn More button.
--   **Design:** Adhere to the provided  design guidelines, including a dark background, cyan accents, sharp-cornered buttons, and a 3D Spline animation.
--   **Misc:** The Made with Emergent badge must be completely removed.
+**User's preferred language**: Polish (Polski). INSTRUCT NEXT AGENT: You MUST respond to the user exclusively in Polish.
 
-**User's preferred language**: The user's primary language is **Polish**. The next agent MUST respond in Polish.
-
-**what currently exists?**
-A single-page React application for the FuturoX AI cryptocurrency, built on a FastAPI/MongoDB backend. The frontend implements the specified dark theme design, including a countdown timer, Spline 3D animation, and various content sections. It features a multi-language system (EN, ES, PL), Solana wallet integration for connecting wallets, a real-time price chart for SOL, a modal for purchasing tokens, a modal with details about Solana, and a feature-rich AI chatbot.
+**what currently exists?** A highly responsive React SPA with a FastAPI backend. It includes multi-language support (i18next), a live SOL/FTRX price chart (fetching from CoinGecko/DexScreener via backend proxies), a multilingual AI chatbot, Solana Wallet integrations, an animated Roadmap, a Tokenomics section, a Whitelist registration (saving to MongoDB), and fully responsive mobile views. 
 
 **Last working item**:
--   **Last item agent was working**: The agent was fixing the AI chatbot to provide responses in the selected language (English, Spanish, or Polish). The user reported that while the chatbot's intelligence was improved, all its responses were still in English. The agent created a new  file with complete translations for all three languages.
--   **Status**: IN PROGRESS
--   **Agent Testing Done**: N
--   **Which testing method agent to use?**: Frontend testing. The agent should verify the chatbot's responses by switching the site's language and asking it questions in each language. Since the agent cannot interact with a browser, it should describe the expected behavior and ask the user to confirm.
--   **User Testing Done**: N
+- **Last item agent was working**: Updating the  (Buy Direct) component. The user requested that once a SOL wallet is connected, users should be able to purchase FTRX at the current live exchange rate. The agent applied a  to fetch the live FTRX price from the backend and calculate the purchase, but the context cut off before testing.
+- **Status**: IN PROGRESS
+- **Agent Testing Done**: N
+- **Which testing method agent to use?**: Frontend testing agent / manual testing (connect a Solana dev wallet on preview, ensure the math calculating FTRX from SOL is accurate based on the  endpoint, and verify UI state).
+- **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
--   **Issue 1**: Chatbot is not multilingual (P0)
--   **Issue 2**: ESLint warning in  (P2)
+- **Issue 1 (P0)**: Complete and test the Buy Direct functionality in .
+  - **Attempted fixes**: Added code to fetch the live FTRX price and calculate token amounts. Testing was not completed.
+  - **Next debug checklist**: Check . Verify that it successfully hits , does the math correctly, and handles the Buy button state correctly when a wallet is connected.
+  - **Why fix this issue and what will be achieved with the fix?**: It was the user's explicit last request to make the direct buy functional based on real-time rates.
+  - **Status**: IN PROGRESS
+  - **Is recurring issue?**: N
+  - **Should Test frontend/backend/both after fix?**: Frontend (UI flow) and Backend (ensure API proxy doesn't rate limit during purchase flows).
+  - **Blocked on other issue**: None
 
-**Issues Detail**:
--   **Issue 1**:
-    -   **Description**: The AI chatbot currently responds only in English, regardless of the language selected on the site. This fails to meet the user's requirement for a fully multilingual experience.
-    -   **Attempted fixes**: The agent created a new, comprehensive  file that contains translated keywords and answers for Spanish and Polish.
-    -   **Next debug checklist**:
-        1.  Verify that  correctly reads the  property.
-        2.  Ensure the logic correctly selects the answer from the corresponding language key (, , ) in the  object.
-        3.  Confirm the frontend has re-compiled successfully with the new  file.
-    -   **Why fix this issue and what will be achieved with the fix?**: This will fulfill a core user requirement and make the chatbot useful for Spanish and Polish-speaking users.
-    -   **Status**: IN PROGRESS
-    -   **Is recurring issue?**: Y
-    -   **Should Test frontend/backend/both after fix?**: Frontend
-    -   **Blocked on other issue**: None
-
--   **Issue 2**:
-    -   **Description**: A recurring ESLint warning  appears during compilation for the file .
-    -   **Attempted fixes**: None.
-    -   **Next debug checklist**:
-        1.  Open .
-        2.  Locate the  hook around line 23.
-        3.  Add  to the dependency array to resolve the warning.
-    -   **Why fix this issue and what will be achieved with the fix?**: Fixes a code quality issue, adheres to React best practices, and cleans up compilation logs.
-    -   **Status**: NOT STARTED
-    -   **Is recurring issue?**: Y
-    -   **Should Test frontend/backend/both after fix?**: Frontend (a quick check to ensure no functionality was broken).
-    -   **Blocked on other issue**: None
+- **Issue 2 (P1)**: Production deployment verification.
+  - **Attempted fixes**: The agent continually told the user to click Deploy to push changes to the live  domain. 
+  - **Next debug checklist**: Ask the user if the live domain is correctly showing all the new sections (Roadmap, Tokenomics, new Favicon).
+  - **Why fix this issue and what will be achieved with the fix?**: Confirms the app is actually usable by the public and earlier DNS issues are fully resolved.
+  - **Status**: USER VERIFICATION PENDING
+  - **Is recurring issue?**: Y
+  - **Should Test frontend/backend/both after fix?**: NA
 
 **In progress Task List**:
--   None.
+None outside of Issue 1.
 
 **Upcoming and Future Tasks**
--   **Upcoming Tasks**:
-    -   **P0**: Verify that the chatbot is fully multilingual after the latest fix.
-    -   **P2**: Resolve the ESLint warning in .
--   **Future Tasks**:
-    -   **P1**: Update the placeholder Raydium link in  with the real exchange URL once the user provides it.
-    -   **P2**: Enable the FTRX price chart in  by updating its ID in  once the token is listed on CoinGecko.
-    -   **P2**: Implement backend logic for the Direct Purchase feature, as it is currently a frontend-only mock.
+- **P1**: Implement actual Smart Contract / Web3 transaction for the Direct Purchase feature. (Currently, it calculates the amount, but likely just mocks the actual blockchain transfer of FTRX).
+- **P2**: Refactor . It has grown extremely large (>400 lines) with many inline components and sections.
 
 **Completed work in this session**
--   **Initial Landing Page**: Created the FuturoX AI site with a dark theme, countdown, and 3D Spline animation.
--   **Web3 Integration**: Implemented Solana wallet connectivity ().
--   **Rebranding**: Renamed all instances of FutureCoin to FuturoX AI and the ticker to FTRX.
--   **Internationalization (i18n)**: Set up a multi-language system (EN, ES, PL) with  and translated most static content.
--   **Purchase Options**: Added UI for Direct Purchase and Buy on Raydium.
--   **Price Chart**: Integrated a live price chart for Solana using the CoinGecko API.
--   **Made with Emergent Badge Removal**: Successfully removed the badge and all associated scripts.
--   **Solana Info Modal**: Created a detailed informational pop-up about the Solana network.
--   **AI Chatbot**: Built and styled a multilingual AI chatbot with an expanded, conversational knowledge base.
+- Mobile responsiveness fixed for Hero, Chatbot, and Header.
+- Added Social Media links to the footer.
+- Created  (Updated to: 70% Bonding Curve, 20% Pool Migration, 10% Team Vesting).
+- Created  with backend MongoDB integration ().
+- Created .
+- Added custom FuturoX AI favicons via bash ImageMagick.
+- Added UI animations (particles, shimmers, pulses) to multiple sections and refined them to be less aggressive based on user feedback.
+- Updated footer copyright to 2026.
+- Updated  with a real Raydium swap link.
+- Updated  to allow toggling between SOL and FTRX (integrated DexScreener API in backend for FTRX data).
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1**: An ESLint warning in  for a missing dependency in a  hook has been consistently ignored.
--   **Issue 2**: Numerous  warnings appear during webpack compilation. These are low priority but clutter the logs.
+- **Issue 1**:  warnings in React build.
+  - **Debug checklist**: Check  or Webpack config to suppress source map warnings from web3 dependencies.
+  - **Why to solve this issue**: Cleans up browser console and build logs.
+  - **Should Test frontend/backend/both after fix**: Frontend
+  - **Is recurring issue?**: N
 
 **Known issue recurrence from previous fork**
--   N/A
+- **Issue recurrence in previous fork**: Live domain () not reflecting changes / DNS issues.
+- **Recurrence count**: 2
+- **Status**: USER VERIFICATION PENDING
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Frontend**: React, Tailwind CSS, shadcn/ui, Craco (for webpack polyfills).
--   **Backend**: FastAPI, MongoDB (via Motor).
--   **Web3**: Solana Wallet Adapter ().
--   **Internationalization**: .
--   **3D Graphics**: .
--   **APIs**: CoinGecko for real-time price data.
+Frontend: React, Tailwind CSS, shadcn/ui, i18next
+Backend: FastAPI, Motor (Async MongoDB)
+Web3: Solana Wallet Adapter (@solana/wallet-adapter-react)
 
 **key DB schema**
--   No application-specific database schemas have been created. The project uses the default  collection from the boilerplate.
+- : 
 
 **changes in tech stack**
--   Webpack 5 polyfills for Node.js core modules (e.g., , ) were added via  to support Web3 libraries.
+- Added DexScreener API proxy to backend for fetching live FTRX token pricing. 
+- Installed ImageMagick temporarily in bash to convert user images to  and  favicons.
 
 **All files of reference**
--   **/app/frontend/src/utils/chatKnowledge.js**: Contains the knowledge base for the AI chatbot. This file was recently replaced to add full multilingual support.
--   **/app/frontend/src/components/ChatBot.jsx**: The UI and logic for the AI chatbot.
--   **/app/frontend/src/pages/Home.jsx**: The main component for the entire landing page.
--   **/app/frontend/craco.config.js**: Crucial file for webpack configuration, including Node.js polyfills required for the Solana wallet adapter.
--   **/app/frontend/public/index.html**: Modified to remove the Made with Emergent badge and associated scripts.
--   **/app/RAYDIUM_SETUP.md**: Instructions on how to update the Raydium DEX link.
--   **/app/PRICE_CHART_SETUP.md**: Instructions on how to enable the FTRX price chart.
+-  (Needs immediate attention for the 'Buy Direct' feature)
+-  (Updated with  and )
+-  (Updated to support FTRX toggle)
+-  (Created)
+-  (Created)
+-  (Created)
 
-**Areas that need refactoring**:
--   **/app/frontend/src/pages/Home.jsx** is over 380 lines long and should be broken down into smaller components for better maintainability.
--   The hard-coded knowledge base in **/app/frontend/src/utils/chatKnowledge.js** is large and inflexible. It could be refactored to fetch this data from a JSON file or a backend endpoint.
+**Areas that need refactoring**: 
+-  - Highly bloated, needs splitting into layout wrappers or smaller section components.
 
 **key api endpoints**
--   The application primarily uses client-side logic and external APIs (CoinGecko). No new backend endpoints have been added for its core features.
+-  - CoinGecko SOL price proxy.
+-  - DexScreener FTRX price proxy.
+-  - Saves email/wallet to MongoDB.
 
 **Critical Info for New Agent**
--   **You must communicate with the user in Polish.**
--   The top priority is to verify the fix for the multilingual chatbot. The user is waiting for this feature to work correctly in all three languages.
--   The project relies on webpack polyfills configured in  to function correctly. Do not alter this file without understanding the dependencies.
--   The user is attentive to detail. Ensure all branding (, ) and translations are consistent across the entire application.
+- **LANGUAGE**: You must speak Polish.
+- The  component was mid-edit at the end of the last session. You must ensure that it fetches the live FTRX price, correctly calculates the exchange rate from the user's inputted SOL amount, and displays this cleanly in the UI when a wallet is connected. 
+- Verify if the direct purchase logic requires a smart contract interaction mock or an actual transfer logic based on the user's intent.
 
 **documents and test reports created in this job**
--   /app/RAYDIUM_SETUP.md
--   /app/PRICE_CHART_SETUP.md
+*(None created in this session, agent relied on bash curl and visual screenshot tool)*
 
 **Last 10 User Messages and any pending HUMAN messages**
-10.  (Can we continue?) - User is waiting to proceed with the fix for the multilingual chatbot.
-9.   (yes but it should be like that in english, spanish and polish) - **[Unresolved]** User reported the chatbot only responds in English.
-8.   (not everything is nice but it responds to very few shortcuts. I would like it to be more like chat gpt and be able to answer many questions) - **[Completed]** User asked for a more intelligent chatbot.
-7.   (and can it respond logically to traditional shortcuts like greetings etc. like chat gpt does?) - **[Completed]** User requested better conversational skills.
-6.   (can the bot also support the 3 languages the page is in?...) - **[Partially Completed]** User asked for a multilingual bot with a better UI. The UI was updated, but the multilingual functionality is buggy.
-5.   (and can you also create a chat bot...) - **[Completed]** User requested the chatbot feature.
-4.   (can you just create an extension... for this button: Learn More about Solana) - **[Completed]** User requested the Solana info modal.
-3.   (but unfortunately it still appears) - **[Completed]** User reported the Emergent badge was still visible.
-2.   (Made with Emergent is still available) - **[Completed]** User reported the badge was still there.
-1.   (okay but this chart can be under the section...) - **[Completed]** User requested to move the price chart and remove the Emergent badge.
+1. *Pending/Last:* Can you add an option to the direct buy so that when a SOL wallet is connected, they can buy FTRX at the current exchange rate? (WIP)
+2. Add the Raydium swap link. Add FTRX chart that switches with SOL. Update tokenomics to 70% Bonding, 20% Pool, 10% Team. (Completed)
+3. Is the mobile site done properly too? (Completed/Verified)
+4. Roadmap is cool but blinks too much, make it pulse. Change footer year to 2026. (Completed)
+5. Add nice animations to roadmap. Link Whitepaper and Roadmap in footer. (Completed)
+6. Pre-order section lacks animations compared to the top, can you add some? (Completed)
+7. Move Tokenomics under Built on Solana, then Whitelist. Set favicon to the attached logo. (Completed)
+8. Remove vesting duration from Tokenomics, mark liquidity LOCKED. Create Roadmap. (Completed)
+9. Here is an image for tokenomics... (Completed)
+10. Provide a professional tokenomics setup for 1,000,000,000 supply... (Completed)
 
 **Project Health Check:**
--   **Broken**:
-    -   The AI chatbot's multilingual response system is not working; it defaults to English.
--   **Mocked**:
-    -   Token purchase functionality is frontend only (no backend transaction).
-    -   The Raydium DEX link is a placeholder.
-    -   The FTRX price chart is disabled by default.
-    -   The chatbot's intelligence is based on a large, hard-coded JavaScript object, not a real LLM.
+- **Broken**: None
+- **Mocked**: Direct token purchase blockchain execution (currently UI math only).
 
 **3rd Party Integrations**
--   **Spline**: Renders the 3D hero animation.
--   **CoinGecko API**: Provides live price data for the Solana chart (no key required).
--   **Solana Wallet Adapter**: Manages wallet connections for Web3 functionality.
--   **PostHog**: Product analytics script (may have been related to the persistent Emergent badge).
+- Solana Wallet Adapter (Web3)
+- CoinGecko API (SOL Pricing - No key needed)
+- DexScreener API (FTRX Pricing - No key needed)
 
 **Testing status**
--   **Testing agent used after significant changes**: NO
--   **Troubleshoot agent used after agent stuck in loop**: NO
--   **Test files created**:</analysis>
+- Testing agent used after significant changes: NO (Screenshot tool heavily utilized instead).
+- Troubleshoot agent used after agent stuck in loop: NO
+- Test files created: None
+- Known regressions: None
+
+**Credentials to test flow:**
+User's personal/dev Solana Wallet (Phantom/Solflare) is required to test the wallet connection and  logic on the frontend.
+
+**What agent forgot to execute**
+The agent modified  just before the session ended, but did not actually start the server back up, test the component, check the math logic, or verify the UI state with the user. Testing this component is the immediate priority.</analysis>
