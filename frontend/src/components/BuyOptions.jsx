@@ -9,14 +9,7 @@ export const BuyOptions = ({ onDirectBuyClick }) => {
   const { t } = useTranslation();
 
   const handleRaydiumClick = () => {
-    // Check if link is configured (not placeholder)
-    if (EXTERNAL_LINKS.raydium.includes('FTRX_TOKEN_ADDRESS')) {
-      // Show message if not yet configured
-      alert(t('purchase.buyOptions.raydium.comingSoon'));
-    } else {
-      // Open Raydium link when configured
-      window.open(EXTERNAL_LINKS.raydium, '_blank', 'noopener,noreferrer');
-    }
+    window.open(EXTERNAL_LINKS.raydium, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -72,9 +65,6 @@ export const BuyOptions = ({ onDirectBuyClick }) => {
               {t('purchase.buyOptions.raydium.button')}
               <ExternalLink className="w-4 h-4" />
             </Button>
-            <p className="text-xs text-center text-[#4D4D4D] italic">
-              {t('purchase.buyOptions.raydium.comingSoon')}
-            </p>
           </CardContent>
         </Card>
       </div>

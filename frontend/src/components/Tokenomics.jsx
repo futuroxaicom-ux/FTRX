@@ -15,15 +15,15 @@ export const Tokenomics = () => {
     },
     {
       name: t('tokenomics.poolMigration'),
-      percentage: 10,
-      amount: '100,000,000',
+      percentage: 20,
+      amount: '200,000,000',
       color: '#00D4AA',
       description: t('tokenomics.poolMigrationDesc')
     },
     {
       name: t('tokenomics.vesting'),
-      percentage: 20,
-      amount: '200,000,000',
+      percentage: 10,
+      amount: '100,000,000',
       color: '#00A080',
       description: t('tokenomics.vestingDesc')
     }

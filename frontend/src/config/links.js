@@ -2,15 +2,14 @@
 // Update these links after token launch
 
 export const EXTERNAL_LINKS = {
-  // Raydium DEX Pool Link
-  // Replace 'FTRX_TOKEN_ADDRESS' with actual token address after launch
-  raydium: 'https://raydium.io/swap/?inputCurrency=sol&outputCurrency=FTRX_TOKEN_ADDRESS',
+  // Raydium DEX Pool Link - LIVE
+  raydium: 'https://raydium.io/swap/?inputMint=sol&outputMint=9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray',
   
   // Jupiter Aggregator (alternative)
-  jupiter: 'https://jup.ag/swap/SOL-FTRX_TOKEN_ADDRESS',
+  jupiter: 'https://jup.ag/swap/SOL-9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray',
   
   // Solscan Explorer (for token info)
-  solscan: 'https://solscan.io/token/FTRX_TOKEN_ADDRESS',
+  solscan: 'https://solscan.io/token/9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray',
   
   // Social Media (add your actual links)
   twitter: 'https://twitter.com/FuturoXAI',
@@ -27,14 +26,13 @@ export const TOKEN_CONFIG = {
   symbol: 'FTRX',
   name: 'FuturoX AI',
   decimals: 9,
-  // Add token address after deployment
-  address: 'FTRX_TOKEN_ADDRESS_PLACEHOLDER',
+  // Token address on Solana
+  address: '9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray',
   
   // Price API Configuration (for LivePriceChart)
-  // After token launch, you can use Jupiter Price API or your own backend
   priceAPI: {
     // Option 1: Jupiter Price API (recommended)
-    jupiter: 'https://price.jup.ag/v4/price?ids=FTRX_TOKEN_ADDRESS',
+    jupiter: 'https://price.jup.ag/v4/price?ids=9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray',
     
     // Option 2: Your custom backend endpoint
     custom: '/api/token/price',

@@ -10,8 +10,11 @@ export const LivePriceChart = () => {
   const [solPrice, setSolPrice] = useState(null);
   const [solChange24h, setSolChange24h] = useState(0);
   const [ftrxPrice, setFtrxPrice] = useState(null);
-  const [chartData, setChartData] = useState([]);
+  const [ftrxChange24h, setFtrxChange24h] = useState(0);
+  const [solChartData, setSolChartData] = useState([]);
+  const [ftrxChartData, setFtrxChartData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [ftrxLoading, setFtrxLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('SOL'); // SOL or FTRX
 
   // Fetch Solana price from backend proxy (avoids CORS)
@@ -30,8 +33,8 @@ export const LivePriceChart = () => {
     }
   };
 
-  // Fetch 7-day price history for chart from backend proxy
-  const fetchPriceHistory = async () => {
+  // Fetch 7-day SOL price history for chart from backend proxy
+  const fetchSolPriceHistory = async () => {
     try {
       const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
       const response = await fetch(`${backendUrl}/api/crypto/chart`);
@@ -42,41 +45,48 @@ export const LivePriceChart = () => {
           time: new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           price: price.toFixed(2)
         }));
-        setChartData(formattedData);
+        setSolChartData(formattedData);
       }
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch price history:', error);
+      console.error('Failed to fetch SOL price history:', error);
       setLoading(false);
     }
   };
 
-  // Fetch FTRX price (placeholder - implement after token launch)
+  // Fetch FTRX price from Jupiter API via backend proxy
   const fetchFTRXPrice = async () => {
-    // TODO: Implement after token is deployed
-    // For now, simulate with mock data or fetch from your API
-    // Example: Use Jupiter API or your own backend
-    
-    // Check if token address is configured
-    if (!TOKEN_CONFIG.address.includes('PLACEHOLDER')) {
-      // Fetch real price from Jupiter or Raydium
-      // setFtrxPrice(fetchedPrice);
-    } else {
-      // Mock data for demonstration
-      setFtrxPrice(0.0042); // Example price
+    try {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
+      const response = await fetch(`${backendUrl}/api/ftrx/price`);
+      const data = await response.json();
+      
+      if (data.price) {
+        setFtrxPrice(data.price);
+        setFtrxChange24h(data.change24h || 0);
+      }
+      
+      if (data.chartData) {
+        setFtrxChartData(data.chartData);
+      }
+      setFtrxLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch FTRX price:', error);
+      setFtrxLoading(false);
     }
   };
 
   useEffect(() => {
     // Initial fetch
     fetchSolanaPrice();
-    fetchPriceHistory();
+    fetchSolPriceHistory();
     fetchFTRXPrice();
 
     // Update every minute
     const interval = setInterval(() => {
-      fetchSolanaPrice();
-      if (activeTab === 'FTRX') {
+      if (activeTab === 'SOL') {
+        fetchSolanaPrice();
+      } else {
         fetchFTRXPrice();
       }
     }, 60000); // 60 seconds
@@ -88,7 +98,9 @@ export const LivePriceChart = () => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-[#121212] border border-[rgba(0,255,209,0.3)] p-3 rounded">
-          <p className="text-white text-sm font-semibold">${payload[0].value}</p>
+          <p className="text-white text-sm font-semibold">
+            {activeTab === 'SOL' ? '$' : '$'}{payload[0].value}
+          </p>
           <p className="text-[#4D4D4D] text-xs">{payload[0].payload.time}</p>
         </div>
       );
@@ -96,16 +108,16 @@ export const LivePriceChart = () => {
     return null;
   };
 
-  const isPositiveChange = solChange24h >= 0;
-  const isFtrxAvailable = !TOKEN_CONFIG.address.includes('PLACEHOLDER');
+  const isPositiveChange = activeTab === 'SOL' ? solChange24h >= 0 : ftrxChange24h >= 0;
+  const currentChange = activeTab === 'SOL' ? solChange24h : ftrxChange24h;
 
   return (
     <Card className="bg-[#121212] border-[rgba(0,255,209,0.3)] overflow-hidden">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <CardTitle className="text-white text-2xl flex items-center gap-2">
-              <Activity className="w-6 h-6 text-[#00FFD1]" />
+            <CardTitle className="text-white text-xl sm:text-2xl flex items-center gap-2">
+              <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-[#00FFD1]" />
               Live Market Prices
             </CardTitle>
             <CardDescription className="text-[rgba(255,255,255,0.7)]">
@@ -132,9 +144,8 @@ export const LivePriceChart = () => {
                   ? 'bg-[#00FFD1] text-black'
                   : 'bg-[rgba(255,255,255,0.1)] text-white hover:bg-[rgba(255,255,255,0.2)]'
               }`}
-              disabled={!isFtrxAvailable}
             >
-              FTRX {!isFtrxAvailable && '🔒'}
+              FTRX
             </button>
           </div>
         </div>
@@ -145,8 +156,8 @@ export const LivePriceChart = () => {
           <>
             {/* SOL Price Display */}
             <div className="space-y-2">
-              <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-bold text-white">
+              <div className="flex items-baseline gap-3 flex-wrap">
+                <span className="text-3xl sm:text-4xl font-bold text-white">
                   {loading ? '...' : `$${solPrice?.toFixed(2)}`}
                 </span>
                 {!loading && (
@@ -169,17 +180,17 @@ export const LivePriceChart = () => {
               <p className="text-sm text-[#4D4D4D]">Solana (SOL) / USD</p>
             </div>
 
-            {/* Chart */}
-            <div className="w-full h-[250px]">
+            {/* SOL Chart */}
+            <div className="w-full h-[200px] sm:h-[250px]">
               {loading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="animate-pulse text-[#00FFD1]">Loading chart...</div>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
+                  <AreaChart data={solChartData}>
                     <defs>
-                      <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="colorPriceSol" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#00FFD1" stopOpacity={0.3}/>
                         <stop offset="95%" stopColor="#00FFD1" stopOpacity={0}/>
                       </linearGradient>
@@ -187,12 +198,15 @@ export const LivePriceChart = () => {
                     <XAxis 
                       dataKey="time" 
                       stroke="#4D4D4D"
-                      style={{ fontSize: '12px' }}
+                      style={{ fontSize: '10px' }}
+                      tick={{ fontSize: 10 }}
                     />
                     <YAxis 
                       stroke="#4D4D4D"
-                      style={{ fontSize: '12px' }}
+                      style={{ fontSize: '10px' }}
+                      tick={{ fontSize: 10 }}
                       domain={['dataMin - 5', 'dataMax + 5']}
+                      width={50}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Area 
@@ -200,14 +214,14 @@ export const LivePriceChart = () => {
                       dataKey="price" 
                       stroke="#00FFD1" 
                       strokeWidth={2}
-                      fill="url(#colorPrice)" 
+                      fill="url(#colorPriceSol)" 
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
             </div>
 
-            {/* Additional Info */}
+            {/* SOL Additional Info */}
             <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[rgba(255,255,255,0.1)]">
               <div>
                 <p className="text-xs text-[#4D4D4D] mb-1">24h Volume</p>
@@ -228,47 +242,109 @@ export const LivePriceChart = () => {
         )}
 
         {activeTab === 'FTRX' && (
-          <div className="text-center py-12">
-            {isFtrxAvailable ? (
-              <>
-                {/* FTRX Price (when available) */}
-                <div className="space-y-4">
-                  <div className="text-4xl font-bold text-white">
-                    ${ftrxPrice?.toFixed(4)}
+          <>
+            {/* FTRX Price Display */}
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-3 flex-wrap">
+                <span className="text-3xl sm:text-4xl font-bold text-white">
+                  {ftrxLoading ? '...' : ftrxPrice ? `$${ftrxPrice.toFixed(8)}` : '$0.00000000'}
+                </span>
+                {!ftrxLoading && ftrxChange24h !== 0 && (
+                  <div className={`flex items-center gap-1 px-3 py-1 rounded ${
+                    ftrxChange24h >= 0 
+                      ? 'bg-green-500/20 text-green-400' 
+                      : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {ftrxChange24h >= 0 ? (
+                      <TrendingUp className="w-4 h-4" />
+                    ) : (
+                      <TrendingDown className="w-4 h-4" />
+                    )}
+                    <span className="text-sm font-semibold">
+                      {ftrxChange24h >= 0 ? '+' : ''}{ftrxChange24h?.toFixed(2)}%
+                    </span>
                   </div>
-                  <p className="text-sm text-[#4D4D4D]">FuturoX AI (FTRX) / USD</p>
-                  <div className="bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] p-4 rounded">
-                    <p className="text-[#00FFD1] text-sm">
-                      🚀 FTRX trading live on Raydium!
-                    </p>
+                )}
+              </div>
+              <p className="text-sm text-[#4D4D4D]">FuturoX AI (FTRX) / USD</p>
+            </div>
+
+            {/* FTRX Chart */}
+            <div className="w-full h-[200px] sm:h-[250px]">
+              {ftrxLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-pulse text-[#00FFD1]">Loading FTRX chart...</div>
+                </div>
+              ) : ftrxChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={ftrxChartData}>
+                    <defs>
+                      <linearGradient id="colorPriceFtrx" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#00FFD1" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#00FFD1" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey="time" 
+                      stroke="#4D4D4D"
+                      style={{ fontSize: '10px' }}
+                      tick={{ fontSize: 10 }}
+                    />
+                    <YAxis 
+                      stroke="#4D4D4D"
+                      style={{ fontSize: '10px' }}
+                      tick={{ fontSize: 10 }}
+                      width={60}
+                      tickFormatter={(value) => `$${value.toFixed(6)}`}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="price" 
+                      stroke="#00FFD1" 
+                      strokeWidth={2}
+                      fill="url(#colorPriceFtrx)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <p className="text-[#4D4D4D]">Chart data loading...</p>
+                    <p className="text-xs text-[#4D4D4D] mt-2">Price data available from Jupiter</p>
                   </div>
                 </div>
-              </>
-            ) : (
-              <>
-                {/* Placeholder when token not deployed */}
-                <div className="space-y-4">
-                  <div className="w-16 h-16 bg-[rgba(0,255,209,0.1)] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-3xl">🔒</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-white">FTRX Price Coming Soon</h3>
-                  <p className="text-[rgba(255,255,255,0.7)] max-w-md mx-auto">
-                    FTRX token price chart will be available after token launch on May 10, 2026
-                  </p>
-                  <div className="bg-[rgba(0,255,209,0.05)] border border-[rgba(0,255,209,0.2)] p-4 rounded mt-4">
-                    <p className="text-sm text-[#4D4D4D]">
-                      Pre-order rate: 1 SOL = 10,000 FTRX
-                    </p>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+              )}
+            </div>
+
+            {/* FTRX Info */}
+            <div className="bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] p-4 rounded">
+              <p className="text-[#00FFD1] text-sm text-center">
+                🚀 FTRX trading live on Raydium DEX!
+              </p>
+            </div>
+
+            {/* FTRX Token Info */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-[rgba(255,255,255,0.1)]">
+              <div>
+                <p className="text-xs text-[#4D4D4D] mb-1">Token</p>
+                <p className="text-sm font-semibold text-white">FTRX</p>
+              </div>
+              <div>
+                <p className="text-xs text-[#4D4D4D] mb-1">Network</p>
+                <p className="text-sm font-semibold text-white">Solana</p>
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <p className="text-xs text-[#4D4D4D] mb-1">DEX</p>
+                <p className="text-sm font-semibold text-[#00FFD1]">Raydium</p>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Last Updated */}
         <div className="text-xs text-[#4D4D4D] text-center pt-2">
-          Updated every 60 seconds • Powered by CoinGecko
+          Updated every 60 seconds • Powered by {activeTab === 'SOL' ? 'CoinGecko' : 'Jupiter'}
         </div>
       </CardContent>
     </Card>
