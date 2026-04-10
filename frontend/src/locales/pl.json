@@ -83,6 +83,31 @@
         "button": "Kup na Raydium",
         "comingSoon": "Link będzie dostępny po uruchomieniu tokena"
       }
+    },
+    "proTip": "Wskazówka: Zakup bezpośredni jest natychmiastowy. Raydium oferuje ceny rynkowe z głęboką płynnością.",
+    "swap": {
+      "solPrice": "Cena SOL",
+      "ftrxPrice": "Cena FTRX",
+      "yourBalance": "Twoje Saldo",
+      "youPay": "Płacisz",
+      "youReceive": "Otrzymujesz",
+      "rate": "Kurs",
+      "network": "Sieć",
+      "solanaMainnet": "Solana Mainnet",
+      "dex": "DEX",
+      "swapButton": "Wymień na Raydium",
+      "swapInfo": "Wymiana realizowana przez Raydium DEX po aktualnej cenie rynkowej",
+      "currentRate": "Aktualny kurs: 1 SOL ≈ {{rate}} FTRX",
+      "connectInfo": "Połącz portfel Solana, aby kupić FTRX po aktualnym kursie rynkowym",
+      "live": "NA ŻYWO",
+      "max": "MAX",
+      "invalidAmount": "Proszę podać prawidłową kwotę",
+      "minPurchase": "Minimalny zakup to 0.001 SOL",
+      "insufficientBalance": "Niewystarczające saldo. Masz {{balance}} SOL",
+      "openingRaydium": "Otwieranie Raydium aby dokończyć wymianę!",
+      "swapDesc": "Wymień {{sol}} SOL na ~{{ftrx}} FTRX",
+      "transactionFailed": "Transakcja nieudana. Spróbuj ponownie.",
+      "processing": "Przetwarzanie..."
     }
   },
   "solana": {

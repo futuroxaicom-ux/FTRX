@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Header, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime, timezone
 import httpx
 import time
+from volume_bot import VolumeBot
 
 # Simple in-memory cache for CoinGecko API
 class PriceCache:
@@ -82,6 +83,75 @@ class WhitelistCreate(BaseModel):
     email: str
     wallet_address: Optional[str] = None
     timestamp: Optional[str] = None
+
+class BotConfigUpdate(BaseModel):
+    min_sol: Optional[float] = None
+    max_sol: Optional[float] = None
+    min_delay: Optional[int] = None
+    max_delay: Optional[int] = None
+    slippage_bps: Optional[int] = None
+
+class WalletAdd(BaseModel):
+    label: str
+    private_key: str
+
+# Initialize volume bot
+volume_bot = VolumeBot(db)
+
+# Admin auth helper
+def verify_admin(password: str):
+    admin_pw = os.environ.get("ADMIN_PASSWORD", "")
+    if not admin_pw or password != admin_pw:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+# Admin endpoints
+@api_router.post("/admin/login")
+async def admin_login(body: dict):
+    admin_pw = os.environ.get("ADMIN_PASSWORD", "")
+    if body.get("password") == admin_pw:
+        return {"success": True}
+    raise HTTPException(status_code=401, detail="Invalid password")
+
+@api_router.get("/admin/bot/status")
+async def bot_status(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return volume_bot.get_status()
+
+@api_router.post("/admin/bot/start")
+async def bot_start(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    result = await volume_bot.start()
+    return {"success": result, "message": "Bot started" if result else "Bot already running"}
+
+@api_router.post("/admin/bot/stop")
+async def bot_stop(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    result = await volume_bot.stop()
+    return {"success": result, "message": "Bot stopped"}
+
+@api_router.post("/admin/bot/config")
+async def bot_config(config: BotConfigUpdate, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    updated = volume_bot.update_config(config.model_dump(exclude_none=True))
+    return {"success": True, "config": updated}
+
+@api_router.get("/admin/wallets")
+async def get_wallets(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    wallets = await volume_bot.get_wallets_info()
+    return {"wallets": wallets}
+
+@api_router.post("/admin/wallets")
+async def add_wallet(wallet: WalletAdd, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    result = await volume_bot.add_wallet(wallet.label, wallet.private_key)
+    return result
+
+@api_router.delete("/admin/wallets/{public_key}")
+async def remove_wallet(public_key: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    result = await volume_bot.remove_wallet(public_key)
+    return result
 
 # Add your routes to the router instead of directly to app
 @api_router.get("/")

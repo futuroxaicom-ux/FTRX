@@ -3,6 +3,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 import "./i18n";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
+import AdminPage from "./pages/Admin";
 import { SolanaProvider } from "./contexts/SolanaProvider";
 import { Toaster } from "./components/ui/sonner";
 
@@ -13,6 +14,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/admin" element={<AdminPage />} />
           </Routes>
         </BrowserRouter>
         <Toaster />

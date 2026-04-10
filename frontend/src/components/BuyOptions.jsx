@@ -22,7 +22,7 @@ export const BuyOptions = ({ onDirectBuyClick }) => {
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Direct Purchase Option */}
-        <Card className="bg-[#121212] border-[rgba(0,255,209,0.4)] hover:border-[#00FFD1] transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,255,209,0.2)]">
+        <Card data-testid="direct-purchase-card" className="bg-[#121212] border-[rgba(0,255,209,0.4)] hover:border-[#00FFD1] transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,255,209,0.2)]">
           <CardHeader>
             <div className="w-14 h-14 bg-[rgba(0,255,209,0.1)] flex items-center justify-center mx-auto mb-4">
               <ShoppingCart className="w-7 h-7 text-[#00FFD1]" />
@@ -36,6 +36,7 @@ export const BuyOptions = ({ onDirectBuyClick }) => {
               {t('purchase.buyOptions.direct.description')}
             </CardDescription>
             <Button 
+              data-testid="direct-buy-btn"
               onClick={onDirectBuyClick}
               className="btn-primary w-full"
             >
@@ -45,7 +46,7 @@ export const BuyOptions = ({ onDirectBuyClick }) => {
         </Card>
 
         {/* Raydium DEX Option */}
-        <Card className="bg-[#121212] border-[rgba(0,255,209,0.4)] hover:border-[#00FFD1] transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,255,209,0.2)] relative">
+        <Card data-testid="raydium-purchase-card" className="bg-[#121212] border-[rgba(0,255,209,0.4)] hover:border-[#00FFD1] transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,255,209,0.2)] relative">
           <CardHeader>
             <div className="w-14 h-14 bg-[rgba(0,255,209,0.1)] flex items-center justify-center mx-auto mb-4">
               <Zap className="w-7 h-7 text-[#00FFD1]" />
@@ -70,9 +71,9 @@ export const BuyOptions = ({ onDirectBuyClick }) => {
       </div>
 
       {/* Info Box */}
-      <div className="bg-[rgba(0,255,209,0.05)] border border-[rgba(0,255,209,0.2)] p-4 text-center">
+      <div data-testid="buy-options-info" className="bg-[rgba(0,255,209,0.05)] border border-[rgba(0,255,209,0.2)] p-4 text-center">
         <p className="text-sm text-[rgba(255,255,255,0.85)]">
-          💡 <strong>Pro Tip:</strong> Direct purchase is instant. Raydium offers market pricing with deep liquidity.
+          {t('purchase.proTip')}
         </p>
       </div>
     </div>
