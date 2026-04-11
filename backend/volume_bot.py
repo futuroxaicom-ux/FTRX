@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 SOL_MINT = "So11111111111111111111111111111111111111112"
 JUPITER_QUOTE_URL = "https://quote-api.jup.ag/v6/quote"
 JUPITER_SWAP_URL = "https://quote-api.jup.ag/v6/swap"
-SOLANA_RPC = "https://rpc.ankr.com/solana"
+SOLANA_RPC = "https://solana.publicnode.com"
 LAMPORTS_PER_SOL = 1_000_000_000
 
 
