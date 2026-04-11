@@ -63,6 +63,15 @@ Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Vol
 - SELL FTRX → SOL: tx `5qSHtQT7Zc3un5Vmh8YK8v8iaMwRLvgq4zacQJWd`
 - 0 errors, full cycle complete
 
+## Organic Mode v2 (Feb 2026)
+- Different wallets for BUY and SELL (cooldown prevents same wallet consecutive trades)
+- Gaussian-distributed random amounts (each trade unique)
+- Partial sells: 30-80% of holdings (not 100%)
+- Buy accumulation: 2-5 buys required before first sell
+- Weighted action selection: BUY/SELL/TRANSFER_SOL/REFUND with dynamic weights
+- UI: "Tryb Organiczny" bar shows live organic metrics (holders, buys since sell, last action)
+
+
 ## Backlog
 ### P1
 - [ ] Szyfrowanie kluczy prywatnych w MongoDB (AES)
@@ -72,7 +81,7 @@ Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Vol
 - [ ] Telegram/Discord notyfikacje
 - [ ] Refaktor Home.jsx (400+ linii)
 - [ ] Zapis historii transakcji do MongoDB (persystentne)
-- [ ] Tryb "stealth" - organiczne wzorce handlowe
+- [x] Tryb "stealth" - organiczne wzorce handlowe (DONE Feb 2026 - Organic Mode v2)
 
 ### P3
 - [ ] Source map warnings cleanup

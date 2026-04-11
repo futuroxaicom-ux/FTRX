@@ -70,11 +70,12 @@ function Dashboard({ pw, onLogout }) {
   const h = { 'Content-Type': 'application/json', 'x-admin-password': pw };
 
   const fetchAll = useCallback(async () => {
+    const headers = { 'Content-Type': 'application/json', 'x-admin-password': pw };
     try {
       const [sR, wR, cR] = await Promise.all([
-        fetch(`${API}/api/admin/bot/status`, { headers: h }),
-        fetch(`${API}/api/admin/wallets`, { headers: h }),
-        fetch(`${API}/api/admin/bot/costs`, { headers: h }),
+        fetch(`${API}/api/admin/bot/status`, { headers }),
+        fetch(`${API}/api/admin/wallets`, { headers }),
+        fetch(`${API}/api/admin/bot/costs`, { headers }),
       ]);
       if (sR.ok) setStatus(await sR.json());
       if (wR.ok) { const d = await wR.json(); setWallets(d.wallets || []); }
