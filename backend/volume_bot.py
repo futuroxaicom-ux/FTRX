@@ -68,6 +68,11 @@ class VolumeBot:
         self._balance_cache_time = 0
         # Track which wallets hold tokens (pubkey -> token_amount)
         self._token_holders = {}
+        # Cooldown: prevent same wallet from trading twice in a row
+        self._last_trade_wallet = None
+        self._last_action = None
+        # Accumulation: how many buys before selling is allowed
+        self._buys_since_sell = 0
 
     async def load_config(self):
         saved = await self.db.bot_config.find_one({"_id": "main"}, {"_id": 0})
@@ -99,6 +104,9 @@ class VolumeBot:
         self._balance_cache = {}
         self._balance_cache_time = 0
         self._token_holders = {}
+        self._last_trade_wallet = None
+        self._last_action = None
+        self._buys_since_sell = 0
         self.task = asyncio.create_task(self._run_loop())
         logger.info("Volume bot started (organic mode)")
         return True
@@ -122,6 +130,8 @@ class VolumeBot:
             "stats": self.stats,
             "daily_wallets_used": len(self.daily_wallets_used),
             "token_holders": len(self._token_holders),
+            "buys_since_sell": self._buys_since_sell,
+            "last_action": self._last_action,
             "recent_transactions": self.transaction_log[-50:],
         }
 
@@ -225,7 +235,7 @@ class VolumeBot:
                 await asyncio.sleep(5)
 
     def _pick_action(self, sub_wallets):
-        """Pick organic action based on current state"""
+        """Pick organic action - accumulate buys before selling, vary sequences"""
         min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6_000_000
         funded = [w for w in sub_wallets if self._balance_cache.get(w["public_key"], 0) >= min_bal]
         holders = [w for w in sub_wallets if w["public_key"] in self._token_holders]
@@ -237,27 +247,45 @@ class VolumeBot:
         if self.config.get("auto_refund") and len(low_bal) > len(sub_wallets) * 0.3:
             return "REFUND"
 
-        # If no token holders, must buy first
-        if not holders:
+        # Must buy first - need at least 2-4 holders before any selling
+        min_holders_before_sell = random.randint(2, min(4, max(2, len(sub_wallets) // 3)))
+        if len(holders) < min_holders_before_sell:
             if funded:
                 return "BUY"
             return "REFUND"
 
-        # Weighted random choice for organic behavior
+        # Accumulate buys before allowing sells (random 2-5 buys between sells)
+        buys_needed = random.randint(2, 5)
+        sell_allowed = self._buys_since_sell >= buys_needed and len(holders) >= 2
+
+        # Build weighted random choices - organic sequences
         weights = []
         actions = []
 
         if funded:
+            # More buys if few holders, less if many
+            buy_weight = 50 if len(holders) < 4 else 35
+            # If last action was also BUY, slightly reduce (but don't block)
+            if self._last_action == "BUY":
+                buy_weight = max(20, buy_weight - 10)
             actions.append("BUY")
-            weights.append(40)  # 40% buy
+            weights.append(buy_weight)
 
-        if holders:
-            actions.append("SELL")
-            weights.append(40)  # 40% sell
+        if sell_allowed:
+            # Only sell from wallets that are NOT the last buyer
+            eligible_sellers = [h for h in holders
+                                if h["public_key"] != self._last_trade_wallet]
+            if eligible_sellers:
+                sell_weight = 30 if len(holders) < 5 else 45
+                # If last action was SELL, reduce consecutive sells
+                if self._last_action == "SELL":
+                    sell_weight = max(10, sell_weight - 15)
+                actions.append("SELL")
+                weights.append(sell_weight)
 
         if len(funded) > 1:
             actions.append("TRANSFER_SOL")
-            weights.append(15)  # 15% SOL transfer
+            weights.append(10)
 
         if self.config.get("auto_refund") and low_bal:
             actions.append("REFUND")
@@ -269,21 +297,26 @@ class VolumeBot:
         return random.choices(actions, weights=weights, k=1)[0]
 
     async def _do_buy(self, sub_wallets):
-        """Organic BUY - random wallet, gaussian amount"""
+        """Organic BUY - different wallet than last trade, gaussian amount"""
         min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6_000_000
         funded = [w for w in sub_wallets if self._balance_cache.get(w["public_key"], 0) >= min_bal]
         if not funded:
             return
 
+        # Avoid same wallet as last trade (organic pattern)
+        candidates = [w for w in funded if w["public_key"] != self._last_trade_wallet]
+        if not candidates:
+            candidates = funded  # fallback if only 1 wallet
+
         # Prefer unused wallets (new makers)
-        unused = [w for w in funded if w["public_key"] not in self.daily_wallets_used]
-        wallet = random.choice(unused) if unused else random.choice(funded)
+        unused = [w for w in candidates if w["public_key"] not in self.daily_wallets_used]
+        wallet = random.choice(unused) if unused else random.choice(candidates)
 
         keypair = self._load_keypair(wallet["private_key"])
         if not keypair:
             return
 
-        # Gaussian random amount
+        # Gaussian random amount - each buy is unique
         sol_amount = gauss_amount(self.config["min_sol_per_trade"], self.config["max_sol_per_trade"])
         wallet_sol = (self._balance_cache.get(wallet["public_key"], 0) / LAMPORTS_PER_SOL) - 0.005
         sol_amount = min(sol_amount, max(0, wallet_sol))
@@ -306,27 +339,41 @@ class VolumeBot:
             self.stats["daily_volume_sol"] += sol_amount
             self.daily_wallets_used.add(wallet["public_key"])
             self.stats["daily_makers"] = len(self.daily_wallets_used)
-            # Track token holding
+            # Track token holding - accumulate if already holding
+            existing = self._token_holders.get(wallet["public_key"], {})
+            prev_amount = existing.get("amount", 0)
+            prev_sol = existing.get("sol_value", 0)
             self._token_holders[wallet["public_key"]] = {
-                "amount": int(result.get("out_amount", 0)),
-                "sol_value": sol_amount,
+                "amount": prev_amount + int(result.get("out_amount", 0)),
+                "sol_value": prev_sol + sol_amount,
                 "wallet": wallet,
             }
-            # Update balance cache
+            # Update balance cache & tracking
             self._balance_cache[wallet["public_key"]] = max(0,
                 self._balance_cache.get(wallet["public_key"], 0) - lamports - 10000)
+            self._last_trade_wallet = wallet["public_key"]
+            self._last_action = "BUY"
+            self._buys_since_sell += 1
             self._log_tx("BUY", sol_amount, result, wallet.get("label", ""))
         else:
             self.stats["errors"] += 1
             self._log_tx("ERROR", sol_amount, result or {"error": "No result"}, wallet.get("label", ""))
 
     async def _do_sell(self, sub_wallets):
-        """Organic SELL - different wallet than buyer, varied amount"""
+        """Organic SELL - DIFFERENT wallet than last buyer, partial amount"""
         if not self._token_holders:
             return
 
-        # Pick a random token holder
-        pub = random.choice(list(self._token_holders.keys()))
+        # Pick a holder that is NOT the last trade wallet (organic!)
+        eligible = [pub for pub in self._token_holders.keys()
+                    if pub != self._last_trade_wallet]
+        if not eligible:
+            # If only 1 holder, allow it but this is rare
+            eligible = list(self._token_holders.keys())
+        if not eligible:
+            return
+
+        pub = random.choice(eligible)
         holding = self._token_holders[pub]
         wallet = holding["wallet"]
 
@@ -343,24 +390,47 @@ class VolumeBot:
             del self._token_holders[pub]
             return
 
-        logger.info(f"SELL {token_amount} tokens -> SOL via {wallet.get('label')}")
-        result = await self._execute_swap(keypair, token_mint, SOL_MINT, token_amount)
+        # Partial sell: sell 30-80% of holdings (organic, not always 100%)
+        sell_pct = random.uniform(0.3, 0.8)
+        sell_tokens = int(token_amount * sell_pct)
+        sell_sol_value = round(sol_value * sell_pct, 6)
+
+        if sell_tokens <= 0:
+            del self._token_holders[pub]
+            return
+
+        logger.info(f"SELL {sell_pct*100:.0f}% ({sell_tokens} tokens) -> SOL via {wallet.get('label')}")
+        result = await self._execute_swap(keypair, token_mint, SOL_MINT, sell_tokens)
 
         if result and not result.get("error"):
             self.stats["total_trades"] += 1
             self.stats["daily_trades"] += 1
-            self.stats["total_volume_sol"] += sol_value
-            self.stats["daily_volume_sol"] += sol_value
+            self.stats["total_volume_sol"] += sell_sol_value
+            self.stats["daily_volume_sol"] += sell_sol_value
             self.daily_wallets_used.add(pub)
             self.stats["daily_makers"] = len(self.daily_wallets_used)
-            # Remove from holders, update SOL balance
-            del self._token_holders[pub]
+
+            # Update holdings - keep remainder or remove if sold most
+            remaining_tokens = token_amount - sell_tokens
+            remaining_sol = sol_value - sell_sol_value
+            if remaining_tokens > 0 and sell_pct < 0.9:
+                self._token_holders[pub] = {
+                    "amount": remaining_tokens,
+                    "sol_value": remaining_sol,
+                    "wallet": wallet,
+                }
+            else:
+                del self._token_holders[pub]
+
             sol_received = int(result.get("out_amount", 0))
             self._balance_cache[pub] = self._balance_cache.get(pub, 0) + sol_received
-            self._log_tx("SELL", sol_value, result, wallet.get("label", ""))
+            self._last_trade_wallet = pub
+            self._last_action = "SELL"
+            self._buys_since_sell = 0
+            self._log_tx("SELL", sell_sol_value, result, wallet.get("label", ""))
         else:
             self.stats["errors"] += 1
-            self._log_tx("ERROR", sol_value, result or {"error": "No result"}, wallet.get("label", ""))
+            self._log_tx("ERROR", sell_sol_value, result or {"error": "No result"}, wallet.get("label", ""))
 
     async def _do_sol_transfer(self, sub_wallets):
         """Transfer SOL between wallets - keeps funds circulating"""
@@ -655,7 +725,6 @@ class VolumeBot:
 
         lamports = int(sol_per_wallet * LAMPORTS_PER_SOL)
         BATCH_SIZE = 20
-        results = []
         total_sent = 0
 
         async with httpx.AsyncClient() as client:

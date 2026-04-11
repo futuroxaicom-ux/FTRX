@@ -145,6 +145,16 @@ function Dashboard({ pw, onLogout }) {
           <StatCard icon={<XCircle className="w-5 h-5" />} label="Trades / Transfers / Bledy" value={`${stats.daily_trades || 0} / ${stats.daily_transfers || 0} / ${stats.errors || 0}`} color="text-white" />
         </div>
 
+        {/* Organic mode indicator */}
+        {running && (
+          <div className="bg-[rgba(0,255,209,0.03)] border border-[rgba(0,255,209,0.12)] rounded p-3 flex items-center gap-4 text-sm">
+            <span className="text-[#00FFD1] font-semibold flex items-center gap-1.5"><Zap className="w-4 h-4" />Tryb Organiczny</span>
+            <span className="text-[#666]">Holdery: <span className="text-white font-medium">{status?.token_holders || 0}</span></span>
+            <span className="text-[#666]">BUY od sprzedazy: <span className="text-white font-medium">{status?.buys_since_sell || 0}</span></span>
+            <span className="text-[#666]">Ostatnia akcja: <span className={`font-medium ${status?.last_action === 'BUY' ? 'text-green-400' : status?.last_action === 'SELL' ? 'text-blue-400' : status?.last_action === 'TRANSFER' ? 'text-yellow-400' : 'text-white'}`}>{status?.last_action || '-'}</span></span>
+          </div>
+        )}
+
         {/* Controls + Config */}
         <div className="grid md:grid-cols-2 gap-4">
           <BotControls running={running} stats={stats} onStart={() => apiCall('/api/admin/bot/start')} onStop={() => apiCall('/api/admin/bot/stop')} busy={busy} />
