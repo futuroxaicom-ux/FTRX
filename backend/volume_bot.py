@@ -59,7 +59,7 @@ class VolumeBot:
             "trade_interval_max": 30,      # seconds
             "min_sol_per_trade": 0.003,
             "max_sol_per_trade": 0.03,
-            "slippage_bps": 1500,
+            "slippage_bps": 300,
             "auto_refund": True,
             "min_wallet_balance": 0.003,   # below this -> gets refunded
         }
@@ -719,9 +719,9 @@ class VolumeBot:
         logger.info(f"Balances refreshed: {funded} funded wallets, {len(self._token_holders)} token holders")
 
     async def _execute_swap(self, keypair, input_mint, output_mint, amount):
-        # Dynamic slippage: start from configured level, increase on retry
-        base_slip = max(self.config["slippage_bps"], 1000)
-        slippage_levels = [base_slip, base_slip + 500, base_slip + 1000]
+        # Dynamic slippage: start low to minimize costs, increase only on failure
+        base_slip = min(self.config["slippage_bps"], 500)  # Start at configured or 500 max
+        slippage_levels = [base_slip, base_slip + 300, base_slip + 600]
         for attempt, slippage in enumerate(slippage_levels):
             result = await self._execute_swap_once(keypair, input_mint, output_mint, amount, slippage)
             if result and not result.get("error"):
