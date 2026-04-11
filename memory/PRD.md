@@ -78,6 +78,10 @@ Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Vol
 - [x] FTRX balance display + Collect FTRX + Refresh FTRX (DONE Feb 2026)
 - [x] Batch RPC optymalizacja - 134 portfeli w < 5s (DONE Feb 2026)
 - [x] Bot BUY blocker fix - min_bal threshold za wysoki + REFUND blokujacy BUY (DONE Feb 2026)
+- [x] On-chain tx confirmation + dynamic slippage (500->1000->1500) (DONE Feb 2026)
+- [x] ATA detection - batch sprawdzanie kont tokenowych, niższa rezerwa dla portfeli z ATA (DONE Feb 2026)
+- [x] Cost efficiency tracking - sol_spent, sol_recovered, net_cost, cost_per_trade/maker (DONE Feb 2026)
+- [x] Dashboard efektywności kosztów na panelu admina (DONE Feb 2026)
 - [ ] Szyfrowanie kluczy prywatnych w MongoDB (AES)
 - [ ] Rate limiting na endpointach admina
 

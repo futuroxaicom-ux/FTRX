@@ -147,13 +147,43 @@ function Dashboard({ pw, onLogout }) {
           <StatCard icon={<XCircle className="w-5 h-5" />} label="Trades / Transfers / Bledy" value={`${stats.daily_trades || 0} / ${stats.daily_transfers || 0} / ${stats.errors || 0}`} color="text-white" />
         </div>
 
-        {/* Organic mode indicator */}
+        {/* Organic mode indicator + Cost Efficiency */}
         {running && (
-          <div className="bg-[rgba(0,255,209,0.03)] border border-[rgba(0,255,209,0.12)] rounded p-3 flex items-center gap-4 text-sm">
-            <span className="text-[#00FFD1] font-semibold flex items-center gap-1.5"><Zap className="w-4 h-4" />Tryb Organiczny</span>
-            <span className="text-[#666]">Holdery: <span className="text-white font-medium">{status?.token_holders || 0}</span></span>
-            <span className="text-[#666]">BUY od sprzedazy: <span className="text-white font-medium">{status?.buys_since_sell || 0}</span></span>
-            <span className="text-[#666]">Ostatnia akcja: <span className={`font-medium ${status?.last_action === 'BUY' ? 'text-green-400' : status?.last_action === 'SELL' ? 'text-blue-400' : status?.last_action === 'TRANSFER' ? 'text-yellow-400' : 'text-white'}`}>{status?.last_action || '-'}</span></span>
+          <div className="space-y-2">
+            <div className="bg-[rgba(0,255,209,0.03)] border border-[rgba(0,255,209,0.12)] rounded p-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+              <span className="text-[#00FFD1] font-semibold flex items-center gap-1.5"><Zap className="w-4 h-4" />Tryb Organiczny</span>
+              <span className="text-[#666]">Holdery: <span className="text-white font-medium">{status?.token_holders || 0}</span></span>
+              <span className="text-[#666]">BUY od sprzedazy: <span className="text-white font-medium">{status?.buys_since_sell || 0}</span></span>
+              <span className="text-[#666]">Ostatnia akcja: <span className={`font-medium ${status?.last_action === 'BUY' ? 'text-green-400' : status?.last_action === 'SELL' ? 'text-blue-400' : status?.last_action === 'TRANSFER' ? 'text-yellow-400' : 'text-white'}`}>{status?.last_action || '-'}</span></span>
+            </div>
+            {status?.efficiency && (
+              <div data-testid="cost-efficiency" className="bg-[rgba(255,165,0,0.03)] border border-[rgba(255,165,0,0.12)] rounded p-3 grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
+                <div>
+                  <p className="text-[#666] text-xs">Success rate</p>
+                  <p className={`font-bold ${status.efficiency.success_rate >= 50 ? 'text-green-400' : 'text-red-400'}`}>{status.efficiency.success_rate}%</p>
+                </div>
+                <div>
+                  <p className="text-[#666] text-xs">Wydano (BUY)</p>
+                  <p className="font-bold text-red-400">{status.efficiency.sol_spent} SOL</p>
+                </div>
+                <div>
+                  <p className="text-[#666] text-xs">Odzyskano (SELL)</p>
+                  <p className="font-bold text-green-400">{status.efficiency.sol_recovered} SOL</p>
+                </div>
+                <div>
+                  <p className="text-[#666] text-xs">Koszt netto</p>
+                  <p className="font-bold text-orange-400">{status.efficiency.net_cost_sol} SOL</p>
+                </div>
+                <div>
+                  <p className="text-[#666] text-xs">Koszt / trade</p>
+                  <p className="font-bold text-white">{status.efficiency.cost_per_trade} SOL</p>
+                </div>
+                <div>
+                  <p className="text-[#666] text-xs">Koszt / maker</p>
+                  <p className="font-bold text-white">{status.efficiency.cost_per_maker} SOL</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

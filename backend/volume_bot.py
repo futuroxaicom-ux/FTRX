@@ -74,6 +74,11 @@ class VolumeBot:
             "last_trade_time": None,
             "started_at": None,
             "day_start": None,
+            "sol_spent_buy": 0.0,
+            "sol_recovered_sell": 0.0,
+            "net_cost": 0.0,
+            "successful_trades": 0,
+            "failed_trades": 0,
         }
         self.daily_wallets_used = set()
         self.transaction_log = []
@@ -86,6 +91,8 @@ class VolumeBot:
         self._last_action = None
         # Accumulation: how many buys before selling is allowed
         self._buys_since_sell = 0
+        # Track wallets that already have ATA (saves 0.002 SOL rent)
+        self._has_ata = set()
 
     async def load_config(self):
         saved = await self.db.bot_config.find_one({"_id": "main"}, {"_id": 0})
@@ -111,6 +118,8 @@ class VolumeBot:
             "daily_trades": 0, "daily_transfers": 0,
             "cycles": 0, "errors": 0,
             "last_trade_time": None, "started_at": now, "day_start": now,
+            "sol_spent_buy": 0.0, "sol_recovered_sell": 0.0,
+            "net_cost": 0.0, "successful_trades": 0, "failed_trades": 0,
         }
         self.daily_wallets_used = set()
         self.transaction_log = []
@@ -120,6 +129,7 @@ class VolumeBot:
         self._last_trade_wallet = None
         self._last_action = None
         self._buys_since_sell = 0
+        self._has_ata = set()
         self.task = asyncio.create_task(self._run_loop())
         logger.info("Volume bot started (organic mode)")
         return True
@@ -137,6 +147,10 @@ class VolumeBot:
         return True
 
     def get_status(self):
+        s = self.stats
+        success_rate = (s["successful_trades"] / max(1, s["successful_trades"] + s["failed_trades"])) * 100
+        cost_per_trade = s["net_cost"] / max(1, s["successful_trades"])
+        cost_per_maker = s["net_cost"] / max(1, s["daily_makers"])
         return {
             "running": self.running,
             "config": self.config,
@@ -145,6 +159,15 @@ class VolumeBot:
             "token_holders": len(self._token_holders),
             "buys_since_sell": self._buys_since_sell,
             "last_action": self._last_action,
+            "efficiency": {
+                "success_rate": round(success_rate, 1),
+                "net_cost_sol": round(s["net_cost"], 6),
+                "cost_per_trade": round(cost_per_trade, 6),
+                "cost_per_maker": round(cost_per_maker, 6),
+                "sol_spent": round(s["sol_spent_buy"], 6),
+                "sol_recovered": round(s["sol_recovered_sell"], 6),
+                "wallets_with_ata": len(self._has_ata),
+            },
             "recent_transactions": self.transaction_log[-50:],
         }
 
@@ -195,6 +218,45 @@ class VolumeBot:
             self.stats["day_start"] = now
             self.daily_wallets_used = set()
 
+    async def _detect_existing_atas(self, wallets):
+        """Check which wallets already have token accounts (saves 0.00204 SOL reserve per wallet)"""
+        token_mint_str = self.config.get("token_mint", "")
+        if not token_mint_str:
+            return
+        token_mint = Pubkey.from_string(token_mint_str)
+        active = [w for w in wallets if self._balance_cache.get(w["public_key"], 0) > 2_000_000]
+        ata_checks = []
+        for w in active:
+            try:
+                wallet_pub = Pubkey.from_string(w["public_key"])
+                ata = get_ata(wallet_pub, token_mint)
+                ata_checks.append((w["public_key"], str(ata)))
+            except Exception:
+                pass
+
+        # Batch check ATA existence
+        BATCH = 50
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for i in range(0, len(ata_checks), BATCH):
+                batch = ata_checks[i:i + BATCH]
+                rpc_batch = [
+                    {"jsonrpc": "2.0", "id": idx, "method": "getAccountInfo",
+                     "params": [ata_addr, {"encoding": "base64"}]}
+                    for idx, (_, ata_addr) in enumerate(batch)
+                ]
+                try:
+                    resp = await client.post(SOLANA_RPC, json=rpc_batch)
+                    results = resp.json()
+                    if isinstance(results, list):
+                        for r in results:
+                            rid = r.get("id", 0)
+                            if 0 <= rid < len(batch) and r.get("result", {}).get("value"):
+                                self._has_ata.add(batch[rid][0])
+                except Exception:
+                    pass
+        if self._has_ata:
+            logger.info(f"Detected {len(self._has_ata)} wallets with existing ATA (lower reserve)")
+
     # ==================== ORGANIC BOT LOOP ====================
 
     async def _run_loop(self):
@@ -215,6 +277,10 @@ class VolumeBot:
 
                 # Refresh balance cache periodically
                 await self._refresh_balances(sub_wallets)
+
+                # Detect existing ATAs (one-time at start, then after buys)
+                if not self._has_ata:
+                    await self._detect_existing_atas(sub_wallets)
 
                 # Decide action based on state
                 action = self._pick_action(sub_wallets)
@@ -249,16 +315,38 @@ class VolumeBot:
 
     def _pick_action(self, sub_wallets):
         """Pick organic action - accumulate buys before selling, vary sequences"""
-        min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 2_000_000  # min_trade + 0.002 SOL fee
-        funded = [w for w in sub_wallets if self._balance_cache.get(w["public_key"], 0) >= min_bal]
+        min_trade = self.config["min_sol_per_trade"]
+        # Wallets with ATA need less reserve (no rent), so lower threshold
+        funded_buy = []
+        for w in sub_wallets:
+            bal = self._balance_cache.get(w["public_key"], 0) / LAMPORTS_PER_SOL
+            reserve = 0.001 if w["public_key"] in self._has_ata else 0.005
+            if bal >= min_trade + reserve:
+                funded_buy.append(w)
+        funded_sell = [w for w in sub_wallets
+                       if self._balance_cache.get(w["public_key"], 0) >= 1_500_000]  # 0.0015 SOL for sell fees
         holders = [w for w in sub_wallets if w["public_key"] in self._token_holders]
 
+        # If holders exist but no wallet can BUY, try to SELL to recycle SOL
+        if not funded_buy and holders:
+            eligible_sellers = [h for h in holders
+                                if h["public_key"] in [f["public_key"] for f in funded_sell]
+                                and h["public_key"] != self._last_trade_wallet]
+            if eligible_sellers:
+                return "SELL"
+            # Try any holder that can pay fees
+            any_seller = [h for h in holders
+                          if h["public_key"] in [f["public_key"] for f in funded_sell]]
+            if any_seller:
+                return "SELL"
+            return "REFUND"
+
         # No funded wallets at all -> nothing to do
-        if not funded:
+        if not funded_buy:
             return "REFUND"
 
         # Must buy first - need at least 2-4 holders before any selling
-        min_holders_before_sell = random.randint(2, min(4, max(2, len(funded) // 2 + 1)))
+        min_holders_before_sell = random.randint(2, min(4, max(2, len(funded_buy) // 2 + 1)))
         if len(holders) < min_holders_before_sell:
             return "BUY"
 
@@ -270,7 +358,7 @@ class VolumeBot:
         weights = []
         actions = []
 
-        if funded:
+        if funded_buy:
             # More buys if few holders, less if many
             buy_weight = 50 if len(holders) < 4 else 35
             # If last action was also BUY, slightly reduce (but don't block)
@@ -280,18 +368,18 @@ class VolumeBot:
             weights.append(buy_weight)
 
         if sell_allowed:
-            # Only sell from wallets that are NOT the last buyer
+            # Only sell from wallets that are NOT the last buyer AND can pay fees
             eligible_sellers = [h for h in holders
-                                if h["public_key"] != self._last_trade_wallet]
+                                if h["public_key"] != self._last_trade_wallet
+                                and self._balance_cache.get(h["public_key"], 0) >= 3_000_000]
             if eligible_sellers:
                 sell_weight = 30 if len(holders) < 5 else 45
-                # If last action was SELL, reduce consecutive sells
                 if self._last_action == "SELL":
                     sell_weight = max(10, sell_weight - 15)
                 actions.append("SELL")
                 weights.append(sell_weight)
 
-        if len(funded) > 1:
+        if len(funded_buy) > 1:
             actions.append("TRANSFER_SOL")
             weights.append(10)
 
@@ -306,8 +394,13 @@ class VolumeBot:
 
     async def _do_buy(self, sub_wallets):
         """Organic BUY - different wallet than last trade, gaussian amount"""
-        min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 2_000_000  # min_trade + 0.002 fee
-        funded = [w for w in sub_wallets if self._balance_cache.get(w["public_key"], 0) >= min_bal]
+        min_trade = self.config["min_sol_per_trade"]
+        funded = []
+        for w in sub_wallets:
+            bal = self._balance_cache.get(w["public_key"], 0) / LAMPORTS_PER_SOL
+            reserve = 0.001 if w["public_key"] in self._has_ata else 0.005
+            if bal >= min_trade + reserve:
+                funded.append(w)
         if not funded:
             return
 
@@ -326,8 +419,10 @@ class VolumeBot:
 
         # Gaussian random amount - each buy is unique
         sol_amount = gauss_amount(self.config["min_sol_per_trade"], self.config["max_sol_per_trade"])
-        # Reserve 0.004 SOL for ATA rent (~0.002) + priority fees + base fees
-        wallet_sol = (self._balance_cache.get(wallet["public_key"], 0) / LAMPORTS_PER_SOL) - 0.004
+        # Reserve: 0.001 if wallet already has ATA, 0.005 if not (ATA rent 0.00204 + fees)
+        pub = wallet["public_key"]
+        reserve = 0.001 if pub in self._has_ata else 0.005
+        wallet_sol = (self._balance_cache.get(pub, 0) / LAMPORTS_PER_SOL) - reserve
         sol_amount = min(sol_amount, max(0, wallet_sol))
         remaining = self.config["target_volume_sol"] - self.stats["daily_volume_sol"]
         sol_amount = min(sol_amount, remaining)
@@ -338,6 +433,9 @@ class VolumeBot:
         lamports = int(sol_amount * LAMPORTS_PER_SOL)
         token_mint = self.config["token_mint"]
 
+        # Capture balance before trade for cost tracking
+        bal_before = self._balance_cache.get(pub, 0)
+
         logger.info(f"BUY {sol_amount:.6f} SOL -> token via {wallet.get('label')}")
         result = await self._execute_swap(keypair, SOL_MINT, token_mint, lamports)
 
@@ -346,26 +444,31 @@ class VolumeBot:
             self.stats["daily_trades"] += 1
             self.stats["total_volume_sol"] += sol_amount
             self.stats["daily_volume_sol"] += sol_amount
-            self.daily_wallets_used.add(wallet["public_key"])
+            self.stats["successful_trades"] += 1
+            self.stats["sol_spent_buy"] += sol_amount
+            self.daily_wallets_used.add(pub)
             self.stats["daily_makers"] = len(self.daily_wallets_used)
             # Track token holding - accumulate if already holding
-            existing = self._token_holders.get(wallet["public_key"], {})
+            existing = self._token_holders.get(pub, {})
             prev_amount = existing.get("amount", 0)
             prev_sol = existing.get("sol_value", 0)
-            self._token_holders[wallet["public_key"]] = {
+            self._token_holders[pub] = {
                 "amount": prev_amount + int(result.get("out_amount", 0)),
                 "sol_value": prev_sol + sol_amount,
                 "wallet": wallet,
             }
-            # Update balance cache & tracking
-            self._balance_cache[wallet["public_key"]] = max(0,
-                self._balance_cache.get(wallet["public_key"], 0) - lamports - 10000)
-            self._last_trade_wallet = wallet["public_key"]
+            self._has_ata.add(pub)  # Wallet now has ATA
+            # Update balance cache
+            self._balance_cache[pub] = max(0, bal_before - lamports - 10000)
+            self._last_trade_wallet = pub
             self._last_action = "BUY"
             self._buys_since_sell += 1
+            # Update net cost
+            self.stats["net_cost"] = self.stats["sol_spent_buy"] - self.stats["sol_recovered_sell"]
             self._log_tx("BUY", sol_amount, result, wallet.get("label", ""))
         else:
             self.stats["errors"] += 1
+            self.stats["failed_trades"] += 1
             self._log_tx("ERROR", sol_amount, result or {"error": "No result"}, wallet.get("label", ""))
 
     async def _do_sell(self, sub_wallets):
@@ -416,6 +519,12 @@ class VolumeBot:
             self.stats["daily_trades"] += 1
             self.stats["total_volume_sol"] += sell_sol_value
             self.stats["daily_volume_sol"] += sell_sol_value
+            self.stats["successful_trades"] += 1
+            # Track recovered SOL
+            sol_received_lamports = int(result.get("out_amount", 0))
+            sol_received = sol_received_lamports / LAMPORTS_PER_SOL
+            self.stats["sol_recovered_sell"] += sol_received
+            self.stats["net_cost"] = self.stats["sol_spent_buy"] - self.stats["sol_recovered_sell"]
             self.daily_wallets_used.add(pub)
             self.stats["daily_makers"] = len(self.daily_wallets_used)
 
@@ -431,14 +540,15 @@ class VolumeBot:
             else:
                 del self._token_holders[pub]
 
-            sol_received = int(result.get("out_amount", 0))
-            self._balance_cache[pub] = self._balance_cache.get(pub, 0) + sol_received
+            self._balance_cache[pub] = self._balance_cache.get(pub, 0) + sol_received_lamports
             self._last_trade_wallet = pub
             self._last_action = "SELL"
             self._buys_since_sell = 0
             self._log_tx("SELL", sell_sol_value, result, wallet.get("label", ""))
+            logger.info(f"SELL recovered {sol_received:.6f} SOL (net cost: {self.stats['net_cost']:.6f})")
         else:
             self.stats["errors"] += 1
+            self.stats["failed_trades"] += 1
             self._log_tx("ERROR", sell_sol_value, result or {"error": "No result"}, wallet.get("label", ""))
 
     async def _do_sol_transfer(self, sub_wallets):
@@ -559,32 +669,44 @@ class VolumeBot:
                 except Exception:
                     pass
         self._balance_cache_time = now
-        min_trade = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 2_000_000
-        funded = sum(1 for b in self._balance_cache.values() if b >= min_trade)
+        min_trade = self.config["min_sol_per_trade"]
+        funded = 0
+        for pub, bal in self._balance_cache.items():
+            reserve = 0.001 if pub in self._has_ata else 0.005
+            if bal / LAMPORTS_PER_SOL >= min_trade + reserve:
+                funded += 1
         logger.info(f"Balances refreshed: {funded} funded wallets, {len(self._token_holders)} token holders")
 
     async def _execute_swap(self, keypair, input_mint, output_mint, amount):
-        # Retry up to 2 times with fresh quotes on slippage errors
-        for attempt in range(2):
-            result = await self._execute_swap_once(keypair, input_mint, output_mint, amount)
+        # Dynamic slippage: start low, increase on retry (saves SOL on every successful trade)
+        max_slip = max(self.config["slippage_bps"], 1500)
+        slippage_levels = [500, 1000, max_slip]
+        for attempt, slippage in enumerate(slippage_levels):
+            result = await self._execute_swap_once(keypair, input_mint, output_mint, amount, slippage)
             if result and not result.get("error"):
+                if attempt > 0:
+                    logger.info(f"Swap succeeded on attempt {attempt + 1} with slippage {slippage} bps")
                 return result
-            err = result.get("error", "") if result else ""
-            is_slippage = "Custom" in str(err) and "'1'" in str(err)
-            if not is_slippage or attempt == 1:
+            err = str(result.get("error", "")) if result else ""
+            is_slippage = "Custom" in err and "'1'" in err
+            is_sim_fail = "Simulation failed" in err or "InstructionError" in err
+            is_rate_limit = "429" in err
+            if is_rate_limit or (not (is_slippage or is_sim_fail)) or attempt == len(slippage_levels) - 1:
                 return result
-            logger.info(f"Slippage error, retrying with fresh quote (attempt {attempt + 2})...")
-            await asyncio.sleep(1)
+            logger.info(f"Slippage/sim error at {slippage}bps, retrying at {slippage_levels[attempt + 1]}bps...")
+            await asyncio.sleep(2)  # Wait 2s between retries to avoid 429
         return result
 
-    async def _execute_swap_once(self, keypair, input_mint, output_mint, amount):
+    async def _execute_swap_once(self, keypair, input_mint, output_mint, amount, slippage_bps=None):
+        if slippage_bps is None:
+            slippage_bps = self.config["slippage_bps"]
         try:
             async with httpx.AsyncClient() as client:
                 quote_resp = await client.get(JUPITER_QUOTE_URL, params={
                     "inputMint": input_mint,
                     "outputMint": output_mint,
                     "amount": str(amount),
-                    "slippageBps": str(self.config["slippage_bps"]),
+                    "slippageBps": str(slippage_bps),
                 }, timeout=15.0)
 
                 if quote_resp.status_code != 200:
@@ -598,7 +720,7 @@ class VolumeBot:
                     "quoteResponse": quote,
                     "userPublicKey": str(keypair.pubkey()),
                     "dynamicComputeUnitLimit": True,
-                    "prioritizationFeeLamports": "auto",
+                    "prioritizationFeeLamports": 50000,
                 }, timeout=15.0)
 
                 if swap_resp.status_code != 200:
