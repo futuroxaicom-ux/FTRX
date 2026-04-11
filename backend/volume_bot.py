@@ -249,23 +249,18 @@ class VolumeBot:
 
     def _pick_action(self, sub_wallets):
         """Pick organic action - accumulate buys before selling, vary sequences"""
-        min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6_000_000
+        min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 2_000_000  # min_trade + 0.002 SOL fee
         funded = [w for w in sub_wallets if self._balance_cache.get(w["public_key"], 0) >= min_bal]
         holders = [w for w in sub_wallets if w["public_key"] in self._token_holders]
-        low_bal = [w for w in sub_wallets
-                   if 0 < self._balance_cache.get(w["public_key"], 0) < min_bal
-                   and w["public_key"] not in self._token_holders]
 
-        # Auto refund if many wallets are low
-        if self.config.get("auto_refund") and len(low_bal) > len(sub_wallets) * 0.3:
+        # No funded wallets at all -> nothing to do
+        if not funded:
             return "REFUND"
 
         # Must buy first - need at least 2-4 holders before any selling
-        min_holders_before_sell = random.randint(2, min(4, max(2, len(sub_wallets) // 3)))
+        min_holders_before_sell = random.randint(2, min(4, max(2, len(funded) // 2 + 1)))
         if len(holders) < min_holders_before_sell:
-            if funded:
-                return "BUY"
-            return "REFUND"
+            return "BUY"
 
         # Accumulate buys before allowing sells (random 2-5 buys between sells)
         buys_needed = random.randint(2, 5)
@@ -300,9 +295,9 @@ class VolumeBot:
             actions.append("TRANSFER_SOL")
             weights.append(10)
 
-        if self.config.get("auto_refund") and low_bal:
+        if self.config.get("auto_refund"):
             actions.append("REFUND")
-            weights.append(5)
+            weights.append(3)  # Very low priority - don't block trading
 
         if not actions:
             return "BUY"
@@ -311,7 +306,7 @@ class VolumeBot:
 
     async def _do_buy(self, sub_wallets):
         """Organic BUY - different wallet than last trade, gaussian amount"""
-        min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6_000_000
+        min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 2_000_000  # min_trade + 0.002 fee
         funded = [w for w in sub_wallets if self._balance_cache.get(w["public_key"], 0) >= min_bal]
         if not funded:
             return
@@ -331,7 +326,7 @@ class VolumeBot:
 
         # Gaussian random amount - each buy is unique
         sol_amount = gauss_amount(self.config["min_sol_per_trade"], self.config["max_sol_per_trade"])
-        wallet_sol = (self._balance_cache.get(wallet["public_key"], 0) / LAMPORTS_PER_SOL) - 0.005
+        wallet_sol = (self._balance_cache.get(wallet["public_key"], 0) / LAMPORTS_PER_SOL) - 0.002  # reserve 0.002 for fees
         sol_amount = min(sol_amount, max(0, wallet_sol))
         remaining = self.config["target_volume_sol"] - self.stats["daily_volume_sol"]
         sol_amount = min(sol_amount, remaining)
@@ -543,19 +538,28 @@ class VolumeBot:
         now = time.time()
         if now - self._balance_cache_time < 30:
             return
-        async with httpx.AsyncClient() as client:
-            for w in wallets:
+        # Batch RPC for speed
+        BATCH = 50
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for i in range(0, len(wallets), BATCH):
+                batch = wallets[i:i + BATCH]
+                rpc_batch = [
+                    {"jsonrpc": "2.0", "id": idx, "method": "getBalance", "params": [w["public_key"]]}
+                    for idx, w in enumerate(batch)
+                ]
                 try:
-                    resp = await client.post(SOLANA_RPC, json={
-                        "jsonrpc": "2.0", "id": 1,
-                        "method": "getBalance", "params": [w["public_key"]],
-                    }, timeout=5.0)
-                    bal = resp.json().get("result", {}).get("value", 0)
-                    self._balance_cache[w["public_key"]] = bal
+                    resp = await client.post(SOLANA_RPC, json=rpc_batch)
+                    results = resp.json()
+                    if isinstance(results, list):
+                        for r in results:
+                            rid = r.get("id", 0)
+                            if 0 <= rid < len(batch):
+                                self._balance_cache[batch[rid]["public_key"]] = r.get("result", {}).get("value", 0)
                 except Exception:
                     pass
         self._balance_cache_time = now
-        funded = sum(1 for b in self._balance_cache.values() if b > 5_000_000)
+        min_trade = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 2_000_000
+        funded = sum(1 for b in self._balance_cache.values() if b >= min_trade)
         logger.info(f"Balances refreshed: {funded} funded wallets, {len(self._token_holders)} token holders")
 
     async def _execute_swap(self, keypair, input_mint, output_mint, amount):
