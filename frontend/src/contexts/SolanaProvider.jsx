@@ -13,8 +13,8 @@ export const SolanaProvider = ({ children }) => {
   // Use a reliable public RPC endpoint for Mainnet
   // You can also use: https://api.mainnet-beta.solana.com
   const endpoint = useMemo(() => {
-    // Primary: Solana's official mainnet RPC
-    return 'https://api.mainnet-beta.solana.com';
+    // Use Ankr's public Solana RPC - browser CORS friendly
+    return 'https://rpc.ankr.com/solana';
   }, []);
   
   const wallets = useMemo(

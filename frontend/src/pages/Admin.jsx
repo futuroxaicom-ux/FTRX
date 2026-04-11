@@ -429,7 +429,7 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
 }
 
 function PhantomFunding({ wallets, onRefresh }) {
-  const { publicKey, connected, sendTransaction, disconnect } = useWallet();
+  const { publicKey, connected, signTransaction, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
   const { connection } = useConnection();
   const [balance, setBalance] = useState(null);
@@ -439,7 +439,15 @@ function PhantomFunding({ wallets, onRefresh }) {
 
   useEffect(() => {
     if (publicKey && connection) {
-      connection.getBalance(publicKey).then(b => setBalance(b / LAMPORTS_PER_SOL)).catch(() => {});
+      connection.getBalance(publicKey).then(b => setBalance(b / LAMPORTS_PER_SOL)).catch(() => {
+        // Fallback: try via backend proxy
+        fetch(`${API}/api/solana/rpc`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [publicKey.toString()] })
+        }).then(r => r.json()).then(d => {
+          if (d.result) setBalance(d.result.value / LAMPORTS_PER_SOL);
+        }).catch(() => {});
+      });
     } else {
       setBalance(null);
     }
@@ -463,7 +471,23 @@ function PhantomFunding({ wallets, onRefresh }) {
     setSending(true);
     try {
       const lamportsPerWallet = Math.floor(fundAmount * LAMPORTS_PER_SOL);
+
+      // Get blockhash via backend proxy (avoids 403)
+      const bhResp = await fetch(`${API}/api/solana/rpc`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getLatestBlockhash', params: [{ commitment: 'finalized' }] })
+      });
+      const bhData = await bhResp.json();
+      if (!bhData.result) throw new Error('Nie udalo sie pobrac blockhash');
+
+      const blockhash = bhData.result.value.blockhash;
+      const lastValidBlockHeight = bhData.result.value.lastValidBlockHeight;
+
+      // Build transaction
       const tx = new Transaction();
+      tx.recentBlockhash = blockhash;
+      tx.lastValidBlockHeight = lastValidBlockHeight;
+      tx.feePayer = publicKey;
 
       for (const w of targets) {
         tx.add(SystemProgram.transfer({
@@ -473,19 +497,38 @@ function PhantomFunding({ wallets, onRefresh }) {
         }));
       }
 
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, 'confirmed');
+      // Sign with Phantom (only signs, no send)
+      const signed = await signTransaction(tx);
 
+      // Send via backend proxy
+      const serialized = signed.serialize().toString('base64');
+      const sendResp = await fetch(`${API}/api/solana/rpc`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'sendTransaction', params: [serialized, { encoding: 'base64' }] })
+      });
+      const sendData = await sendResp.json();
+
+      if (sendData.error) {
+        throw new Error(sendData.error.message || JSON.stringify(sendData.error));
+      }
+
+      const sig = sendData.result;
       toast.success(`Wyslano ${(fundAmount * targets.length).toFixed(4)} SOL do ${targets.length} portfeli!`, {
-        description: `Tx: ${sig.slice(0, 16)}...`
+        description: `Tx: ${sig.slice(0, 20)}...`
       });
 
-      // Refresh balances
-      setTimeout(onRefresh, 2000);
-
-      // Refresh phantom balance
-      const newBal = await connection.getBalance(publicKey);
-      setBalance(newBal / LAMPORTS_PER_SOL);
+      setTimeout(onRefresh, 3000);
+      // Refresh balance
+      setTimeout(async () => {
+        try {
+          const bResp = await fetch(`${API}/api/solana/rpc`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [publicKey.toString()] })
+          });
+          const bData = await bResp.json();
+          if (bData.result) setBalance(bData.result.value / LAMPORTS_PER_SOL);
+        } catch {}
+      }, 3000);
     } catch (e) {
       console.error(e);
       toast.error(e.message || 'Transakcja odrzucona');

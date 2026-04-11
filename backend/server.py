@@ -193,6 +193,24 @@ async def collect_sol(x_admin_password: str = Header(None)):
     result = await volume_bot.collect_sol()
     return result
 
+# Solana RPC proxy - avoids browser CORS/403 issues
+@api_router.post("/solana/rpc")
+async def solana_rpc_proxy(body: dict):
+    rpcs = [
+        "https://rpc.ankr.com/solana",
+        "https://solana-mainnet.rpc.extrnode.com",
+        "https://api.mainnet-beta.solana.com",
+    ]
+    async with httpx.AsyncClient() as client:
+        for rpc in rpcs:
+            try:
+                resp = await client.post(rpc, json=body, timeout=10.0)
+                if resp.status_code == 200:
+                    return resp.json()
+            except Exception:
+                continue
+    return {"error": "All RPC endpoints failed"}
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
