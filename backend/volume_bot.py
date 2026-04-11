@@ -719,9 +719,9 @@ class VolumeBot:
         logger.info(f"Balances refreshed: {funded} funded wallets, {len(self._token_holders)} token holders")
 
     async def _execute_swap(self, keypair, input_mint, output_mint, amount):
-        # Dynamic slippage: start from configured, increase on failure
+        # Dynamic slippage: start from configured, increase aggressively on failure
         base_slip = max(self.config["slippage_bps"], 300)
-        slippage_levels = [base_slip, base_slip + 300, base_slip + 600]
+        slippage_levels = [base_slip, base_slip + 500, base_slip + 1500]
         for attempt, slippage in enumerate(slippage_levels):
             result = await self._execute_swap_once(keypair, input_mint, output_mint, amount, slippage)
             if result and not result.get("error"):
@@ -729,7 +729,7 @@ class VolumeBot:
                     logger.info(f"Swap succeeded on attempt {attempt + 1} with slippage {slippage} bps")
                 return result
             err = str(result.get("error", "")) if result else ""
-            is_slippage = "Custom" in err or "InstructionError" in err
+            is_slippage = "Custom" in err or "InstructionError" in err or "Sim:" in err
             is_rate_limit = "429" in err
             if is_rate_limit:
                 # Rate limited - wait longer before retry
@@ -781,7 +781,21 @@ class VolumeBot:
                 signed_tx = VersionedTransaction(tx.message, [keypair])
                 encoded_tx = base64.b64encode(bytes(signed_tx)).decode("utf-8")
 
-                # Send directly with skipPreflight (simulation adds latency and can fail on slippage)
+                # Simulate first to catch slippage errors before sending to chain
+                try:
+                    sim_resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "simulateTransaction",
+                        "params": [encoded_tx, {"encoding": "base64", "commitment": "confirmed"}],
+                    }, timeout=10.0)
+                    sim_data = sim_resp.json()
+                    sim_err = sim_data.get("result", {}).get("err")
+                    if sim_err:
+                        return {"error": f"Sim: {sim_err}"}
+                except Exception:
+                    pass  # If simulation fails/times out, try sending anyway
+
+                # Send transaction
                 rpc_resp = await client.post(SOLANA_RPC, json={
                     "jsonrpc": "2.0", "id": 1,
                     "method": "sendTransaction",
@@ -1086,8 +1100,6 @@ class VolumeBot:
                 w["balance_ftrx"] = 0
             if token_mint_str:
                 token_mint = Pubkey.from_string(token_mint_str)
-                # Check ALL wallets for FTRX (not just those with SOL > threshold)
-                # Compute ATAs (pure math, no RPC)
                 ata_map = []
                 for w in wallets:
                     try:
@@ -1097,27 +1109,42 @@ class VolumeBot:
                     except Exception:
                         pass
 
-                # Batch getTokenAccountBalance (much faster than getTokenAccountsByOwner)
-                for i in range(0, len(ata_map), BATCH):
-                    batch_items = ata_map[i:i + BATCH]
-                    rpc_batch = [
-                        {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountBalance", "params": [ata_addr]}
-                        for idx, (_, ata_addr) in enumerate(batch_items)
-                    ]
+                # Wait before FTRX calls to avoid RPC rate limit after SOL batch
+                await asyncio.sleep(1)
+
+                # Use separate client with longer timeout + retry for FTRX
+                rpcs = [SOLANA_RPC, "https://api.mainnet-beta.solana.com"]
+                for rpc_url in rpcs:
+                    ftrx_found = 0
                     try:
-                        resp = await client.post(SOLANA_RPC, json=rpc_batch)
-                        results = resp.json()
-                        if isinstance(results, list):
-                            for r in results:
-                                rid = r.get("id", 0)
-                                if 0 <= rid < len(batch_items):
-                                    wallet_ref = batch_items[rid][0]
-                                    val = r.get("result", {}).get("value", {})
-                                    ui_amount = val.get("uiAmount")
-                                    if ui_amount is not None:
-                                        wallet_ref["balance_ftrx"] = float(ui_amount)
+                        async with httpx.AsyncClient(timeout=20.0) as ftrx_client:
+                            for i in range(0, len(ata_map), BATCH):
+                                batch_items = ata_map[i:i + BATCH]
+                                rpc_batch = [
+                                    {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountBalance", "params": [ata_addr]}
+                                    for idx, (_, ata_addr) in enumerate(batch_items)
+                                ]
+                                resp = await ftrx_client.post(rpc_url, json=rpc_batch)
+                                if resp.status_code == 429:
+                                    logger.warning(f"FTRX RPC 429 on {rpc_url}, trying next...")
+                                    break
+                                results = resp.json()
+                                if isinstance(results, list):
+                                    for r in results:
+                                        rid = r.get("id", 0)
+                                        if 0 <= rid < len(batch_items):
+                                            wallet_ref = batch_items[rid][0]
+                                            val = r.get("result", {}).get("value", {})
+                                            ui_amount = val.get("uiAmount")
+                                            if ui_amount is not None:
+                                                wallet_ref["balance_ftrx"] = float(ui_amount)
+                                                ftrx_found += 1
+                                await asyncio.sleep(0.3)  # Small delay between batches
+                        if ftrx_found > 0:
+                            logger.info(f"FTRX balances fetched: {ftrx_found} holders via {rpc_url}")
+                            break  # Success, don't try next RPC
                     except Exception as e:
-                        logger.error(f"FTRX balance batch error: {e}")
+                        logger.error(f"FTRX balance error on {rpc_url}: {e}")
 
         return wallets
 
