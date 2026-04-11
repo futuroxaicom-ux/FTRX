@@ -17,8 +17,8 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 SOL_MINT = "So11111111111111111111111111111111111111112"
-JUPITER_QUOTE_URL = "https://quote-api.jup.ag/v6/quote"
-JUPITER_SWAP_URL = "https://quote-api.jup.ag/v6/swap"
+JUPITER_QUOTE_URL = "https://api.jup.ag/swap/v1/quote"
+JUPITER_SWAP_URL = "https://api.jup.ag/swap/v1/swap"
 SOLANA_RPC = "https://solana.publicnode.com"
 LAMPORTS_PER_SOL = 1_000_000_000
 
@@ -79,6 +79,8 @@ class VolumeBot:
         self.stats["errors"] = 0
         self.daily_wallets_used = set()
         self.transaction_log = []
+        self._balance_cache = {}
+        self._balance_cache_time = 0
         self.task = asyncio.create_task(self._run_loop())
         logger.info("Volume bot started")
         return True
@@ -166,9 +168,45 @@ class VolumeBot:
                     await asyncio.sleep(5)
                     continue
 
+                # Refresh balance cache every 60s
+                now = time.time()
+                if now - self._balance_cache_time > 60:
+                    min_needed = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6000000
+                    async with httpx.AsyncClient() as client:
+                        for w in wallets:
+                            if w.get("is_main"):
+                                continue
+                            try:
+                                resp = await client.post(SOLANA_RPC, json={
+                                    "jsonrpc": "2.0", "id": 1,
+                                    "method": "getBalance", "params": [w["public_key"]],
+                                }, timeout=5.0)
+                                bal = resp.json().get("result", {}).get("value", 0)
+                                self._balance_cache[w["public_key"]] = bal
+                            except Exception:
+                                pass
+                    self._balance_cache_time = now
+                    logger.info(f"Balance cache refreshed: {sum(1 for b in self._balance_cache.values() if b > 5000000)} funded wallets")
+
+                # Filter funded wallets
+                min_needed = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6000000
+                funded_wallets = []
+                for w in wallets:
+                    if w.get("is_main"):
+                        continue
+                    bal = self._balance_cache.get(w["public_key"], 0)
+                    if bal >= min_needed:
+                        w["_balance"] = bal
+                        funded_wallets.append(w)
+
+                if not funded_wallets:
+                    logger.warning("No funded wallets available, waiting...")
+                    await asyncio.sleep(10)
+                    continue
+
                 # Pick wallet - prefer unused wallets for maker count
-                unused = [w for w in wallets if w["public_key"] not in self.daily_wallets_used]
-                wallet = random.choice(unused) if unused else random.choice(wallets)
+                unused = [w for w in funded_wallets if w["public_key"] not in self.daily_wallets_used]
+                wallet = random.choice(unused) if unused else random.choice(funded_wallets)
 
                 keypair = self._load_keypair(wallet["private_key"])
                 if not keypair:
@@ -182,7 +220,10 @@ class VolumeBot:
                 )
                 remaining = self.config["target_volume_sol"] - self.stats["daily_volume_sol"]
                 sol_amount = min(sol_amount, remaining)
-                if sol_amount < 0.0001:
+                # Cap by wallet balance (leave 0.005 SOL for fees + token account rent)
+                wallet_sol = (wallet.get("_balance", 0) / LAMPORTS_PER_SOL) - 0.005
+                sol_amount = min(sol_amount, max(0, wallet_sol))
+                if sol_amount < 0.0005:
                     continue
 
                 lamports = int(sol_amount * LAMPORTS_PER_SOL)
@@ -265,7 +306,7 @@ class VolumeBot:
                     "quoteResponse": quote,
                     "userPublicKey": str(keypair.pubkey()),
                     "dynamicComputeUnitLimit": True,
-                    "prioritizationFeeLamports": "auto",
+                    "prioritizationFeeLamports": 5000,
                 }, timeout=15.0)
 
                 if swap_resp.status_code != 200:
@@ -284,7 +325,7 @@ class VolumeBot:
                 rpc_resp = await client.post(SOLANA_RPC, json={
                     "jsonrpc": "2.0", "id": 1,
                     "method": "sendTransaction",
-                    "params": [encoded_tx, {"encoding": "base64", "skipPreflight": False}],
+                    "params": [encoded_tx, {"encoding": "base64", "skipPreflight": True}],
                 }, timeout=30.0)
 
                 rpc_data = rpc_resp.json()

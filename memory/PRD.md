@@ -3,74 +3,39 @@
 ## Original Problem Statement
 Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Volume Bot.
 
-## Core Concept
-Landing page + Volume Bot Admin Panel dla kryptowaluty FuturoX AI z:
-- Wielojęzycznym wsparciem (EN, ES, PL)
-- Integracją Web3 (portfele Solana)
-- Live cenami SOL/FTRX
-- Volume Bot z wash tradingiem na Raydium via Jupiter
-
 ## Tech Stack
-- **Frontend**: React, Tailwind CSS, shadcn/ui, React Router
-- **Backend**: FastAPI, MongoDB (Motor), httpx
-- **Web3**: Solana Wallet Adapter, Jupiter V6 API, solders, base58
-- **i18n**: react-i18next
-- **APIs**: CoinGecko (SOL), DexScreener (FTRX), Jupiter (swaps), Solana RPC
+- **Frontend**: React, Tailwind CSS, shadcn/ui, React Router, Solana Wallet Adapter
+- **Backend**: FastAPI, MongoDB (Motor), httpx, solders, base58
+- **APIs**: CoinGecko (SOL), DexScreener (FTRX), Jupiter V1 Swap API, Solana RPC (publicnode.com)
 
 ## Architecture
 ```
 /app
 ├── backend/
-│   ├── server.py          # FastAPI + admin routes
+│   ├── server.py          # FastAPI + admin routes + RPC proxy
 │   └── volume_bot.py      # Volume Bot engine (Jupiter swap, wallet gen, SOL distribution)
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Home.jsx   # Landing page
-│   │   │   └── Admin.jsx  # Volume Bot admin panel
-│   │   ├── components/    # TokenPurchase, BuyOptions, LivePriceChart, etc.
-│   │   ├── locales/       # EN, ES, PL translations
-│   │   └── contexts/      # SolanaProvider
-│   └── public/
-└── memory/PRD.md
+├── frontend/src/
+│   ├── pages/Home.jsx     # Landing page
+│   ├── pages/Admin.jsx    # Volume Bot admin panel
+│   ├── components/        # TokenPurchase, BuyOptions, LivePriceChart, etc.
+│   ├── locales/           # EN, ES, PL
+│   └── contexts/SolanaProvider.jsx  # RPC: solana.publicnode.com
 ```
 
-## Implemented Features
+## Volume Bot - WORKING (Tested on Mainnet)
+- [x] Jupiter V1 Swap API (`api.jup.ag/swap/v1`)
+- [x] Solana RPC: `solana.publicnode.com`
+- [x] BUY/SELL cycles with real transactions on Raydium
+- [x] Balance-aware wallet selection (skips empty wallets)
+- [x] Balance caching (60s refresh, avoids blockhash expiry)
+- [x] Batch SOL distribution (20 transfers per tx)
+- [x] Background task for distribute/collect (no HTTP timeout)
+- [x] Phantom/Solflare wallet connection for funding
+- [x] Backend RPC proxy (avoids browser CORS/403)
+- [x] Auto-generate wallets, set main, distribute, collect
+- [x] Cost calculator, progress bars, transaction log
 
-### Volume Bot Admin Panel (`/admin`)
-- [x] Password-protected login
-- [x] **Token Mint Address** - editable field for any Solana token
-- [x] **Target Volume** (SOL/day) with progress bar
-- [x] **Target Makers** (/day) with progress bar
-- [x] **Trade Interval** (min-max minutes)
-- [x] **Min/Max SOL per trade**
-- [x] **Slippage** (basis points)
-- [x] **Cost Calculator** - auto-calculates: trades/day, gas fees, slippage cost, total daily cost, min SOL needed
-- [x] **Auto-generate wallets** - creates N Solana keypairs with one click
-- [x] **Main wallet** - mark one wallet as "main" for distribution
-- [x] **Distribute SOL** - sends SOL from main wallet to all sub-wallets
-- [x] **Collect SOL** - collects SOL from all sub-wallets back to main
-- [x] **Manual wallet add** - paste private key (base58 or JSON array)
-- [x] **Wallet list** with balances, main badge, delete
-- [x] **Transaction Log** with BUY/SELL/ERROR + Solscan links
-- [x] **Bot Controls** - Start/Stop with uptime, cycles, last trade info
-- [x] Bot engine: Jupiter V6 API for SOL↔Token swaps on Raydium
-- [x] Daily target tracking with auto-reset after 24h
-- [x] Maker diversity: prioritizes unused wallets
-
-### Landing Page
-- [x] Multi-language (EN/ES/PL)
-- [x] Solana wallet connection (Phantom, Solflare)
-- [x] Live SOL/FTRX price charts
-- [x] TokenPurchase (direct buy via Raydium)
-- [x] AI Chatbot
-- [x] Tokenomics (70% Bonding, 20% Pool, 10% Team)
-- [x] Whitelist registration (MongoDB)
-- [x] Animated Roadmap
-- [x] Social media links, custom favicons
-- [x] Mobile responsiveness
-
-## Key API Endpoints
+## Key Endpoints
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/admin/login` | POST | Admin auth |
@@ -81,33 +46,33 @@ Landing page + Volume Bot Admin Panel dla kryptowaluty FuturoX AI z:
 | `/api/admin/bot/costs` | GET | Cost estimation |
 | `/api/admin/wallets` | GET/POST | List/add wallets |
 | `/api/admin/wallets/generate` | POST | Auto-generate N wallets |
-| `/api/admin/wallets/distribute` | POST | Send SOL to sub-wallets |
-| `/api/admin/wallets/collect` | POST | Collect SOL from sub-wallets |
+| `/api/admin/wallets/distribute` | POST | Batch SOL distribution (background) |
+| `/api/admin/wallets/distribute/status` | GET | Distribution progress |
+| `/api/admin/wallets/collect` | POST | Collect SOL (background) |
+| `/api/admin/wallets/collect/status` | GET | Collection progress |
 | `/api/admin/wallets/{pk}/main` | POST | Set main wallet |
-| `/api/admin/wallets/{pk}` | DELETE | Remove wallet |
-| `/api/crypto/price` | GET | SOL price (CoinGecko) |
-| `/api/ftrx/price` | GET | FTRX price (DexScreener) |
-| `/api/whitelist` | POST | Whitelist registration |
+| `/api/solana/rpc` | POST | RPC proxy (multi-endpoint fallback) |
 
 ## DB Collections
-- `whitelist`: `{ email, wallet_address?, timestamp, created_at }`
+- `whitelist`: `{ email, wallet_address?, timestamp }`
 - `bot_wallets`: `{ label, public_key, private_key, is_main, added_at }`
 - `bot_config`: `{ _id: "main", token_mint, target_volume_sol, ... }`
 
-## Testing
-- iteration_2: TokenPurchase + Landing - 100% pass
-- iteration_3: Basic admin panel - 21/21 backend 100%
-- iteration_4: Enhanced admin panel - 25/25 backend 100%, full frontend pass
+## Tested on Mainnet (April 11, 2026)
+- BUY 0.027 SOL → FTRX: tx `4XmTuAdB7fuLXc6mVYrRojG9E7idzq8EuenadzVV`
+- SELL FTRX → SOL: tx `5qSHtQT7Zc3un5Vmh8YK8v8iaMwRLvgq4zacQJWd`
+- 0 errors, full cycle complete
 
 ## Backlog
 ### P1
-- [ ] Szyfrowanie kluczy prywatnych w MongoDB
+- [ ] Szyfrowanie kluczy prywatnych w MongoDB (AES)
 - [ ] Rate limiting na endpointach admina
 
 ### P2
+- [ ] Telegram/Discord notyfikacje
 - [ ] Refaktor Home.jsx (400+ linii)
-- [ ] Telegram/Discord notyfikacje z bota
-- [ ] Zapis historii transakcji do MongoDB
+- [ ] Zapis historii transakcji do MongoDB (persystentne)
+- [ ] Tryb "stealth" - organiczne wzorce handlowe
 
 ### P3
 - [ ] Source map warnings cleanup
