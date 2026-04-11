@@ -187,6 +187,7 @@ class DistributeRequest(BaseModel):
 # Track background tasks status
 distribute_status = {"running": False, "result": None}
 collect_status = {"running": False, "result": None}
+collect_ftrx_status = {"running": False, "result": None}
 
 @api_router.post("/admin/wallets/distribute")
 async def distribute_sol(req: DistributeRequest, x_admin_password: str = Header(None), background_tasks: BackgroundTasks = None):
@@ -235,6 +236,30 @@ async def collect_sol(x_admin_password: str = Header(None)):
 async def collect_sol_status(x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)
     return collect_status
+
+@api_router.post("/admin/wallets/collect-ftrx")
+async def collect_ftrx(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if collect_ftrx_status["running"]:
+        return {"error": "FTRX collection already in progress", "status": collect_ftrx_status}
+
+    async def run_collect_ftrx():
+        collect_ftrx_status["running"] = True
+        collect_ftrx_status["result"] = None
+        try:
+            result = await volume_bot.collect_ftrx()
+            collect_ftrx_status["result"] = result
+        except Exception as e:
+            collect_ftrx_status["result"] = {"error": str(e)}
+        collect_ftrx_status["running"] = False
+
+    asyncio.create_task(run_collect_ftrx())
+    return {"success": True, "message": "Collecting FTRX tokens from sub-wallets..."}
+
+@api_router.get("/admin/wallets/collect-ftrx/status")
+async def collect_ftrx_status_endpoint(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return collect_ftrx_status
 
 # Solana RPC proxy - avoids browser CORS/403 issues
 @api_router.post("/solana/rpc")
@@ -345,23 +370,6 @@ async def get_crypto_chart():
             # Return cached data if available, even if expired
             if price_cache.chart_data:
                 return price_cache.chart_data
-            return {"error": str(e)}
-
-# Solana RPC Proxy to avoid CORS issues
-@api_router.post("/solana/rpc")
-async def solana_rpc_proxy(request: dict):
-    """Proxy requests to Solana RPC to avoid CORS issues in browser"""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                "https://api.mainnet-beta.solana.com",
-                json=request,
-                headers={"Content-Type": "application/json"},
-                timeout=15.0
-            )
-            return response.json()
-        except Exception as e:
-            logger.error(f"Solana RPC error: {e}")
             return {"error": str(e)}
 
 # FTRX Token Price API

@@ -1,0 +1,112 @@
+{
+  "summary": "Tested FTRX Features (Iteration 6): Activity Chart, FTRX balance display, and Collect FTRX button. All backend endpoints working. Frontend Activity Chart working with recharts. CRITICAL ISSUE: /api/admin/wallets endpoint times out with 134 wallets due to sequential Solana RPC calls, causing frontend to show 0 wallets and hiding the Collect FTRX button.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/admin/wallets",
+        "issue": "Endpoint times out when fetching balances for 134 wallets - makes sequential RPC calls for SOL and FTRX balance for each wallet",
+        "priority": "HIGH",
+        "impact": "Frontend shows 'Portfele (0)' even though 134 wallets exist in database. Distribute/Collect section (including Collect FTRX button) is hidden because wallets.length appears as 0"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Wallet list loading",
+        "issue": "Wallets don't load due to backend timeout - shows 'Portfele (0)' instead of actual count",
+        "affected_selectors": ["[data-testid='collect-ftrx-btn']", "[data-testid='collect-sol-btn']"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Activity Chart",
+        "issues": ["Console warning: 'The width(-1) and height(-1) of chart should be greater than 0' - recharts sizing issue when chart container not visible"]
+      }
+    ]
+  },
+  "test_results": {
+    "backend_api_tests": {
+      "status": "PASS",
+      "endpoints_tested": [
+        {"endpoint": "/api/admin/bot/status", "status": "PASS", "notes": "Returns all fields including token_holders, buys_since_sell, last_action"},
+        {"endpoint": "/api/admin/wallets/collect-ftrx", "status": "PASS", "notes": "Returns {success: true, message: 'Collecting FTRX tokens from sub-wallets...'}"},
+        {"endpoint": "/api/admin/wallets/collect-ftrx/status", "status": "PASS", "notes": "Returns {running: false, result: {success: true, total_collected_ftrx: 0, wallets_processed: 0, errors: N}}"},
+        {"endpoint": "/api/admin/login", "status": "PASS"},
+        {"endpoint": "/api/admin/bot/costs", "status": "PASS"},
+        {"endpoint": "/api/admin/wallets/generate", "status": "PASS", "notes": "Generated 3 test wallets successfully"}
+      ]
+    },
+    "frontend_tests": {
+      "status": "PARTIAL",
+      "activity_chart": {
+        "data_testid": "activity-chart",
+        "visible": true,
+        "title": "Aktywnosc Bota",
+        "empty_state_message": "Brak danych. Uruchom bota aby zobaczyc wykres aktywnosci.",
+        "chart_with_data": "Shows BarChart with BUY/SELL/TRANSFER transactions when bot is running"
+      },
+      "wallet_header": {
+        "format": "Portfele (N) | X.XXXX SOL | Y FTRX",
+        "ftrx_total_displayed": true
+      },
+      "collect_ftrx_button": {
+        "data_testid": "collect-ftrx-btn",
+        "code_exists": true,
+        "visible_in_test": false,
+        "reason": "Button only shows when wallets.length > 1, but wallets endpoint times out"
+      },
+      "collect_sol_button": {
+        "data_testid": "collect-sol-btn",
+        "code_exists": true,
+        "visible_in_test": false,
+        "reason": "Same as collect-ftrx - hidden due to wallet loading timeout"
+      },
+      "wallet_ftrx_balance": {
+        "code_exists": true,
+        "condition": "Shows when balance_ftrx > 0",
+        "format": "X.XX FTRX in orange color"
+      }
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ftrx_features.py"
+  ],
+  "action_items": [
+    "CRITICAL: Optimize /api/admin/wallets endpoint - add pagination or parallel RPC calls to prevent timeout with many wallets",
+    "Consider caching wallet balances or fetching balances asynchronously",
+    "Fix recharts console warning about chart dimensions"
+  ],
+  "critical_code_review_comments": [
+    "Backend volume_bot.py get_wallets_info() makes sequential RPC calls for each wallet - O(n) network calls causes timeout with 134 wallets",
+    "Frontend Admin.jsx correctly implements all FTRX features: ActivityChart component (lines 767-868), FTRX balance in wallet header (line 406), FTRX balance in wallet items (line 491), Collect FTRX button (line 450)",
+    "Backend collect_ftrx() function properly implements SPL token transfer using solders library",
+    "All data-testid attributes correctly added: activity-chart, collect-ftrx-btn, collect-sol-btn"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ftrx_features.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "70%"
+  },
+  "test_credentials": {
+    "admin_password": "futurox2026",
+    "admin_header": "x-admin-password: futurox2026"
+  },
+  "seed_data_creation": "Generated 3 test wallets (Test #132, #133, #134)",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "FTRX features code is correct but /api/admin/wallets endpoint times out with 134 wallets. Activity Chart works when bot is running. To test Collect FTRX button, either: 1) Fix the wallets endpoint timeout, or 2) Delete most wallets to reduce count below ~20. The distribute/collect section only appears when wallets.length > 1.",
+  "rca_of_issue": {
+    "root_cause": "get_wallets_info() in volume_bot.py makes 2 sequential Solana RPC calls per wallet (getBalance + getTokenAccountsByOwner). With 134 wallets, this is 268 RPC calls taking ~5 seconds each = timeout",
+    "reproduction_steps": [
+      "1. Have 100+ wallets in database",
+      "2. Call GET /api/admin/wallets",
+      "3. Endpoint times out after 30-60 seconds"
+    ],
+    "suggested_fix": "Use asyncio.gather() to parallelize RPC calls, or implement pagination, or cache balances with TTL"
+  }
+}

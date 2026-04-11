@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -6,12 +6,13 @@ import {
   Play, Square, RefreshCw, Plus, Trash2, Settings, Activity,
   Wallet, ArrowLeft, Lock, Eye, EyeOff, AlertTriangle,
   TrendingUp, Zap, XCircle, Star, Download, Upload,
-  Calculator, Users, Clock, Target, Coins, Link2
+  Calculator, Users, Clock, Target, Coins, Link2, BarChart3
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { SystemProgram, Transaction, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 
 const API = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -155,6 +156,9 @@ function Dashboard({ pw, onLogout }) {
             <span className="text-[#666]">Ostatnia akcja: <span className={`font-medium ${status?.last_action === 'BUY' ? 'text-green-400' : status?.last_action === 'SELL' ? 'text-blue-400' : status?.last_action === 'TRANSFER' ? 'text-yellow-400' : 'text-white'}`}>{status?.last_action || '-'}</span></span>
           </div>
         )}
+
+        {/* Activity Chart */}
+        <ActivityChart transactions={status?.recent_transactions || []} />
 
         {/* Controls + Config */}
         <div className="grid md:grid-cols-2 gap-4">
@@ -333,6 +337,7 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
   const [adding, setAdding] = useState(false);
   const [distributing, setDistributing] = useState(false);
   const [collecting, setCollecting] = useState(false);
+  const [collectingFtrx, setCollectingFtrx] = useState(false);
 
   const addWallet = async (e) => {
     e.preventDefault();
@@ -381,7 +386,14 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
     pollStatus('/api/admin/wallets/collect/status', setCollecting);
   };
 
+  const handleCollectFtrx = async () => {
+    setCollectingFtrx(true);
+    await apiCall('/api/admin/wallets/collect-ftrx', 'POST');
+    pollStatus('/api/admin/wallets/collect-ftrx/status', setCollectingFtrx);
+  };
+
   const totalBal = wallets.reduce((s, w) => s + (w.balance_sol || 0), 0);
+  const totalFtrx = wallets.reduce((s, w) => s + (w.balance_ftrx || 0), 0);
   const mainWallet = wallets.find(w => w.is_main);
   const subWallets = wallets.filter(w => !w.is_main);
 
@@ -391,7 +403,7 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-white text-lg flex items-center gap-2">
             <Wallet className="w-5 h-5 text-[#00FFD1]" />Portfele ({wallets.length})
-            <span className="text-sm font-normal text-[#666]">| Total: {totalBal.toFixed(4)} SOL</span>
+            <span className="text-sm font-normal text-[#666]">| {totalBal.toFixed(4)} SOL | {totalFtrx > 0 ? `${totalFtrx.toFixed(2)} FTRX` : '0 FTRX'}</span>
           </CardTitle>
         </div>
       </CardHeader>
@@ -428,12 +440,17 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
               {mainWallet && <p className="text-xs text-[#555]">Total: {(distSol * (wallets.length - 1)).toFixed(3)} SOL na {wallets.length - 1} portfeli</p>}
             </div>
             <div className="bg-black/50 p-4 rounded border border-[rgba(255,255,255,0.05)] space-y-2 flex flex-col">
-              <p className="text-sm text-[#888] flex items-center gap-2"><Download className="w-4 h-4 text-[#00FFD1]" />Zbierz SOL (do glownego)</p>
+              <p className="text-sm text-[#888] flex items-center gap-2"><Download className="w-4 h-4 text-[#00FFD1]" />Zbierz do glownego</p>
               {!mainWallet && <p className="text-xs text-yellow-500">Oznacz portfel jako glowny</p>}
               <div className="flex-1" />
-              <Button data-testid="collect-sol-btn" disabled={!mainWallet || collecting} onClick={handleCollect} className="bg-purple-600 hover:bg-purple-700 text-white h-10 w-full">
-                {collecting ? <><RefreshCw className="w-4 h-4 animate-spin mr-2" />Zbieram...</> : <><Download className="w-4 h-4 mr-2" />Zbierz caly SOL</>}
-              </Button>
+              <div className="space-y-2">
+                <Button data-testid="collect-sol-btn" disabled={!mainWallet || collecting} onClick={handleCollect} className="bg-purple-600 hover:bg-purple-700 text-white h-10 w-full">
+                  {collecting ? <><RefreshCw className="w-4 h-4 animate-spin mr-2" />Zbieram SOL...</> : <><Download className="w-4 h-4 mr-2" />Zbierz caly SOL</>}
+                </Button>
+                <Button data-testid="collect-ftrx-btn" disabled={!mainWallet || collectingFtrx} onClick={handleCollectFtrx} className="bg-orange-600 hover:bg-orange-700 text-white h-10 w-full">
+                  {collectingFtrx ? <><RefreshCw className="w-4 h-4 animate-spin mr-2" />Zbieram FTRX...</> : <><Coins className="w-4 h-4 mr-2" />Zbierz caly FTRX</>}
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -468,14 +485,17 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
                   </div>
                   <p className="text-xs text-[#555] font-mono truncate">{w.public_key}</p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                  <span className="text-sm font-semibold text-[#00FFD1]">{(w.balance_sol || 0).toFixed(4)}</span>
+                <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                  <div className="text-right">
+                    <span className="text-sm font-semibold text-[#00FFD1] block">{(w.balance_sol || 0).toFixed(4)} <span className="text-[10px] text-[#666]">SOL</span></span>
+                    {(w.balance_ftrx || 0) > 0 && <span className="text-xs font-medium text-orange-400">{(w.balance_ftrx).toFixed(2)} <span className="text-[10px] text-[#666]">FTRX</span></span>}
+                  </div>
                   {!w.is_main && (
-                    <button onClick={() => { fetch(`${API}/api/admin/wallets/${w.public_key}/main`, { method: 'POST', headers: { 'x-admin-password': pw } }).then(() => { toast.success('Glowny portfel ustawiony'); onRefresh(); }); }} title="Ustaw jako glowny" className="text-yellow-500/50 hover:text-yellow-400 transition-colors">
+                    <button onClick={() => { fetch(`${API}/api/admin/wallets/${w.public_key}/main`, { method: 'POST', headers: h }).then(() => { toast.success('Glowny portfel ustawiony'); onRefresh(); }); }} title="Ustaw jako glowny" className="text-yellow-500/50 hover:text-yellow-400 transition-colors">
                       <Star className="w-4 h-4" />
                     </button>
                   )}
-                  <button onClick={async () => { await fetch(`${API}/api/admin/wallets/${w.public_key}`, { method: 'DELETE', headers: { 'x-admin-password': pw } }); toast.success('Usuniety'); onRefresh(); }} className="text-red-400/50 hover:text-red-400 transition-colors">
+                  <button onClick={async () => { await fetch(`${API}/api/admin/wallets/${w.public_key}`, { method: 'DELETE', headers: h }); toast.success('Usuniety'); onRefresh(); }} className="text-red-400/50 hover:text-red-400 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -737,6 +757,111 @@ function TxLog({ transactions }) {
             </table>
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+const TYPE_COLORS = { BUY: '#22c55e', SELL: '#3b82f6', TRANSFER: '#eab308', REFUND: '#a855f7', ERROR: '#ef4444' };
+
+function ActivityChart({ transactions }) {
+  const chartData = useMemo(() => {
+    if (!transactions || transactions.length === 0) return [];
+    return transactions.map((tx, i) => ({
+      idx: i,
+      time: tx.timestamp ? new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `#${i}`,
+      sol: tx.sol_amount || 0,
+      type: tx.type,
+      wallet: tx.wallet,
+      color: TYPE_COLORS[tx.type] || '#666',
+    }));
+  }, [transactions]);
+
+  const typeCounts = useMemo(() => {
+    const counts = { BUY: 0, SELL: 0, TRANSFER: 0, REFUND: 0, ERROR: 0 };
+    (transactions || []).forEach(tx => { counts[tx.type] = (counts[tx.type] || 0) + 1; });
+    return Object.entries(counts).filter(([, v]) => v > 0).map(([type, count]) => ({ type, count, fill: TYPE_COLORS[type] }));
+  }, [transactions]);
+
+  if (!transactions || transactions.length === 0) {
+    return (
+      <Card data-testid="activity-chart" className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
+        <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><BarChart3 className="w-5 h-5 text-[#00FFD1]" />Aktywnosc Bota</CardTitle></CardHeader>
+        <CardContent><p className="text-center text-[#444] text-sm py-8">Brak danych. Uruchom bota aby zobaczyc wykres aktywnosci.</p></CardContent>
+      </Card>
+    );
+  }
+
+  const CustomTooltip = ({ active, payload }) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    return (
+      <div className="bg-[#111] border border-[rgba(255,255,255,0.15)] rounded p-2 text-xs">
+        <p className="font-bold" style={{ color: d.color }}>{d.type}</p>
+        <p className="text-white">{d.sol} SOL</p>
+        <p className="text-[#888]">{d.wallet}</p>
+        <p className="text-[#555]">{d.time}</p>
+      </div>
+    );
+  };
+
+  return (
+    <Card data-testid="activity-chart" className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
+      <CardHeader>
+        <CardTitle className="text-white text-lg flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-[#00FFD1]" />Aktywnosc Bota
+          <span className="text-sm font-normal text-[#666] ml-2">({transactions.length} transakcji)</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid md:grid-cols-4 gap-4">
+          {/* Timeline chart */}
+          <div className="md:col-span-3">
+            <p className="text-xs text-[#666] mb-2">Kwoty transakcji w czasie (SOL)</p>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                  <XAxis dataKey="time" tick={{ fill: '#555', fontSize: 10 }} interval="preserveStartEnd" axisLine={{ stroke: '#222' }} tickLine={false} />
+                  <YAxis tick={{ fill: '#555', fontSize: 10 }} axisLine={{ stroke: '#222' }} tickLine={false} width={50} tickFormatter={v => v.toFixed(3)} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                  <Bar dataKey="sol" radius={[2, 2, 0, 0]} maxBarSize={16}>
+                    {chartData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} fillOpacity={0.8} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          {/* Type distribution */}
+          <div>
+            <p className="text-xs text-[#666] mb-2">Rozklad typow</p>
+            <div className="space-y-2">
+              {typeCounts.map(({ type, count, fill }) => (
+                <div key={type} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: fill }} />
+                    <span className="text-xs text-[#888]">{type}</span>
+                  </div>
+                  <span className="text-sm font-bold" style={{ color: fill }}>{count}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 h-[120px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={typeCounts} layout="vertical" margin={{ top: 0, right: 5, left: 0, bottom: 0 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="type" tick={{ fill: '#666', fontSize: 10 }} axisLine={false} tickLine={false} width={55} />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={14}>
+                    {typeCounts.map((entry, i) => (
+                      <Cell key={i} fill={entry.fill} fillOpacity={0.7} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

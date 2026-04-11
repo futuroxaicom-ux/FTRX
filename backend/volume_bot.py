@@ -13,6 +13,7 @@ from solders.system_program import transfer, TransferParams
 from solders.transaction import Transaction, VersionedTransaction
 from solders.message import Message
 from solders.hash import Hash
+from solders.instruction import Instruction, AccountMeta
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,18 @@ JUPITER_QUOTE_URL = "https://api.jup.ag/swap/v1/quote"
 JUPITER_SWAP_URL = "https://api.jup.ag/swap/v1/swap"
 SOLANA_RPC = "https://solana.publicnode.com"
 LAMPORTS_PER_SOL = 1_000_000_000
+TOKEN_PROGRAM_ID = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+ASSOCIATED_TOKEN_PROGRAM_ID = Pubkey.from_string("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
+SYSTEM_PROGRAM_ID = Pubkey.from_string("11111111111111111111111111111111")
+
+
+def get_ata(wallet_pubkey: Pubkey, mint_pubkey: Pubkey) -> Pubkey:
+    """Derive Associated Token Account address"""
+    ata, _bump = Pubkey.find_program_address(
+        [bytes(wallet_pubkey), bytes(TOKEN_PROGRAM_ID), bytes(mint_pubkey)],
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+    )
+    return ata
 
 
 def gauss_amount(min_val, max_val):
@@ -818,15 +831,180 @@ class VolumeBot:
 
     async def get_wallets_info(self):
         wallets = await self.db.bot_wallets.find({}, {"_id": 0, "private_key": 0}).to_list(200)
+        token_mint = self.config.get("token_mint", "")
         async with httpx.AsyncClient() as client:
             for w in wallets:
+                # SOL balance
                 try:
                     resp = await client.post(SOLANA_RPC, json={
                         "jsonrpc": "2.0", "id": 1,
                         "method": "getBalance", "params": [w["public_key"]],
-                    }, timeout=10.0)
+                    }, timeout=5.0)
                     data = resp.json()
                     w["balance_sol"] = data["result"]["value"] / LAMPORTS_PER_SOL if "result" in data else 0
                 except Exception:
                     w["balance_sol"] = 0
+
+                # FTRX token balance
+                w["balance_ftrx"] = 0
+                if token_mint:
+                    try:
+                        resp = await client.post(SOLANA_RPC, json={
+                            "jsonrpc": "2.0", "id": 1,
+                            "method": "getTokenAccountsByOwner",
+                            "params": [
+                                w["public_key"],
+                                {"mint": token_mint},
+                                {"encoding": "jsonParsed"}
+                            ],
+                        }, timeout=5.0)
+                        data = resp.json()
+                        accounts = data.get("result", {}).get("value", [])
+                        if accounts:
+                            info = accounts[0].get("account", {}).get("data", {}).get("parsed", {}).get("info", {})
+                            amount = info.get("tokenAmount", {})
+                            w["balance_ftrx"] = float(amount.get("uiAmount", 0) or 0)
+                    except Exception:
+                        pass
         return wallets
+
+    async def collect_ftrx(self):
+        """Collect FTRX tokens from all sub-wallets to the main wallet"""
+        main = await self.db.bot_wallets.find_one({"is_main": True}, {"_id": 0})
+        if not main:
+            return {"error": "Brak portfela glownego"}
+        main_pub = Pubkey.from_string(main["public_key"])
+        token_mint_str = self.config.get("token_mint", "")
+        if not token_mint_str:
+            return {"error": "Brak token mint w konfiguracji"}
+        token_mint = Pubkey.from_string(token_mint_str)
+
+        wallets = await self._get_wallets()
+        sub_wallets = [w for w in wallets if not w.get("is_main")]
+
+        main_ata = get_ata(main_pub, token_mint)
+        total_collected = 0
+        processed = 0
+        errors = 0
+
+        async with httpx.AsyncClient() as client:
+            # Check if main wallet ATA exists
+            main_ata_exists = False
+            try:
+                resp = await client.post(SOLANA_RPC, json={
+                    "jsonrpc": "2.0", "id": 1,
+                    "method": "getAccountInfo",
+                    "params": [str(main_ata), {"encoding": "base64"}],
+                }, timeout=5.0)
+                ata_data = resp.json()
+                if ata_data.get("result", {}).get("value"):
+                    main_ata_exists = True
+            except Exception:
+                pass
+
+            for w in sub_wallets:
+                kp = self._load_keypair(w["private_key"])
+                if not kp:
+                    continue
+
+                # Get token balance for this sub-wallet
+                try:
+                    resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "getTokenAccountsByOwner",
+                        "params": [
+                            w["public_key"],
+                            {"mint": token_mint_str},
+                            {"encoding": "jsonParsed"}
+                        ],
+                    }, timeout=5.0)
+                    data = resp.json()
+                    accounts = data.get("result", {}).get("value", [])
+                    if not accounts:
+                        continue
+
+                    token_account_info = accounts[0]
+                    source_ata_str = token_account_info["pubkey"]
+                    source_ata = Pubkey.from_string(source_ata_str)
+                    parsed = token_account_info["account"]["data"]["parsed"]["info"]
+                    token_amount = int(parsed["tokenAmount"]["amount"])
+                    ui_amount = float(parsed["tokenAmount"].get("uiAmount", 0) or 0)
+
+                    if token_amount <= 0:
+                        continue
+
+                except Exception:
+                    continue
+
+                # Build transaction
+                try:
+                    bh_resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "getLatestBlockhash",
+                        "params": [{"commitment": "finalized"}],
+                    }, timeout=10.0)
+                    blockhash = Hash.from_string(bh_resp.json()["result"]["value"]["blockhash"])
+
+                    instructions = []
+
+                    # Create main wallet ATA if not exists
+                    if not main_ata_exists:
+                        create_ata_ix = Instruction(
+                            program_id=ASSOCIATED_TOKEN_PROGRAM_ID,
+                            accounts=[
+                                AccountMeta(kp.pubkey(), True, True),
+                                AccountMeta(main_ata, True, False),
+                                AccountMeta(main_pub, False, False),
+                                AccountMeta(token_mint, False, False),
+                                AccountMeta(SYSTEM_PROGRAM_ID, False, False),
+                                AccountMeta(TOKEN_PROGRAM_ID, False, False),
+                            ],
+                            data=bytes(),
+                        )
+                        instructions.append(create_ata_ix)
+
+                    # SPL Transfer instruction
+                    transfer_data = bytes([3]) + token_amount.to_bytes(8, "little")
+                    transfer_ix = Instruction(
+                        program_id=TOKEN_PROGRAM_ID,
+                        accounts=[
+                            AccountMeta(source_ata, True, False),
+                            AccountMeta(main_ata, True, False),
+                            AccountMeta(kp.pubkey(), False, True),
+                        ],
+                        data=transfer_data,
+                    )
+                    instructions.append(transfer_ix)
+
+                    msg = Message.new_with_blockhash(instructions, kp.pubkey(), blockhash)
+                    tx = Transaction.new_unsigned(msg)
+                    tx.sign([kp], blockhash)
+
+                    encoded = base64.b64encode(bytes(tx)).decode("utf-8")
+                    send_resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "sendTransaction",
+                        "params": [encoded, {"encoding": "base64", "skipPreflight": True}],
+                    }, timeout=30.0)
+                    send_data = send_resp.json()
+
+                    if "error" in send_data and send_data.get("error"):
+                        logger.error(f"FTRX collect error for {w.get('label')}: {send_data['error']}")
+                        errors += 1
+                    else:
+                        total_collected += ui_amount
+                        processed += 1
+                        main_ata_exists = True  # ATA now exists after first tx
+                        logger.info(f"Collected {ui_amount} FTRX from {w.get('label')}")
+
+                    await asyncio.sleep(0.3)
+                except Exception as e:
+                    logger.error(f"FTRX collect exception for {w.get('label')}: {e}")
+                    errors += 1
+
+        return {
+            "success": True,
+            "total_collected_ftrx": round(total_collected, 6),
+            "wallets_processed": processed,
+            "errors": errors,
+        }
