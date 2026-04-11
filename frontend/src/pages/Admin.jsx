@@ -208,12 +208,31 @@ const Row = ({ l, v, vc = 'text-white' }) => (
 
 function ConfigPanel({ config, onSave }) {
   const [f, setF] = useState({});
-  useEffect(() => { if (config) setF({ ...config }); }, [config]);
-  const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const [dirty, setDirty] = useState(false);
+  const initRef = React.useRef(false);
+
+  useEffect(() => {
+    if (config && !dirty) {
+      setF({ ...config });
+      initRef.current = true;
+    }
+  }, [config, dirty]);
+
+  const set = (k, v) => { setDirty(true); setF(p => ({ ...p, [k]: v })); };
+
+  const handleSave = async () => {
+    await onSave(f);
+    setDirty(false);
+  };
 
   return (
     <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
-      <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><Settings className="w-5 h-5 text-[#00FFD1]" />Konfiguracja</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle className="text-white text-lg flex items-center gap-2">
+          <Settings className="w-5 h-5 text-[#00FFD1]" />Konfiguracja
+          {dirty && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded ml-2">Niezapisane</span>}
+        </CardTitle>
+      </CardHeader>
       <CardContent className="space-y-3">
         <div>
           <label className="text-xs text-[#666] mb-1 block">Token Mint Address</label>
@@ -228,7 +247,9 @@ function ConfigPanel({ config, onSave }) {
           <Field label="Max SOL / trade" value={f.max_sol_per_trade} onChange={v => set('max_sol_per_trade', parseFloat(v))} step="0.001" />
         </div>
         <Field label="Slippage (bps) - 100 = 1%" value={f.slippage_bps} onChange={v => set('slippage_bps', parseInt(v))} step="10" />
-        <Button data-testid="save-config-btn" onClick={() => onSave(f)} className="btn-primary w-full h-10">Zapisz konfiguracje</Button>
+        <Button data-testid="save-config-btn" onClick={handleSave} className={`w-full h-10 ${dirty ? 'btn-primary' : 'bg-[#333] text-[#888] cursor-default'}`}>
+          {dirty ? 'Zapisz konfiguracje' : 'Konfiguracja aktualna'}
+        </Button>
       </CardContent>
     </Card>
   );
