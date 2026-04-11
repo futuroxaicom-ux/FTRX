@@ -133,7 +133,21 @@ class VolumeBot:
         self._has_ata = set()
         self.task = asyncio.create_task(self._run_loop())
         logger.info("Volume bot started (organic mode)")
+        # Pre-scan ATAs before first trade to avoid unnecessary errors
+        asyncio.create_task(self._prescan_atas())
         return True
+
+    async def _prescan_atas(self):
+        """Force ATA detection on startup - prevents errors from unknown ATA state"""
+        try:
+            wallets = await self._get_wallets()
+            sub_wallets = [w for w in wallets if not w.get("is_main")]
+            if sub_wallets:
+                await self._refresh_balances(sub_wallets)
+                await self._detect_existing_atas(sub_wallets)
+                logger.info(f"Pre-scan complete: {len(self._has_ata)} wallets with ATA detected")
+        except Exception as e:
+            logger.error(f"Pre-scan ATA error: {e}")
 
     async def stop(self):
         self.running = False
@@ -382,7 +396,7 @@ class VolumeBot:
 
         if len(funded_buy) > 1:
             actions.append("TRANSFER_SOL")
-            weights.append(10)
+            weights.append(20)  # Higher weight - SOL concentration is key for bigger trades
 
         if self.config.get("auto_refund"):
             actions.append("REFUND")
@@ -553,45 +567,71 @@ class VolumeBot:
             self._log_tx("ERROR", sell_sol_value, result or {"error": "No result"}, wallet.get("label", ""))
 
     async def _do_sol_transfer(self, sub_wallets):
-        """Transfer SOL between wallets - keeps funds circulating"""
-        min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 8_000_000
-        rich = [w for w in sub_wallets
-                if self._balance_cache.get(w["public_key"], 0) >= min_bal * 2
-                and w["public_key"] not in self._token_holders]
-        poor = [w for w in sub_wallets
-                if self._balance_cache.get(w["public_key"], 0) < min_bal
-                and w["public_key"] not in self._token_holders]
+        """SOL CONCENTRATION: Aggregate SOL from multiple low-balance wallets into one
+        for bigger trades. This creates a circulation pattern where SOL concentrates
+        in fewer wallets, enabling larger swaps and better volume generation."""
+        min_trade = self.config["min_sol_per_trade"]
+        max_trade = self.config["max_sol_per_trade"]
 
-        if not rich or not poor:
+        # Find wallets that can donate (have SOL but not holding tokens)
+        donors = []
+        for w in sub_wallets:
+            bal = self._balance_cache.get(w["public_key"], 0) / LAMPORTS_PER_SOL
+            if bal > 0.002 and w["public_key"] not in self._token_holders:
+                donors.append((w, bal))
+
+        # Find wallets that could do bigger trades if they had more SOL
+        # Target: wallets that need SOL to reach max_trade level
+        receivers = []
+        for w in sub_wallets:
+            bal = self._balance_cache.get(w["public_key"], 0) / LAMPORTS_PER_SOL
+            if w["public_key"] not in self._token_holders and bal < max_trade:
+                receivers.append((w, bal))
+
+        if not donors or not receivers:
             return
 
-        sender = random.choice(rich)
-        receiver = random.choice(poor)
+        # Sort: donors by balance descending, receivers by balance ascending
+        donors.sort(key=lambda x: x[1], reverse=True)
+        receivers.sort(key=lambda x: x[1])
 
-        sender_kp = self._load_keypair(sender["private_key"])
-        if not sender_kp:
+        # Pick a low-balance receiver to concentrate SOL into
+        receiver, recv_bal = receivers[0]
+        # Pick a donor that has excess SOL (but is NOT the receiver)
+        donor = None
+        for d, d_bal in donors:
+            if d["public_key"] != receiver["public_key"] and d_bal > min_trade + 0.003:
+                donor = d
+                break
+        if not donor:
             return
 
-        # Transfer a random portion of excess SOL
-        sender_bal = self._balance_cache.get(sender["public_key"], 0)
-        keep = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6_000_000
-        available = sender_bal - keep
-        if available <= 10000:
+        donor_kp = self._load_keypair(donor["private_key"])
+        if not donor_kp:
             return
 
-        transfer_amount = random.randint(available // 3, available * 2 // 3)
+        # Transfer enough SOL to enable a bigger trade
+        donor_bal = self._balance_cache.get(donor["public_key"], 0)
+        keep = int(0.002 * LAMPORTS_PER_SOL)  # Keep minimum for future fees
+        available = donor_bal - keep
+        if available <= 100_000:
+            return
+
+        # Transfer 50-80% of available SOL to concentrate it
+        transfer_pct = random.uniform(0.5, 0.8)
+        transfer_amount = int(available * transfer_pct)
         transfer_sol = transfer_amount / LAMPORTS_PER_SOL
 
-        logger.info(f"TRANSFER {transfer_sol:.6f} SOL: {sender.get('label')} -> {receiver.get('label')}")
-        result = await self._sol_transfer_tx(sender_kp, receiver["public_key"], transfer_amount)
+        logger.info(f"CONCENTRATE {transfer_sol:.6f} SOL: {donor.get('label')} -> {receiver.get('label')} (for bigger trades)")
+        result = await self._sol_transfer_tx(donor_kp, receiver["public_key"], transfer_amount)
 
         if result and result.get("success"):
-            self._balance_cache[sender["public_key"]] = sender_bal - transfer_amount - 5000
+            self._balance_cache[donor["public_key"]] = donor_bal - transfer_amount - 5000
             self._balance_cache[receiver["public_key"]] = self._balance_cache.get(receiver["public_key"], 0) + transfer_amount
             self.stats["daily_transfers"] += 1
-            self._log_tx("TRANSFER", transfer_sol, result, f"{sender.get('label','')} -> {receiver.get('label','')}")
+            self._log_tx("TRANSFER", transfer_sol, result, f"{donor.get('label','')} -> {receiver.get('label','')}")
         else:
-            self._log_tx("ERROR", transfer_sol, result or {"error": "Transfer failed"}, sender.get("label", ""))
+            self._log_tx("ERROR", transfer_sol, result or {"error": "Transfer failed"}, donor.get("label", ""))
 
     async def _do_auto_refund(self, wallets):
         """Auto-refund: redistribute SOL from main or rich wallets to poor ones"""
@@ -679,9 +719,9 @@ class VolumeBot:
         logger.info(f"Balances refreshed: {funded} funded wallets, {len(self._token_holders)} token holders")
 
     async def _execute_swap(self, keypair, input_mint, output_mint, amount):
-        # Dynamic slippage: start low, increase on retry (saves SOL on every successful trade)
-        max_slip = max(self.config["slippage_bps"], 1500)
-        slippage_levels = [500, 1000, max_slip]
+        # Dynamic slippage: start from configured level, increase on retry
+        base_slip = max(self.config["slippage_bps"], 1000)
+        slippage_levels = [base_slip, base_slip + 500, base_slip + 1000]
         for attempt, slippage in enumerate(slippage_levels):
             result = await self._execute_swap_once(keypair, input_mint, output_mint, amount, slippage)
             if result and not result.get("error"):
@@ -689,10 +729,9 @@ class VolumeBot:
                     logger.info(f"Swap succeeded on attempt {attempt + 1} with slippage {slippage} bps")
                 return result
             err = str(result.get("error", "")) if result else ""
-            is_slippage = "Custom" in err and "'1'" in err
-            is_sim_fail = "Simulation failed" in err or "InstructionError" in err
+            is_slippage = "Custom" in err or "InstructionError" in err
             is_rate_limit = "429" in err
-            if is_rate_limit or (not (is_slippage or is_sim_fail)) or attempt == len(slippage_levels) - 1:
+            if is_rate_limit or (not is_slippage) or attempt == len(slippage_levels) - 1:
                 return result
             logger.info(f"Slippage/sim error at {slippage}bps, retrying at {slippage_levels[attempt + 1]}bps...")
             await asyncio.sleep(2)  # Wait 2s between retries to avoid 429
@@ -737,18 +776,7 @@ class VolumeBot:
                 signed_tx = VersionedTransaction(tx.message, [keypair])
                 encoded_tx = base64.b64encode(bytes(signed_tx)).decode("utf-8")
 
-                # Simulate first
-                sim_resp = await client.post(SOLANA_RPC, json={
-                    "jsonrpc": "2.0", "id": 1,
-                    "method": "simulateTransaction",
-                    "params": [encoded_tx, {"encoding": "base64", "commitment": "confirmed"}],
-                }, timeout=15.0)
-                sim_data = sim_resp.json()
-                sim_err = sim_data.get("result", {}).get("err")
-                if sim_err:
-                    return {"error": f"Simulation failed: {sim_err}"}
-
-                # Send with skipPreflight (already simulated)
+                # Send directly with skipPreflight (simulation adds latency and can fail on slippage)
                 rpc_resp = await client.post(SOLANA_RPC, json={
                     "jsonrpc": "2.0", "id": 1,
                     "method": "sendTransaction",
