@@ -13,6 +13,11 @@ import httpx
 import time
 import asyncio
 from volume_bot import VolumeBot
+from spread_bot import SpreadBot
+from sniper_bot import SniperBot
+from trade_bot import TradeBot
+from arbitrage_bot import ArbitrageBot
+from copytrade_bot import CopyTradeBot
 
 # Simple in-memory cache for CoinGecko API
 class PriceCache:
@@ -103,6 +108,22 @@ class WalletAdd(BaseModel):
 
 # Initialize volume bot
 volume_bot = VolumeBot(db)
+
+# Initialize new bots
+spread_bot = SpreadBot(db)
+sniper_bot = SniperBot(db)
+trade_bot = TradeBot(db)
+arbitrage_bot = ArbitrageBot(db)
+copytrade_bot = CopyTradeBot(db)
+
+BOT_REGISTRY = {
+    "volume": volume_bot,
+    "spread": spread_bot,
+    "sniper": sniper_bot,
+    "trade": trade_bot,
+    "arbitrage": arbitrage_bot,
+    "copytrade": copytrade_bot,
+}
 
 # Admin auth helper
 def verify_admin(password: str):
@@ -280,6 +301,157 @@ async def refresh_ftrx(x_admin_password: str = Header(None)):
 
     asyncio.create_task(run_refresh())
     return {"success": True, "message": "Refreshing FTRX balances..."}
+
+# ========== GENERIC BOT ENDPOINTS (spread, sniper, trade, arbitrage, copytrade) ==========
+
+def _get_bot(bot_type: str):
+    bot = BOT_REGISTRY.get(bot_type)
+    if not bot or bot_type == "volume":
+        raise HTTPException(status_code=404, detail=f"Bot type '{bot_type}' not found")
+    return bot
+
+@api_router.get("/admin/bots")
+async def list_bots(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    bots = []
+    for name, bot in BOT_REGISTRY.items():
+        bots.append({
+            "type": name,
+            "running": bot.running,
+            "has_wallets": True,
+        })
+    return {"bots": bots}
+
+@api_router.get("/admin/bot/{bot_type}/status")
+async def generic_bot_status(bot_type: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if bot_type == "volume":
+        return volume_bot.get_status()
+    bot = _get_bot(bot_type)
+    return bot.get_status()
+
+@api_router.post("/admin/bot/{bot_type}/start")
+async def generic_bot_start(bot_type: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if bot_type == "volume":
+        result = await volume_bot.start()
+        return {"success": result}
+    bot = _get_bot(bot_type)
+    result = await bot.start()
+    return {"success": result, "message": f"{bot_type} bot started" if result else f"{bot_type} bot already running or no token configured"}
+
+@api_router.post("/admin/bot/{bot_type}/stop")
+async def generic_bot_stop(bot_type: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if bot_type == "volume":
+        result = await volume_bot.stop()
+        return {"success": result}
+    bot = _get_bot(bot_type)
+    result = await bot.stop()
+    return {"success": result}
+
+@api_router.post("/admin/bot/{bot_type}/config")
+async def generic_bot_config(bot_type: str, config: dict, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if bot_type == "volume":
+        updated = volume_bot.update_config(config)
+        await volume_bot.save_config()
+        return {"success": True, "config": updated}
+    bot = _get_bot(bot_type)
+    updated = bot.update_config(config)
+    await bot.save_config()
+    return {"success": True, "config": updated}
+
+@api_router.get("/admin/bot/{bot_type}/wallets")
+async def generic_bot_wallets(bot_type: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if bot_type == "volume":
+        wallets = await volume_bot.get_wallets_info()
+        return {"wallets": wallets}
+    bot = _get_bot(bot_type)
+    wallets = await bot.get_wallets_info()
+    return {"wallets": wallets}
+
+@api_router.post("/admin/bot/{bot_type}/wallets/generate")
+async def generic_bot_generate(bot_type: str, req: GenerateWalletsRequest, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if bot_type == "volume":
+        return await volume_bot.generate_wallets(req.count, req.prefix)
+    bot = _get_bot(bot_type)
+    return await bot.generate_wallets(req.count, req.prefix)
+
+@api_router.post("/admin/bot/{bot_type}/wallets/{public_key}/main")
+async def generic_bot_set_main(bot_type: str, public_key: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if bot_type == "volume":
+        return await volume_bot.set_main_wallet(public_key)
+    bot = _get_bot(bot_type)
+    return await bot.set_main_wallet(public_key)
+
+@api_router.delete("/admin/bot/{bot_type}/wallets/{public_key}")
+async def generic_bot_remove_wallet(bot_type: str, public_key: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if bot_type == "volume":
+        return await volume_bot.remove_wallet(public_key)
+    bot = _get_bot(bot_type)
+    return await bot.remove_wallet(public_key)
+
+_bot_distribute_status = {}
+_bot_collect_status = {}
+
+@api_router.post("/admin/bot/{bot_type}/wallets/distribute")
+async def generic_bot_distribute(bot_type: str, req: DistributeRequest, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if bot_type == "volume":
+        return await distribute_sol(req, x_admin_password)
+    bot = _get_bot(bot_type)
+    key = bot_type
+    if _bot_distribute_status.get(key, {}).get("running"):
+        return {"error": "Distribution already in progress"}
+
+    async def run():
+        _bot_distribute_status[key] = {"running": True, "result": None}
+        try:
+            result = await bot.distribute_sol(req.sol_per_wallet)
+            _bot_distribute_status[key]["result"] = result
+        except Exception as e:
+            _bot_distribute_status[key]["result"] = {"error": str(e)}
+        _bot_distribute_status[key]["running"] = False
+
+    asyncio.create_task(run())
+    return {"success": True, "message": f"Distributing SOL to {bot_type} wallets..."}
+
+@api_router.get("/admin/bot/{bot_type}/wallets/distribute/status")
+async def generic_bot_distribute_status(bot_type: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return _bot_distribute_status.get(bot_type, {"running": False, "result": None})
+
+@api_router.post("/admin/bot/{bot_type}/wallets/collect")
+async def generic_bot_collect(bot_type: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if bot_type == "volume":
+        return await collect_sol(x_admin_password)
+    bot = _get_bot(bot_type)
+    key = bot_type
+    if _bot_collect_status.get(key, {}).get("running"):
+        return {"error": "Collection already in progress"}
+
+    async def run():
+        _bot_collect_status[key] = {"running": True, "result": None}
+        try:
+            result = await bot.collect_sol()
+            _bot_collect_status[key]["result"] = result
+        except Exception as e:
+            _bot_collect_status[key]["result"] = {"error": str(e)}
+        _bot_collect_status[key]["running"] = False
+
+    asyncio.create_task(run())
+    return {"success": True, "message": f"Collecting SOL from {bot_type} wallets..."}
+
+@api_router.get("/admin/bot/{bot_type}/wallets/collect/status")
+async def generic_bot_collect_status(bot_type: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return _bot_collect_status.get(bot_type, {"running": False, "result": None})
 
 # Solana RPC proxy - avoids browser CORS/403 issues
 @api_router.post("/solana/rpc")

@@ -1052,10 +1052,10 @@ class VolumeBot:
                 w["balance_ftrx"] = 0
             if token_mint_str:
                 token_mint = Pubkey.from_string(token_mint_str)
-                active = [w for w in wallets if w.get("balance_sol", 0) > 0.001]
+                # Check ALL wallets for FTRX (not just those with SOL > threshold)
                 # Compute ATAs (pure math, no RPC)
                 ata_map = []
-                for w in active:
+                for w in wallets:
                     try:
                         wallet_pub = Pubkey.from_string(w["public_key"])
                         ata = get_ata(wallet_pub, token_mint)
