@@ -831,42 +831,71 @@ class VolumeBot:
 
     async def get_wallets_info(self):
         wallets = await self.db.bot_wallets.find({}, {"_id": 0, "private_key": 0}).to_list(200)
+
+        # Batch JSON-RPC for SOL balances (1 HTTP per 50 wallets, <1 second)
+        BATCH = 50
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for i in range(0, len(wallets), BATCH):
+                batch = wallets[i:i + BATCH]
+                rpc_batch = [
+                    {"jsonrpc": "2.0", "id": idx, "method": "getBalance", "params": [w["public_key"]]}
+                    for idx, w in enumerate(batch)
+                ]
+                try:
+                    resp = await client.post(SOLANA_RPC, json=rpc_batch)
+                    results = resp.json()
+                    if isinstance(results, list):
+                        for r in results:
+                            rid = r.get("id", 0)
+                            if 0 <= rid < len(batch):
+                                val = r.get("result", {}).get("value", 0)
+                                batch[rid]["balance_sol"] = val / LAMPORTS_PER_SOL
+                except Exception:
+                    pass
+                for w in batch:
+                    w.setdefault("balance_sol", 0)
+
+        # FTRX balance: use bot's in-memory token_holders (no RPC calls needed)
+        for w in wallets:
+            holder = self._token_holders.get(w["public_key"])
+            w["balance_ftrx"] = holder["sol_value"] if holder else 0
+
+        return wallets
+
+    async def refresh_ftrx_balances(self):
+        """Fetch actual FTRX balances from blockchain for active wallets"""
+        wallets = await self.db.bot_wallets.find({}, {"_id": 0, "private_key": 0}).to_list(200)
         token_mint = self.config.get("token_mint", "")
-        async with httpx.AsyncClient() as client:
+        if not token_mint:
+            return {"wallets": 0, "holders": 0}
+
+        holders = 0
+        async with httpx.AsyncClient(timeout=8.0) as client:
             for w in wallets:
-                # SOL balance
                 try:
                     resp = await client.post(SOLANA_RPC, json={
                         "jsonrpc": "2.0", "id": 1,
-                        "method": "getBalance", "params": [w["public_key"]],
-                    }, timeout=5.0)
+                        "method": "getTokenAccountsByOwner",
+                        "params": [w["public_key"], {"mint": token_mint}, {"encoding": "jsonParsed"}],
+                    })
                     data = resp.json()
-                    w["balance_sol"] = data["result"]["value"] / LAMPORTS_PER_SOL if "result" in data else 0
+                    accounts = data.get("result", {}).get("value", [])
+                    if accounts:
+                        info = accounts[0].get("account", {}).get("data", {}).get("parsed", {}).get("info", {})
+                        amount = info.get("tokenAmount", {})
+                        ui = float(amount.get("uiAmount", 0) or 0)
+                        raw = int(amount.get("amount", 0) or 0)
+                        if raw > 0:
+                            self._token_holders[w["public_key"]] = {
+                                "amount": raw,
+                                "sol_value": ui,
+                                "wallet": w,
+                            }
+                            holders += 1
                 except Exception:
-                    w["balance_sol"] = 0
+                    pass
 
-                # FTRX token balance
-                w["balance_ftrx"] = 0
-                if token_mint:
-                    try:
-                        resp = await client.post(SOLANA_RPC, json={
-                            "jsonrpc": "2.0", "id": 1,
-                            "method": "getTokenAccountsByOwner",
-                            "params": [
-                                w["public_key"],
-                                {"mint": token_mint},
-                                {"encoding": "jsonParsed"}
-                            ],
-                        }, timeout=5.0)
-                        data = resp.json()
-                        accounts = data.get("result", {}).get("value", [])
-                        if accounts:
-                            info = accounts[0].get("account", {}).get("data", {}).get("parsed", {}).get("info", {})
-                            amount = info.get("tokenAmount", {})
-                            w["balance_ftrx"] = float(amount.get("uiAmount", 0) or 0)
-                    except Exception:
-                        pass
-        return wallets
+        return {"wallets": len(wallets), "holders": holders}
 
     async def collect_ftrx(self):
         """Collect FTRX tokens from all sub-wallets to the main wallet"""

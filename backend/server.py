@@ -261,6 +261,26 @@ async def collect_ftrx_status_endpoint(x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)
     return collect_ftrx_status
 
+refresh_ftrx_status = {"running": False, "result": None}
+
+@api_router.post("/admin/wallets/refresh-ftrx")
+async def refresh_ftrx(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    if refresh_ftrx_status["running"]:
+        return {"error": "Refresh already in progress"}
+
+    async def run_refresh():
+        refresh_ftrx_status["running"] = True
+        try:
+            result = await volume_bot.refresh_ftrx_balances()
+            refresh_ftrx_status["result"] = result
+        except Exception as e:
+            refresh_ftrx_status["result"] = {"error": str(e)}
+        refresh_ftrx_status["running"] = False
+
+    asyncio.create_task(run_refresh())
+    return {"success": True, "message": "Refreshing FTRX balances..."}
+
 # Solana RPC proxy - avoids browser CORS/403 issues
 @api_router.post("/solana/rpc")
 async def solana_rpc_proxy(body: dict):

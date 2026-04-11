@@ -405,6 +405,14 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
             <Wallet className="w-5 h-5 text-[#00FFD1]" />Portfele ({wallets.length})
             <span className="text-sm font-normal text-[#666]">| {totalBal.toFixed(4)} SOL | {totalFtrx > 0 ? `${totalFtrx.toFixed(2)} FTRX` : '0 FTRX'}</span>
           </CardTitle>
+          <Button
+            data-testid="refresh-ftrx-btn"
+            onClick={() => apiCall('/api/admin/wallets/refresh-ftrx', 'POST')}
+            variant="ghost"
+            className="text-orange-400/60 hover:text-orange-400 text-xs h-8 px-3"
+          >
+            <Coins className="w-3.5 h-3.5 mr-1" />Odswiez FTRX
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
