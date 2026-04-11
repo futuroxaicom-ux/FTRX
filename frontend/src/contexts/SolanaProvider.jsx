@@ -10,10 +10,8 @@ export const SolanaProvider = ({ children }) => {
   // Use Mainnet for production (real SOL balances)
   const network = WalletAdapterNetwork.Mainnet;
   
-  // Use a reliable public RPC endpoint for Mainnet
-  // You can also use: https://api.mainnet-beta.solana.com
   const endpoint = useMemo(() => {
-    return 'https://solana.publicnode.com';
+    return process.env.REACT_APP_SOLANA_RPC_URL || 'https://solana.publicnode.com';
   }, []);
   
   const wallets = useMemo(
