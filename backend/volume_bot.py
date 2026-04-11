@@ -425,21 +425,73 @@ class VolumeBot:
             return {"error": "No sub-wallets to distribute to"}
 
         lamports = int(sol_per_wallet * LAMPORTS_PER_SOL)
-        results = []
-        for w in sub_wallets:
-            r = await self._sol_transfer(main_kp, w["public_key"], lamports)
-            results.append({"wallet": w["label"], "public_key": w["public_key"], **r})
-            await asyncio.sleep(0.5)
+        BATCH_SIZE = 20  # max transfers per transaction
 
-        success = sum(1 for r in results if r.get("success"))
+        results = []
+        total_sent = 0
+        async with httpx.AsyncClient() as client:
+            for i in range(0, len(sub_wallets), BATCH_SIZE):
+                batch = sub_wallets[i:i + BATCH_SIZE]
+                try:
+                    # Get fresh blockhash for each batch
+                    bh_resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "getLatestBlockhash",
+                        "params": [{"commitment": "finalized"}],
+                    }, timeout=10.0)
+                    bh_data = bh_resp.json()
+                    blockhash = Hash.from_string(bh_data["result"]["value"]["blockhash"])
+
+                    # Build batch transaction
+                    instructions = []
+                    for w in batch:
+                        receiver = Pubkey.from_string(w["public_key"])
+                        ix = transfer(TransferParams(
+                            from_pubkey=main_kp.pubkey(),
+                            to_pubkey=receiver,
+                            lamports=lamports,
+                        ))
+                        instructions.append(ix)
+
+                    msg = Message.new_with_blockhash(instructions, main_kp.pubkey(), blockhash)
+                    tx = Transaction.new_unsigned(msg)
+                    tx.sign([main_kp], blockhash)
+
+                    encoded = base64.b64encode(bytes(tx)).decode("utf-8")
+                    send_resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "sendTransaction",
+                        "params": [encoded, {"encoding": "base64"}],
+                    }, timeout=30.0)
+                    send_data = send_resp.json()
+
+                    if "error" in send_data and send_data.get("error"):
+                        err_msg = str(send_data["error"])
+                        logger.error(f"Distribute batch {i//BATCH_SIZE+1} error: {err_msg}")
+                        for w in batch:
+                            results.append({"wallet": w["label"], "error": err_msg})
+                    else:
+                        sig = send_data.get("result", "")
+                        logger.info(f"Distribute batch {i//BATCH_SIZE+1} success: {sig[:20]}... ({len(batch)} wallets)")
+                        for w in batch:
+                            results.append({"wallet": w["label"], "success": True, "signature": sig})
+                        total_sent += len(batch)
+
+                    await asyncio.sleep(0.5)
+
+                except Exception as e:
+                    logger.error(f"Distribute batch {i//BATCH_SIZE+1} exception: {e}")
+                    for w in batch:
+                        results.append({"wallet": w["label"], "error": str(e)})
+
         return {
             "success": True,
             "total": len(sub_wallets),
-            "sent": success,
-            "failed": len(sub_wallets) - success,
+            "sent": total_sent,
+            "failed": len(sub_wallets) - total_sent,
             "sol_per_wallet": sol_per_wallet,
-            "total_sol_sent": round(sol_per_wallet * success, 4),
-            "details": results,
+            "total_sol_sent": round(sol_per_wallet * total_sent, 4),
+            "batches": (len(sub_wallets) + BATCH_SIZE - 1) // BATCH_SIZE,
         }
 
     async def collect_sol(self):
@@ -453,12 +505,11 @@ class VolumeBot:
 
         results = []
         total_collected = 0
-        for w in sub_wallets:
-            kp = self._load_keypair(w["private_key"])
-            if not kp:
-                continue
-            # Get balance
-            async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient() as client:
+            for w in sub_wallets:
+                kp = self._load_keypair(w["private_key"])
+                if not kp:
+                    continue
                 try:
                     resp = await client.post(SOLANA_RPC, json={
                         "jsonrpc": "2.0", "id": 1,
@@ -468,22 +519,19 @@ class VolumeBot:
                 except Exception:
                     continue
 
-            # Leave 0.001 SOL for rent
-            send_amount = bal - 5000 - 1_000_000
-            if send_amount <= 0:
-                continue
+                send_amount = bal - 5000 - 1_000_000
+                if send_amount <= 0:
+                    continue
 
-            r = await self._sol_transfer(kp, main_pub, send_amount)
-            if r.get("success"):
-                total_collected += send_amount / LAMPORTS_PER_SOL
-            results.append({"wallet": w["label"], **r})
-            await asyncio.sleep(0.5)
+                r = await self._sol_transfer(kp, main_pub, send_amount)
+                if r.get("success"):
+                    total_collected += send_amount / LAMPORTS_PER_SOL
+                results.append({"wallet": w["label"], **r})
 
         return {
             "success": True,
             "total_collected_sol": round(total_collected, 6),
             "wallets_processed": len(results),
-            "details": results,
         }
 
     async def get_wallets_info(self):

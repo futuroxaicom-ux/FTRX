@@ -306,8 +306,10 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
   const [pk, setPk] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [genCount, setGenCount] = useState(10);
-  const [distSol, setDistSol] = useState(0.01);
+  const [distSol, setDistSol] = useState(0.005);
   const [adding, setAdding] = useState(false);
+  const [distributing, setDistributing] = useState(false);
+  const [collecting, setCollecting] = useState(false);
 
   const addWallet = async (e) => {
     e.preventDefault();
@@ -322,8 +324,43 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
     setAdding(false);
   };
 
+  const pollStatus = async (endpoint, setLoading) => {
+    for (let i = 0; i < 60; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      try {
+        const r = await fetch(`${API}${endpoint}`, { headers: { 'x-admin-password': h['x-admin-password'] } });
+        const d = await r.json();
+        if (!d.running) {
+          if (d.result?.error) toast.error(d.result.error);
+          else if (d.result?.sent !== undefined) toast.success(`Rozdzielono na ${d.result.sent}/${d.result.total} portfeli (${d.result.total_sol_sent} SOL)`);
+          else if (d.result?.total_collected_sol !== undefined) toast.success(`Zebrano ${d.result.total_collected_sol} SOL z ${d.result.wallets_processed} portfeli`);
+          else toast.success('Operacja zakonczona');
+          setLoading(false);
+          onRefresh();
+          return;
+        }
+      } catch { /* continue polling */ }
+    }
+    toast.error('Timeout - sprawdz status portfeli');
+    setLoading(false);
+    onRefresh();
+  };
+
+  const handleDistribute = async () => {
+    setDistributing(true);
+    await apiCall('/api/admin/wallets/distribute', 'POST', { sol_per_wallet: distSol });
+    pollStatus('/api/admin/wallets/distribute/status', setDistributing);
+  };
+
+  const handleCollect = async () => {
+    setCollecting(true);
+    await apiCall('/api/admin/wallets/collect', 'POST');
+    pollStatus('/api/admin/wallets/collect/status', setCollecting);
+  };
+
   const totalBal = wallets.reduce((s, w) => s + (w.balance_sol || 0), 0);
   const mainWallet = wallets.find(w => w.is_main);
+  const subWallets = wallets.filter(w => !w.is_main);
 
   return (
     <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
@@ -361,8 +398,8 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
                   <label className="text-xs text-[#666] mb-1 block">SOL na portfel</label>
                   <Input type="number" step="0.001" value={distSol} onChange={e => setDistSol(parseFloat(e.target.value))} className="bg-black border-[rgba(255,255,255,0.15)] text-white h-10" />
                 </div>
-                <Button data-testid="distribute-sol-btn" disabled={!mainWallet} onClick={() => apiCall('/api/admin/wallets/distribute', 'POST', { sol_per_wallet: distSol })} className="bg-blue-600 hover:bg-blue-700 text-white h-10 px-4">
-                  Rozdziel
+                <Button data-testid="distribute-sol-btn" disabled={!mainWallet || distributing} onClick={handleDistribute} className="bg-blue-600 hover:bg-blue-700 text-white h-10 px-4">
+                  {distributing ? <><RefreshCw className="w-4 h-4 animate-spin mr-1" />Rozdzielam...</> : 'Rozdziel'}
                 </Button>
               </div>
               {mainWallet && <p className="text-xs text-[#555]">Total: {(distSol * (wallets.length - 1)).toFixed(3)} SOL na {wallets.length - 1} portfeli</p>}
@@ -371,8 +408,8 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
               <p className="text-sm text-[#888] flex items-center gap-2"><Download className="w-4 h-4 text-[#00FFD1]" />Zbierz SOL (do glownego)</p>
               {!mainWallet && <p className="text-xs text-yellow-500">Oznacz portfel jako glowny</p>}
               <div className="flex-1" />
-              <Button data-testid="collect-sol-btn" disabled={!mainWallet} onClick={() => apiCall('/api/admin/wallets/collect', 'POST')} className="bg-purple-600 hover:bg-purple-700 text-white h-10 w-full">
-                <Download className="w-4 h-4 mr-2" />Zbierz caly SOL
+              <Button data-testid="collect-sol-btn" disabled={!mainWallet || collecting} onClick={handleCollect} className="bg-purple-600 hover:bg-purple-700 text-white h-10 w-full">
+                {collecting ? <><RefreshCw className="w-4 h-4 animate-spin mr-2" />Zbieram...</> : <><Download className="w-4 h-4 mr-2" />Zbierz caly SOL</>}
               </Button>
             </div>
           </div>

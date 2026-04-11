@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Header, HTTPException
+from fastapi import FastAPI, APIRouter, Header, HTTPException, BackgroundTasks
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime, timezone
 import httpx
 import time
+import asyncio
 from volume_bot import VolumeBot
 
 # Simple in-memory cache for CoinGecko API
@@ -181,17 +182,57 @@ async def generate_wallets(req: GenerateWalletsRequest, x_admin_password: str = 
 class DistributeRequest(BaseModel):
     sol_per_wallet: float
 
+# Track background tasks status
+distribute_status = {"running": False, "result": None}
+collect_status = {"running": False, "result": None}
+
 @api_router.post("/admin/wallets/distribute")
-async def distribute_sol(req: DistributeRequest, x_admin_password: str = Header(None)):
+async def distribute_sol(req: DistributeRequest, x_admin_password: str = Header(None), background_tasks: BackgroundTasks = None):
     verify_admin(x_admin_password)
-    result = await volume_bot.distribute_sol(req.sol_per_wallet)
-    return result
+    if distribute_status["running"]:
+        return {"error": "Distribution already in progress", "status": distribute_status}
+
+    async def run_distribute():
+        distribute_status["running"] = True
+        distribute_status["result"] = None
+        try:
+            result = await volume_bot.distribute_sol(req.sol_per_wallet)
+            distribute_status["result"] = result
+        except Exception as e:
+            distribute_status["result"] = {"error": str(e)}
+        distribute_status["running"] = False
+
+    asyncio.create_task(run_distribute())
+    return {"success": True, "message": f"Distributing to sub-wallets... ({req.sol_per_wallet} SOL each)"}
+
+@api_router.get("/admin/wallets/distribute/status")
+async def distribute_sol_status(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return distribute_status
 
 @api_router.post("/admin/wallets/collect")
 async def collect_sol(x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)
-    result = await volume_bot.collect_sol()
-    return result
+    if collect_status["running"]:
+        return {"error": "Collection already in progress", "status": collect_status}
+
+    async def run_collect():
+        collect_status["running"] = True
+        collect_status["result"] = None
+        try:
+            result = await volume_bot.collect_sol()
+            collect_status["result"] = result
+        except Exception as e:
+            collect_status["result"] = {"error": str(e)}
+        collect_status["running"] = False
+
+    asyncio.create_task(run_collect())
+    return {"success": True, "message": "Collecting SOL from sub-wallets..."}
+
+@api_router.get("/admin/wallets/collect/status")
+async def collect_sol_status(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return collect_status
 
 # Solana RPC proxy - avoids browser CORS/403 issues
 @api_router.post("/solana/rpc")
