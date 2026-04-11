@@ -1,109 +1,92 @@
 # FuturoX AI - Product Requirements Document
 
 ## Original Problem Statement
-Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Volume Bot.
+Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Volume Bot + Multi-Bot Platform.
 
 ## Tech Stack
-- **Frontend**: React, Tailwind CSS, shadcn/ui, React Router, Solana Wallet Adapter, Recharts
+- **Frontend**: React, Tailwind CSS, shadcn/ui, React Router, Solana Wallet Adapter, Recharts, i18next
 - **Backend**: FastAPI, MongoDB (Motor), httpx, solders, base58
-- **APIs**: CoinGecko (SOL), DexScreener (FTRX), Jupiter V1 Swap API, Solana RPC (publicnode.com)
+- **APIs**: CoinGecko (SOL), DexScreener (FTRX/tokens), Jupiter V1 Swap API, Solana RPC
 
 ## Architecture
 ```
 /app
 ├── backend/
-│   ├── server.py          # FastAPI + admin routes + RPC proxy
-│   └── volume_bot.py      # Volume Bot engine (Jupiter swap, wallet gen, SOL distribution)
+│   ├── server.py          # FastAPI + BOT_REGISTRY + generic bot endpoints
+│   ├── volume_bot.py      # Volume Bot (organic mode, batch RPC)
+│   ├── spread_bot.py      # Spread Bot (market making)
+│   ├── sniper_bot.py      # Sniper Bot (new pool detection)
+│   ├── trade_bot.py       # Trade Bot (strategies: momentum, mean_reversion, dca)
+│   ├── arbitrage_bot.py   # Arbitrage Bot (cross-DEX)
+│   ├── copytrade_bot.py   # Copy Trade Bot (whale following)
+│   └── bot_utils.py       # Shared utilities (wallet gen, RPC, Jupiter swap)
 ├── frontend/src/
 │   ├── pages/Home.jsx     # Landing page
-│   ├── pages/Admin.jsx    # Volume Bot admin panel
+│   ├── pages/Admin.jsx    # Multi-Bot admin panel (bot selector + dashboards)
 │   ├── components/        # TokenPurchase, BuyOptions, LivePriceChart, etc.
-│   ├── config/links.js    # External links configuration
+│   ├── config/links.js    # External links
 │   ├── locales/           # EN, ES, PL
-│   └── contexts/SolanaProvider.jsx  # RPC: configurable via env
+│   └── contexts/SolanaProvider.jsx
 ```
 
-## Volume Bot - WORKING (Tested on Mainnet)
-- [x] Jupiter V1 Swap API (`api.jup.ag/swap/v1`)
-- [x] Solana RPC: configurable via SOLANA_RPC_URL env var (default: solana.publicnode.com)
-- [x] BUY/SELL cycles with real transactions on Raydium
-- [x] Balance-aware wallet selection (skips empty wallets)
-- [x] Balance caching (60s refresh, avoids blockhash expiry)
-- [x] Batch SOL distribution (20 transfers per tx)
-- [x] Background task for distribute/collect (no HTTP timeout)
-- [x] Phantom/Solflare wallet connection for funding
-- [x] Backend RPC proxy (avoids browser CORS/403)
-- [x] Auto-generate wallets, set main, distribute, collect
-- [x] Cost calculator, progress bars, transaction log
+## Bots Available
+| Bot | Status | MongoDB Collections | Description |
+|-----|--------|-------------------|-------------|
+| Volume Bot | DONE | bot_wallets, bot_config | Organic volume generation |
+| Spread Bot | DONE | spread_bot_wallets, spread_bot_config | Market making |
+| Sniper Bot | DONE | sniper_bot_wallets, sniper_bot_config | New pool sniping |
+| Trade Bot | DONE | trade_bot_wallets, trade_bot_config | Auto-trading strategies |
+| Arbitrage Bot | DONE | arb_bot_wallets, arb_bot_config | Cross-DEX arbitrage |
+| Copy Trade Bot | DONE | copy_bot_wallets, copy_bot_config | Whale copy trading |
 
-## Organic Mode v2
-- Different wallets for BUY and SELL (cooldown prevents same wallet consecutive trades)
-- Gaussian-distributed random amounts (each trade unique)
-- Partial sells: 30-80% of holdings (not 100%)
-- Buy accumulation: 2-5 buys required before first sell
-- Weighted action selection: BUY/SELL/TRANSFER_SOL/REFUND with dynamic weights
+## Generic Bot API Pattern
+```
+GET  /api/admin/bots                           # List all bots
+GET  /api/admin/bot/{bot_type}/status          # Bot status + config + stats
+POST /api/admin/bot/{bot_type}/start           # Start bot
+POST /api/admin/bot/{bot_type}/stop            # Stop bot
+POST /api/admin/bot/{bot_type}/config          # Update config
+GET  /api/admin/bot/{bot_type}/wallets         # List wallets with balances
+POST /api/admin/bot/{bot_type}/wallets/generate # Generate wallets
+POST /api/admin/bot/{bot_type}/wallets/{pk}/main # Set main wallet
+DELETE /api/admin/bot/{bot_type}/wallets/{pk}   # Remove wallet
+POST /api/admin/bot/{bot_type}/wallets/distribute # Distribute SOL
+POST /api/admin/bot/{bot_type}/wallets/collect   # Collect SOL
+```
 
-## Key Endpoints
+## Volume Bot Legacy Endpoints (still active)
 | Endpoint | Method | Description |
 |---|---|---|
-| `/api/admin/login` | POST | Admin auth |
-| `/api/admin/bot/status` | GET | Bot status + config + stats |
-| `/api/admin/bot/start` | POST | Start bot |
-| `/api/admin/bot/stop` | POST | Stop bot |
-| `/api/admin/bot/config` | POST | Update config |
-| `/api/admin/bot/costs` | GET | Cost estimation |
-| `/api/admin/wallets` | GET/POST | List/add wallets |
-| `/api/admin/wallets/generate` | POST | Auto-generate N wallets |
-| `/api/admin/wallets/distribute` | POST | Batch SOL distribution (background) |
-| `/api/admin/wallets/distribute/status` | GET | Distribution progress |
-| `/api/admin/wallets/collect` | POST | Collect SOL (background) |
-| `/api/admin/wallets/collect/status` | GET | Collection progress |
-| `/api/admin/wallets/collect-ftrx` | POST | Collect FTRX tokens |
-| `/api/admin/wallets/refresh-ftrx` | POST | Refresh FTRX balances |
-| `/api/admin/wallets/{pk}/main` | POST | Set main wallet |
-| `/api/solana/rpc` | POST | RPC proxy (multi-endpoint fallback) |
-| `/api/crypto/price` | GET | SOL price (CoinGecko cached) |
-| `/api/crypto/chart` | GET | SOL 7-day chart |
-| `/api/ftrx/price` | GET | FTRX price (DexScreener) |
-| `/api/whitelist` | POST | Add to whitelist |
-| `/api/whitelist/count` | GET | Whitelist count |
-
-## DB Collections
-- `whitelist`: `{ email, wallet_address?, timestamp }`
-- `bot_wallets`: `{ label, public_key, private_key, is_main, added_at }`
-- `bot_config`: `{ _id: "main", token_mint, target_volume_sol, ... }`
+| `/api/admin/bot/status` | GET | Volume bot status |
+| `/api/admin/bot/start` | POST | Start volume bot |
+| `/api/admin/bot/stop` | POST | Stop volume bot |
+| `/api/admin/wallets` | GET | Volume bot wallets |
+| etc. | | |
 
 ## Completed Work
 - [x] Landing page with i18n (EN/ES/PL), countdown, tokenomics, roadmap
 - [x] Solana wallet connection (Phantom, Solflare)
 - [x] Live SOL/FTRX price charts
 - [x] Whitelist collection
-- [x] Volume Bot with Organic Mode v2
-- [x] Activity Chart (Recharts) - BUY/SELL/TRANSFER timeline
-- [x] FTRX balance display + Collect FTRX + Refresh FTRX
-- [x] Batch RPC optimization (134 wallets < 2s)
-- [x] Dynamic slippage (500->1000->1500 bps)
-- [x] ATA detection (lower SOL reserve for wallets with existing ATA)
-- [x] Cost efficiency tracking dashboard
-- [x] Deploy readiness: env vars for SOLANA_RPC in backend/frontend (Apr 2026)
+- [x] Volume Bot with Organic Mode v2 (tested on mainnet)
+- [x] Activity Chart, Cost Efficiency, Batch RPC, Dynamic Slippage, ATA detection
+- [x] FTRX balance bug fix - shows for ALL wallets (Apr 2026)
+- [x] Multi-Bot Admin Panel - 6 bots with individual dashboards (Apr 2026)
+- [x] Spread Bot, Sniper Bot, Trade Bot, Arbitrage Bot, Copy Trade Bot (Apr 2026)
+- [x] Each bot with own wallets, config, Token Mint input (Apr 2026)
+- [x] Deploy readiness verified (Apr 2026)
 
 ## Backlog
 ### P1
 - [ ] Szyfrowanie kluczy prywatnych w MongoDB (AES)
 - [ ] Rate limiting na endpointach admina
-- [ ] Implementacja prawdziwej transakcji kupna tokena (TokenPurchase.jsx - obecnie mock)
+- [ ] Implementacja prawdziwej transakcji kupna tokena (TokenPurchase.jsx - mock)
 
 ### P2
 - [ ] Refaktor Home.jsx (400+ linii)
-- [ ] Refaktor Admin.jsx (870+ linii)
 - [ ] Persystentne logi transakcji w MongoDB
 - [ ] Telegram/Discord notyfikacje
+- [ ] Docker-compose deployment script
 
 ### P3
 - [ ] Source map warnings cleanup
-
-### Future
-- [ ] Spread Bot (Market Making)
-- [ ] Arbitrage Bot
-- [ ] Sniper Bot
-- [ ] Copy Trade Bot
