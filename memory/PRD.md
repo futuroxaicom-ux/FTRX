@@ -8,45 +8,33 @@ Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Vol
 - **Backend**: FastAPI, MongoDB (Motor), httpx, solders, base58
 - **APIs**: CoinGecko (SOL), DexScreener (FTRX/tokens), Jupiter V1 Swap API, Solana RPC
 
-## Architecture
-```
-/app
-├── backend/
-│   ├── server.py          # FastAPI + BOT_REGISTRY + generic bot endpoints
-│   ├── volume_bot.py      # Volume Bot (organic mode, batch RPC, SOL concentration)
-│   ├── spread_bot.py      # Spread Bot (market making)
-│   ├── sniper_bot.py      # Sniper Bot (new pool detection)
-│   ├── trade_bot.py       # Trade Bot (strategies: momentum, mean_reversion, dca)
-│   ├── arbitrage_bot.py   # Arbitrage Bot (cross-DEX)
-│   ├── copytrade_bot.py   # Copy Trade Bot (whale following)
-│   └── bot_utils.py       # Shared utilities (wallet gen, RPC, Jupiter swap)
-├── frontend/src/
-│   ├── pages/Home.jsx     # Landing page
-│   ├── pages/Admin.jsx    # Full Volume Bot dashboard + Multi-bot nav + Generic bot dashboards
-│   ├── components/        # TokenPurchase, BuyOptions, LivePriceChart, etc.
-│   ├── config/links.js    # External links
-│   ├── locales/           # EN, ES, PL
-│   └── contexts/SolanaProvider.jsx
-```
-
 ## Completed Work
 - [x] Landing page with i18n (EN/ES/PL), countdown, tokenomics, roadmap
 - [x] Solana wallet connection (Phantom, Solflare)
-- [x] Live SOL/FTRX price charts
-- [x] Whitelist collection
-- [x] Volume Bot with Organic Mode v2 (tested on mainnet)
-- [x] Activity Chart, Cost Efficiency, Batch RPC, Dynamic Slippage, ATA detection
-- [x] FTRX balance bug fix (Apr 2026)
-- [x] Multi-Bot Admin Panel - 6 bots with navigation (Apr 2026)
-- [x] Volume Bot improvements: SOL concentration, auto ATA prescan, lower slippage (300 bps), no simulation step (Apr 2026)
-- [x] Full Volume Bot dashboard restored with all original features + bot nav bar (Apr 2026)
+- [x] Volume Bot with Organic Mode v2 (SOL concentration, auto ATA prescan)
+- [x] Multi-Bot Panel: Volume, Spread, Sniper, Trade, Arbitrage, Copy Trade
+- [x] Full Volume Bot dashboard preserved (all original features)
+- [x] Bot navigation bar in header
+- [x] Generic bot dashboards with Phantom wallet funding
+- [x] Sniper Bot: TRUE auto-discovery of new Raydium pools + auto buy/sell
+- [x] Volume Bot: 429 rate limit handling (10s backoff), min 10s between trades
+- [x] Volume Bot: load_config() before FTRX fetch to ensure token_mint loaded
+- [x] Volume Bot: FTRX balance error logging for debugging
 
-## Volume Bot Improvements (Latest)
-- Slippage: starts at 300 bps (3%), retries at 600 (6%), 900 (9%)
-- Removed simulation step (was causing extra errors)
-- Auto ATA prescan on bot start
-- SOL concentration transfers (collects from many wallets into one for bigger trades)
-- Higher TRANSFER_SOL weight (20 vs old 10) for more SOL circulation
+## Volume Bot Fixes (Latest)
+- 429 rate limit: waits 10s and retries (instead of giving up)
+- Minimum 10s between trades (prevents Jupiter rate limiting)
+- Slippage starts from configured value, retries +300, +600
+- load_config() called before FTRX balance fetch
+- Error logging for FTRX fetch failures
+
+## Sniper Bot (Auto-Discovery Mode)
+- Scans DexScreener for new Raydium pools on Solana
+- Filters by: liquidity (min/max USD), pool age (max seconds)
+- Auto-buys tokens from fresh pools
+- Monitors positions for take-profit / stop-loss
+- Max concurrent positions configurable
+- Blacklists failed tokens to avoid retrying
 
 ## Backlog
 ### P1
@@ -56,7 +44,3 @@ Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Vol
 ### P2
 - [ ] Persystentne logi transakcji w MongoDB
 - [ ] Telegram/Discord notyfikacje
-
-### P3
-- [ ] Source map warnings cleanup
-- [ ] Refaktor Home.jsx (400+ linii)

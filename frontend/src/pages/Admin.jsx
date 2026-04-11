@@ -944,13 +944,16 @@ const BOT_CONFIG_FIELDS = {
     { key: 'stop_loss_percent', label: 'Stop Loss (%)', type: 'number', step: 0.1 },
   ],
   sniper: [
-    { key: 'token_mint', label: 'Token Mint (cel)', type: 'text' },
+    { key: 'token_mint', label: 'Token Mint (opcjonalny - puste = auto-discovery)', type: 'text' },
     { key: 'max_buy_sol', label: 'Max SOL/snipe', type: 'number', step: 0.01 },
     { key: 'take_profit_percent', label: 'Take Profit (%)', type: 'number', step: 1 },
     { key: 'stop_loss_percent', label: 'Stop Loss (%)', type: 'number', step: 1 },
     { key: 'check_interval', label: 'Interwał (s)', type: 'number' },
     { key: 'slippage_bps', label: 'Slippage (bps)', type: 'number' },
     { key: 'min_liquidity_usd', label: 'Min płynność (USD)', type: 'number' },
+    { key: 'max_liquidity_usd', label: 'Max płynność (USD)', type: 'number' },
+    { key: 'max_pool_age_seconds', label: 'Max wiek puli (s) - 3600=1h', type: 'number' },
+    { key: 'max_concurrent_positions', label: 'Max otwartych pozycji', type: 'number' },
   ],
   trade: [
     { key: 'token_mint', label: 'Token Mint Address', type: 'text' },
@@ -992,7 +995,11 @@ function GenericBotDashboard({ botType, pw, onBack }) {
   const [loading, setLoading] = useState(false);
   const [genCount, setGenCount] = useState(10);
   const [distAmount, setDistAmount] = useState(0.005);
+  const [fundAmount, setFundAmount] = useState(0.1);
   const headers = { 'Content-Type': 'application/json', 'x-admin-password': pw };
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
+  const { setVisible } = useWalletModal();
 
   const fetchData = useCallback(async () => {
     try {
@@ -1109,6 +1116,37 @@ function GenericBotDashboard({ botType, pw, onBack }) {
               ))}
               {wallets.length === 0 && <p className="text-[#555] text-center py-4">Brak portfeli. Wygeneruj nowe.</p>}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Wallet Funding - Phantom/Solflare */}
+        <Card className="bg-[#0a0a0a] border-[#00FFD1]/20">
+          <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><Link2 className="w-4 h-4 text-[#00FFD1]" /> Zasilanie Portfeli - Phantom / Solflare</CardTitle></CardHeader>
+          <CardContent>
+            {!publicKey ? (
+              <Button onClick={() => setVisible(true)} className="w-full bg-[#00FFD1] text-black font-bold hover:bg-[#00DDC0]">
+                <Wallet className="w-4 h-4 mr-2" /> Podlacz portfel
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-[#666]">Podlaczony: <span className="text-[#00FFD1]">{publicKey.toString().slice(0,8)}...{publicKey.toString().slice(-6)}</span></p>
+                {(() => { const mainW = wallets.find(w => w.is_main); return mainW ? (
+                  <div className="flex gap-2">
+                    <Input type="number" step={0.01} value={fundAmount} onChange={e => setFundAmount(parseFloat(e.target.value)||0)} className="bg-black border-[rgba(255,255,255,0.15)] text-white w-32" />
+                    <Button onClick={async () => {
+                      try {
+                        const tx = new Transaction().add(SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: new PublicKey(mainW.public_key), lamports: Math.floor(fundAmount * LAMPORTS_PER_SOL) }));
+                        await sendTransaction(tx, connection);
+                        toast.success(`Wyslano ${fundAmount} SOL na glowny portfel`);
+                        setTimeout(fetchData, 3000);
+                      } catch(e) { toast.error('Blad: ' + e.message); }
+                    }} className="flex-1 bg-[#00FFD1] text-black font-bold hover:bg-[#00DDC0]">
+                      Wyslij {fundAmount} SOL na glowny portfel
+                    </Button>
+                  </div>
+                ) : <p className="text-xs text-red-400">Najpierw wygeneruj portfele i ustaw glowny</p>; })()}
+              </div>
+            )}
           </CardContent>
         </Card>
 

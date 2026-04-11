@@ -313,10 +313,10 @@ class VolumeBot:
                 self.stats["cycles"] += 1
                 self.stats["last_trade_time"] = time.time()
 
-                # Random organic delay (in seconds)
+                # Random organic delay (in seconds) - minimum 10s to avoid Jupiter 429 rate limits
                 delay = gauss_amount(
-                    self.config["trade_interval_min"],
-                    self.config["trade_interval_max"]
+                    max(self.config["trade_interval_min"], 10),
+                    max(self.config["trade_interval_max"], 30)
                 )
                 await asyncio.sleep(delay)
 
@@ -719,8 +719,8 @@ class VolumeBot:
         logger.info(f"Balances refreshed: {funded} funded wallets, {len(self._token_holders)} token holders")
 
     async def _execute_swap(self, keypair, input_mint, output_mint, amount):
-        # Dynamic slippage: start low to minimize costs, increase only on failure
-        base_slip = min(self.config["slippage_bps"], 500)  # Start at configured or 500 max
+        # Dynamic slippage: start from configured, increase on failure
+        base_slip = max(self.config["slippage_bps"], 300)
         slippage_levels = [base_slip, base_slip + 300, base_slip + 600]
         for attempt, slippage in enumerate(slippage_levels):
             result = await self._execute_swap_once(keypair, input_mint, output_mint, amount, slippage)
@@ -731,10 +731,15 @@ class VolumeBot:
             err = str(result.get("error", "")) if result else ""
             is_slippage = "Custom" in err or "InstructionError" in err
             is_rate_limit = "429" in err
-            if is_rate_limit or (not is_slippage) or attempt == len(slippage_levels) - 1:
+            if is_rate_limit:
+                # Rate limited - wait longer before retry
+                logger.warning(f"Jupiter API rate limited (429). Waiting 10s...")
+                await asyncio.sleep(10)
+                continue  # Retry with same slippage
+            if not is_slippage or attempt == len(slippage_levels) - 1:
                 return result
-            logger.info(f"Slippage/sim error at {slippage}bps, retrying at {slippage_levels[attempt + 1]}bps...")
-            await asyncio.sleep(2)  # Wait 2s between retries to avoid 429
+            logger.info(f"Slippage error at {slippage}bps, retrying at {slippage_levels[attempt + 1]}bps...")
+            await asyncio.sleep(3)
         return result
 
     async def _execute_swap_once(self, keypair, input_mint, output_mint, amount, slippage_bps=None):
@@ -1050,11 +1055,12 @@ class VolumeBot:
         }
 
     async def get_wallets_info(self):
+        await self.load_config()
         wallets = await self.db.bot_wallets.find({}, {"_id": 0, "private_key": 0}).to_list(200)
         token_mint_str = self.config.get("token_mint", "")
 
         BATCH = 50
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             # SOL balances (batch RPC - fast)
             for i in range(0, len(wallets), BATCH):
                 batch = wallets[i:i + BATCH]
@@ -1110,8 +1116,8 @@ class VolumeBot:
                                     ui_amount = val.get("uiAmount")
                                     if ui_amount is not None:
                                         wallet_ref["balance_ftrx"] = float(ui_amount)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.error(f"FTRX balance batch error: {e}")
 
         return wallets
 
