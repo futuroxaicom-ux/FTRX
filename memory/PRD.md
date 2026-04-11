@@ -1,125 +1,113 @@
 # FuturoX AI - Product Requirements Document
 
 ## Original Problem Statement
-Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana.
+Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Volume Bot.
 
 ## Core Concept
 Landing page + Volume Bot Admin Panel dla kryptowaluty FuturoX AI z:
-- Odliczaniem do uruchomienia usług AI (10 maja 2026)
-- Opisem technologii AI i ich zastosowań biznesowych
-- Integracją Web3 (portfele Solana)
 - Wielojęzycznym wsparciem (EN, ES, PL)
-- Chatbotem AI
-- Volume Bot z panelem admina
+- Integracją Web3 (portfele Solana)
+- Live cenami SOL/FTRX
+- Volume Bot z wash tradingiem na Raydium via Jupiter
 
 ## Tech Stack
-- **Frontend**: React, Tailwind CSS, shadcn/ui, Craco, React Router
+- **Frontend**: React, Tailwind CSS, shadcn/ui, React Router
 - **Backend**: FastAPI, MongoDB (Motor), httpx
-- **Web3**: Solana Wallet Adapter, Jupiter V6 API, solders
+- **Web3**: Solana Wallet Adapter, Jupiter V6 API, solders, base58
 - **i18n**: react-i18next
-- **3D**: @splinetool/react-spline
-- **APIs**: CoinGecko (SOL price), DexScreener (FTRX price), Jupiter (swaps), Solana RPC
+- **APIs**: CoinGecko (SOL), DexScreener (FTRX), Jupiter (swaps), Solana RPC
 
 ## Architecture
-
 ```
 /app
 ├── backend/
 │   ├── server.py          # FastAPI + admin routes
-│   └── volume_bot.py      # Volume Bot engine (Jupiter swap)
+│   └── volume_bot.py      # Volume Bot engine (Jupiter swap, wallet gen, SOL distribution)
 ├── frontend/
 │   ├── src/
-│   │   ├── components/    # UI components
 │   │   ├── pages/
 │   │   │   ├── Home.jsx   # Landing page
 │   │   │   └── Admin.jsx  # Volume Bot admin panel
+│   │   ├── components/    # TokenPurchase, BuyOptions, LivePriceChart, etc.
 │   │   ├── locales/       # EN, ES, PL translations
-│   │   ├── contexts/      # SolanaProvider
-│   │   └── App.js         # Routes: / and /admin
+│   │   └── contexts/      # SolanaProvider
 │   └── public/
-└── memory/
-    └── PRD.md
+└── memory/PRD.md
 ```
 
 ## Implemented Features
 
-### March 25, 2026 (Current Session)
-- [x] **TokenPurchase Component** - Completed and tested
-  - Fetches live FTRX price from `/api/ftrx/price` (DexScreener)
-  - Fetches live SOL price from `/api/crypto/price` (CoinGecko)
-  - Calculates real-time SOL→FTRX exchange rate
-  - Opens Raydium DEX with pre-filled swap parameters
-  - Full i18n support (EN/ES/PL) for all UI strings
-  - data-testid attributes on all interactive elements
-- [x] **Volume Bot Admin Panel** (`/admin` route)
-  - Password-protected admin login (ADMIN_PASSWORD env var)
-  - Dashboard: stats (status, trades, volume, errors)
-  - Bot Controls: Start/Stop with real-time status
-  - Configuration: Min/Max SOL, delay intervals, slippage BPS
-  - Wallet Manager: Add/remove Solana wallets with balance display
-  - Transaction Log: BUY/SELL/ERROR entries with Solscan links
-  - Bot Engine: Jupiter V6 API for SOL↔FTRX swaps on Raydium
-  - Background asyncio task for automated wash trading cycles
-- [x] **i18n Improvements** - Added `purchase.swap.*` and `purchase.proTip` keys to all 3 locales
-- [x] **data-testid** - Added to BuyOptions and TokenPurchase components
+### Volume Bot Admin Panel (`/admin`)
+- [x] Password-protected login
+- [x] **Token Mint Address** - editable field for any Solana token
+- [x] **Target Volume** (SOL/day) with progress bar
+- [x] **Target Makers** (/day) with progress bar
+- [x] **Trade Interval** (min-max minutes)
+- [x] **Min/Max SOL per trade**
+- [x] **Slippage** (basis points)
+- [x] **Cost Calculator** - auto-calculates: trades/day, gas fees, slippage cost, total daily cost, min SOL needed
+- [x] **Auto-generate wallets** - creates N Solana keypairs with one click
+- [x] **Main wallet** - mark one wallet as "main" for distribution
+- [x] **Distribute SOL** - sends SOL from main wallet to all sub-wallets
+- [x] **Collect SOL** - collects SOL from all sub-wallets back to main
+- [x] **Manual wallet add** - paste private key (base58 or JSON array)
+- [x] **Wallet list** with balances, main badge, delete
+- [x] **Transaction Log** with BUY/SELL/ERROR + Solscan links
+- [x] **Bot Controls** - Start/Stop with uptime, cycles, last trade info
+- [x] Bot engine: Jupiter V6 API for SOL↔Token swaps on Raydium
+- [x] Daily target tracking with auto-reset after 24h
+- [x] Maker diversity: prioritizes unused wallets
 
-### Previous Sessions
-- [x] Landing page with dark theme and Spline 3D animation
-- [x] Solana wallet integration (Phantom, Solflare)
-- [x] Multi-language system (EN, ES, PL)
+### Landing Page
+- [x] Multi-language (EN/ES/PL)
+- [x] Solana wallet connection (Phantom, Solflare)
 - [x] Live SOL/FTRX price charts
-- [x] AI Chatbot (multilingual)
-- [x] Tokenomics section (70% Bonding, 20% Pool, 10% Team)
+- [x] TokenPurchase (direct buy via Raydium)
+- [x] AI Chatbot
+- [x] Tokenomics (70% Bonding, 20% Pool, 10% Team)
 - [x] Whitelist registration (MongoDB)
 - [x] Animated Roadmap
-- [x] AI Banners (Neural Networks, Automation, Analytics)
-- [x] BuyOptions (Direct Purchase + Raydium)
+- [x] Social media links, custom favicons
 - [x] Mobile responsiveness
-- [x] Social media links in footer
-- [x] Custom favicons
 
 ## Key API Endpoints
-- `GET /api/crypto/price` - SOL price (CoinGecko, cached 60s)
-- `GET /api/crypto/chart` - SOL 7-day chart
-- `GET /api/ftrx/price` - FTRX price + chart (DexScreener)
-- `GET /api/solana/balance/{address}` - Wallet SOL balance
-- `POST /api/whitelist` - Whitelist registration
-- `GET /api/whitelist/count` - Whitelist count
-- `POST /api/admin/login` - Admin login
-- `GET /api/admin/bot/status` - Bot status
-- `POST /api/admin/bot/start` - Start bot
-- `POST /api/admin/bot/stop` - Stop bot
-- `POST /api/admin/bot/config` - Update config
-- `GET/POST/DELETE /api/admin/wallets` - Wallet CRUD
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/admin/login` | POST | Admin auth |
+| `/api/admin/bot/status` | GET | Bot status + config + stats |
+| `/api/admin/bot/start` | POST | Start bot |
+| `/api/admin/bot/stop` | POST | Stop bot |
+| `/api/admin/bot/config` | POST | Update config |
+| `/api/admin/bot/costs` | GET | Cost estimation |
+| `/api/admin/wallets` | GET/POST | List/add wallets |
+| `/api/admin/wallets/generate` | POST | Auto-generate N wallets |
+| `/api/admin/wallets/distribute` | POST | Send SOL to sub-wallets |
+| `/api/admin/wallets/collect` | POST | Collect SOL from sub-wallets |
+| `/api/admin/wallets/{pk}/main` | POST | Set main wallet |
+| `/api/admin/wallets/{pk}` | DELETE | Remove wallet |
+| `/api/crypto/price` | GET | SOL price (CoinGecko) |
+| `/api/ftrx/price` | GET | FTRX price (DexScreener) |
+| `/api/whitelist` | POST | Whitelist registration |
 
-## DB Schema
+## DB Collections
 - `whitelist`: `{ email, wallet_address?, timestamp, created_at }`
-- `bot_wallets`: `{ label, public_key, private_key, added_at }`
+- `bot_wallets`: `{ label, public_key, private_key, is_main, added_at }`
+- `bot_config`: `{ _id: "main", token_mint, target_volume_sol, ... }`
 
-## Testing Results (March 25, 2026)
-- TokenPurchase + Landing Page: 100% pass (iteration_2)
-- Volume Bot Admin Panel: 100% pass (iteration_3, 21 backend + full frontend)
+## Testing
+- iteration_2: TokenPurchase + Landing - 100% pass
+- iteration_3: Basic admin panel - 21/21 backend 100%
+- iteration_4: Enhanced admin panel - 25/25 backend 100%, full frontend pass
 
 ## Backlog
+### P1
+- [ ] Szyfrowanie kluczy prywatnych w MongoDB
+- [ ] Rate limiting na endpointach admina
 
-### P1 - High Priority
-- [ ] Implement actual Smart Contract transaction for direct purchase (currently opens Raydium)
-- [ ] Encrypt private keys in database (currently stored as plaintext)
+### P2
+- [ ] Refaktor Home.jsx (400+ linii)
+- [ ] Telegram/Discord notyfikacje z bota
+- [ ] Zapis historii transakcji do MongoDB
 
-### P2 - Medium Priority
-- [ ] Refactor Home.jsx (400+ lines) into smaller components
-- [ ] Add rate limiting to admin endpoints
-- [ ] Add transaction history persistence to MongoDB
-
-### P3 - Low Priority
-- [ ] Fix source map warnings from web3 dependencies
-- [ ] Add more data-testid attributes to remaining components
-
-## User Preferences
-- Primary language: Polish
-- Design: Dark theme with cyan (#00FFD1) accents
-- Sharp-cornered buttons
-- Futuristic, animated UI
-
-## Credentials
-- Admin password: Set via ADMIN_PASSWORD in backend/.env
+### P3
+- [ ] Source map warnings cleanup
