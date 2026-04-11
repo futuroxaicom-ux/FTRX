@@ -1,5 +1,6 @@
 import asyncio
 import random
+import math
 import time
 import base64
 import base58
@@ -23,6 +24,14 @@ SOLANA_RPC = "https://solana.publicnode.com"
 LAMPORTS_PER_SOL = 1_000_000_000
 
 
+def gauss_amount(min_val, max_val):
+    """Gaussian random amount - more natural than uniform"""
+    mid = (min_val + max_val) / 2
+    std = (max_val - min_val) / 4
+    val = random.gauss(mid, std)
+    return max(min_val, min(max_val, val))
+
+
 class VolumeBot:
     def __init__(self, db):
         self.db = db
@@ -32,11 +41,13 @@ class VolumeBot:
             "token_mint": "9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray",
             "target_volume_sol": 10,
             "target_makers": 20,
-            "trade_interval_min": 10,
-            "trade_interval_max": 15,
-            "min_sol_per_trade": 0.005,
-            "max_sol_per_trade": 0.05,
-            "slippage_bps": 300,
+            "trade_interval_min": 5,       # seconds
+            "trade_interval_max": 30,      # seconds
+            "min_sol_per_trade": 0.003,
+            "max_sol_per_trade": 0.03,
+            "slippage_bps": 100,
+            "auto_refund": True,
+            "min_wallet_balance": 0.003,   # below this -> gets refunded
         }
         self.stats = {
             "total_trades": 0,
@@ -44,6 +55,7 @@ class VolumeBot:
             "daily_volume_sol": 0.0,
             "daily_makers": 0,
             "daily_trades": 0,
+            "daily_transfers": 0,
             "cycles": 0,
             "errors": 0,
             "last_trade_time": None,
@@ -52,6 +64,10 @@ class VolumeBot:
         }
         self.daily_wallets_used = set()
         self.transaction_log = []
+        self._balance_cache = {}
+        self._balance_cache_time = 0
+        # Track which wallets hold tokens (pubkey -> token_amount)
+        self._token_holders = {}
 
     async def load_config(self):
         saved = await self.db.bot_config.find_one({"_id": "main"}, {"_id": 0})
@@ -71,18 +87,20 @@ class VolumeBot:
         await self.load_config()
         self.running = True
         now = time.time()
-        self.stats["started_at"] = now
-        self.stats["daily_volume_sol"] = 0.0
-        self.stats["daily_makers"] = 0
-        self.stats["daily_trades"] = 0
-        self.stats["day_start"] = now
-        self.stats["errors"] = 0
+        self.stats = {
+            "total_trades": 0, "total_volume_sol": 0.0,
+            "daily_volume_sol": 0.0, "daily_makers": 0,
+            "daily_trades": 0, "daily_transfers": 0,
+            "cycles": 0, "errors": 0,
+            "last_trade_time": None, "started_at": now, "day_start": now,
+        }
         self.daily_wallets_used = set()
         self.transaction_log = []
         self._balance_cache = {}
         self._balance_cache_time = 0
+        self._token_holders = {}
         self.task = asyncio.create_task(self._run_loop())
-        logger.info("Volume bot started")
+        logger.info("Volume bot started (organic mode)")
         return True
 
     async def stop(self):
@@ -103,6 +121,7 @@ class VolumeBot:
             "config": self.config,
             "stats": self.stats,
             "daily_wallets_used": len(self.daily_wallets_used),
+            "token_holders": len(self._token_holders),
             "recent_transactions": self.transaction_log[-50:],
         }
 
@@ -116,20 +135,21 @@ class VolumeBot:
         cfg = self.config
         vol = cfg["target_volume_sol"]
         avg_trade = (cfg["min_sol_per_trade"] + cfg["max_sol_per_trade"]) / 2
-        trades_per_day = int(vol / avg_trade) if avg_trade > 0 else 0
-        trades_from_interval = int((24 * 60) / ((cfg["trade_interval_min"] + cfg["trade_interval_max"]) / 2))
-        actual_trades = min(trades_per_day, trades_from_interval)
+        avg_interval = (cfg["trade_interval_min"] + cfg["trade_interval_max"]) / 2
+        trades_from_interval = int((24 * 3600) / avg_interval) if avg_interval > 0 else 0
+        trades_from_volume = int(vol / avg_trade) if avg_trade > 0 else 0
+        actual_trades = min(trades_from_volume, trades_from_interval)
 
         gas_per_tx = 0.000005
-        priority_per_tx = 0.0001
-        total_txs = actual_trades * 2  # buy + sell
+        priority_per_tx = 0.000005
+        total_txs = actual_trades * 2
         gas_cost = total_txs * (gas_per_tx + priority_per_tx)
 
         slippage_pct = cfg["slippage_bps"] / 10000
         slippage_cost = vol * slippage_pct
 
         total_daily_cost = gas_cost + slippage_cost
-        sol_needed = avg_trade * cfg["target_makers"] + gas_cost
+        sol_needed = avg_trade * min(cfg["target_makers"], 20) + gas_cost
 
         return {
             "trades_per_day": actual_trades,
@@ -148,134 +168,53 @@ class VolumeBot:
             self.stats["daily_volume_sol"] = 0.0
             self.stats["daily_makers"] = 0
             self.stats["daily_trades"] = 0
+            self.stats["daily_transfers"] = 0
             self.stats["day_start"] = now
             self.daily_wallets_used = set()
+
+    # ==================== ORGANIC BOT LOOP ====================
 
     async def _run_loop(self):
         while self.running:
             try:
                 self._reset_daily_if_needed()
 
-                # Check daily target
                 if self.stats["daily_volume_sol"] >= self.config["target_volume_sol"]:
-                    logger.info("Daily volume target reached, waiting for next day...")
+                    logger.info("Daily volume target reached")
                     await asyncio.sleep(60)
                     continue
 
                 wallets = await self._get_wallets()
-                if not wallets:
-                    logger.warning("No wallets configured")
+                sub_wallets = [w for w in wallets if not w.get("is_main")]
+                if not sub_wallets:
                     await asyncio.sleep(5)
                     continue
 
-                # Refresh balance cache every 60s
-                now = time.time()
-                if now - self._balance_cache_time > 60:
-                    min_needed = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6000000
-                    async with httpx.AsyncClient() as client:
-                        for w in wallets:
-                            if w.get("is_main"):
-                                continue
-                            try:
-                                resp = await client.post(SOLANA_RPC, json={
-                                    "jsonrpc": "2.0", "id": 1,
-                                    "method": "getBalance", "params": [w["public_key"]],
-                                }, timeout=5.0)
-                                bal = resp.json().get("result", {}).get("value", 0)
-                                self._balance_cache[w["public_key"]] = bal
-                            except Exception:
-                                pass
-                    self._balance_cache_time = now
-                    logger.info(f"Balance cache refreshed: {sum(1 for b in self._balance_cache.values() if b > 5000000)} funded wallets")
+                # Refresh balance cache periodically
+                await self._refresh_balances(sub_wallets)
 
-                # Filter funded wallets
-                min_needed = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6000000
-                funded_wallets = []
-                for w in wallets:
-                    if w.get("is_main"):
-                        continue
-                    bal = self._balance_cache.get(w["public_key"], 0)
-                    if bal >= min_needed:
-                        w["_balance"] = bal
-                        funded_wallets.append(w)
+                # Decide action based on state
+                action = self._pick_action(sub_wallets)
+                logger.info(f"Organic action: {action}")
 
-                if not funded_wallets:
-                    logger.warning("No funded wallets available, waiting...")
-                    await asyncio.sleep(10)
-                    continue
-
-                # Pick wallet - prefer unused wallets for maker count
-                unused = [w for w in funded_wallets if w["public_key"] not in self.daily_wallets_used]
-                wallet = random.choice(unused) if unused else random.choice(funded_wallets)
-
-                keypair = self._load_keypair(wallet["private_key"])
-                if not keypair:
-                    logger.error(f"Invalid keypair: {wallet.get('label')}")
-                    await asyncio.sleep(5)
-                    continue
-
-                sol_amount = random.uniform(
-                    self.config["min_sol_per_trade"],
-                    self.config["max_sol_per_trade"]
-                )
-                remaining = self.config["target_volume_sol"] - self.stats["daily_volume_sol"]
-                sol_amount = min(sol_amount, remaining)
-                # Cap by wallet balance (leave 0.005 SOL for fees + token account rent)
-                wallet_sol = (wallet.get("_balance", 0) / LAMPORTS_PER_SOL) - 0.005
-                sol_amount = min(sol_amount, max(0, wallet_sol))
-                if sol_amount < 0.0005:
-                    continue
-
-                lamports = int(sol_amount * LAMPORTS_PER_SOL)
-                token_mint = self.config["token_mint"]
-
-                # BUY: SOL -> Token
-                logger.info(f"BUY {sol_amount:.6f} SOL -> {token_mint[:8]}... via {wallet.get('label')}")
-                buy_result = await self._execute_swap(keypair, SOL_MINT, token_mint, lamports)
-
-                if buy_result and not buy_result.get("error"):
-                    self.stats["total_trades"] += 1
-                    self.stats["daily_trades"] += 1
-                    self.stats["total_volume_sol"] += sol_amount
-                    self.stats["daily_volume_sol"] += sol_amount
-                    self.daily_wallets_used.add(wallet["public_key"])
-                    self.stats["daily_makers"] = len(self.daily_wallets_used)
-                    self._log_tx("BUY", sol_amount, buy_result, wallet.get("label", ""))
-                else:
-                    self.stats["errors"] += 1
-                    self._log_tx("ERROR", sol_amount, buy_result or {"error": "No result"}, wallet.get("label", ""))
-
-                # Wait between buy and sell
-                half_interval = random.uniform(
-                    self.config["trade_interval_min"] * 30,
-                    self.config["trade_interval_max"] * 30
-                )
-                await asyncio.sleep(half_interval)
-
-                # SELL: Token -> SOL
-                if buy_result and buy_result.get("out_amount") and not buy_result.get("error"):
-                    out_amount = int(buy_result["out_amount"])
-                    sell_result = await self._execute_swap(keypair, token_mint, SOL_MINT, out_amount)
-
-                    if sell_result and not sell_result.get("error"):
-                        self.stats["total_trades"] += 1
-                        self.stats["daily_trades"] += 1
-                        self.stats["total_volume_sol"] += sol_amount
-                        self.stats["daily_volume_sol"] += sol_amount
-                        self._log_tx("SELL", sol_amount, sell_result, wallet.get("label", ""))
-                    else:
-                        self.stats["errors"] += 1
-                        self._log_tx("ERROR", sol_amount, sell_result or {"error": "No result"}, wallet.get("label", ""))
+                if action == "BUY":
+                    await self._do_buy(sub_wallets)
+                elif action == "SELL":
+                    await self._do_sell(sub_wallets)
+                elif action == "TRANSFER_SOL":
+                    await self._do_sol_transfer(sub_wallets)
+                elif action == "REFUND":
+                    await self._do_auto_refund(wallets)
 
                 self.stats["cycles"] += 1
                 self.stats["last_trade_time"] = time.time()
 
-                # Wait for next trade cycle
-                interval_sec = random.uniform(
-                    self.config["trade_interval_min"] * 60,
-                    self.config["trade_interval_max"] * 60
+                # Random organic delay (in seconds)
+                delay = gauss_amount(
+                    self.config["trade_interval_min"],
+                    self.config["trade_interval_max"]
                 )
-                await asyncio.sleep(interval_sec)
+                await asyncio.sleep(delay)
 
             except asyncio.CancelledError:
                 break
@@ -283,7 +222,258 @@ class VolumeBot:
                 self.stats["errors"] += 1
                 self._log_tx("ERROR", 0, {"error": str(e)}, "system")
                 logger.error(f"Bot loop error: {e}")
-                await asyncio.sleep(10)
+                await asyncio.sleep(5)
+
+    def _pick_action(self, sub_wallets):
+        """Pick organic action based on current state"""
+        min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6_000_000
+        funded = [w for w in sub_wallets if self._balance_cache.get(w["public_key"], 0) >= min_bal]
+        holders = [w for w in sub_wallets if w["public_key"] in self._token_holders]
+        low_bal = [w for w in sub_wallets
+                   if 0 < self._balance_cache.get(w["public_key"], 0) < min_bal
+                   and w["public_key"] not in self._token_holders]
+
+        # Auto refund if many wallets are low
+        if self.config.get("auto_refund") and len(low_bal) > len(sub_wallets) * 0.3:
+            return "REFUND"
+
+        # If no token holders, must buy first
+        if not holders:
+            if funded:
+                return "BUY"
+            return "REFUND"
+
+        # Weighted random choice for organic behavior
+        weights = []
+        actions = []
+
+        if funded:
+            actions.append("BUY")
+            weights.append(40)  # 40% buy
+
+        if holders:
+            actions.append("SELL")
+            weights.append(40)  # 40% sell
+
+        if len(funded) > 1:
+            actions.append("TRANSFER_SOL")
+            weights.append(15)  # 15% SOL transfer
+
+        if self.config.get("auto_refund") and low_bal:
+            actions.append("REFUND")
+            weights.append(5)
+
+        if not actions:
+            return "BUY"
+
+        return random.choices(actions, weights=weights, k=1)[0]
+
+    async def _do_buy(self, sub_wallets):
+        """Organic BUY - random wallet, gaussian amount"""
+        min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6_000_000
+        funded = [w for w in sub_wallets if self._balance_cache.get(w["public_key"], 0) >= min_bal]
+        if not funded:
+            return
+
+        # Prefer unused wallets (new makers)
+        unused = [w for w in funded if w["public_key"] not in self.daily_wallets_used]
+        wallet = random.choice(unused) if unused else random.choice(funded)
+
+        keypair = self._load_keypair(wallet["private_key"])
+        if not keypair:
+            return
+
+        # Gaussian random amount
+        sol_amount = gauss_amount(self.config["min_sol_per_trade"], self.config["max_sol_per_trade"])
+        wallet_sol = (self._balance_cache.get(wallet["public_key"], 0) / LAMPORTS_PER_SOL) - 0.005
+        sol_amount = min(sol_amount, max(0, wallet_sol))
+        remaining = self.config["target_volume_sol"] - self.stats["daily_volume_sol"]
+        sol_amount = min(sol_amount, remaining)
+        sol_amount = round(sol_amount, 6)
+        if sol_amount < 0.0005:
+            return
+
+        lamports = int(sol_amount * LAMPORTS_PER_SOL)
+        token_mint = self.config["token_mint"]
+
+        logger.info(f"BUY {sol_amount:.6f} SOL -> token via {wallet.get('label')}")
+        result = await self._execute_swap(keypair, SOL_MINT, token_mint, lamports)
+
+        if result and not result.get("error"):
+            self.stats["total_trades"] += 1
+            self.stats["daily_trades"] += 1
+            self.stats["total_volume_sol"] += sol_amount
+            self.stats["daily_volume_sol"] += sol_amount
+            self.daily_wallets_used.add(wallet["public_key"])
+            self.stats["daily_makers"] = len(self.daily_wallets_used)
+            # Track token holding
+            self._token_holders[wallet["public_key"]] = {
+                "amount": int(result.get("out_amount", 0)),
+                "sol_value": sol_amount,
+                "wallet": wallet,
+            }
+            # Update balance cache
+            self._balance_cache[wallet["public_key"]] = max(0,
+                self._balance_cache.get(wallet["public_key"], 0) - lamports - 10000)
+            self._log_tx("BUY", sol_amount, result, wallet.get("label", ""))
+        else:
+            self.stats["errors"] += 1
+            self._log_tx("ERROR", sol_amount, result or {"error": "No result"}, wallet.get("label", ""))
+
+    async def _do_sell(self, sub_wallets):
+        """Organic SELL - different wallet than buyer, varied amount"""
+        if not self._token_holders:
+            return
+
+        # Pick a random token holder
+        pub = random.choice(list(self._token_holders.keys()))
+        holding = self._token_holders[pub]
+        wallet = holding["wallet"]
+
+        keypair = self._load_keypair(wallet["private_key"])
+        if not keypair:
+            del self._token_holders[pub]
+            return
+
+        token_mint = self.config["token_mint"]
+        token_amount = holding["amount"]
+        sol_value = holding["sol_value"]
+
+        if token_amount <= 0:
+            del self._token_holders[pub]
+            return
+
+        logger.info(f"SELL {token_amount} tokens -> SOL via {wallet.get('label')}")
+        result = await self._execute_swap(keypair, token_mint, SOL_MINT, token_amount)
+
+        if result and not result.get("error"):
+            self.stats["total_trades"] += 1
+            self.stats["daily_trades"] += 1
+            self.stats["total_volume_sol"] += sol_value
+            self.stats["daily_volume_sol"] += sol_value
+            self.daily_wallets_used.add(pub)
+            self.stats["daily_makers"] = len(self.daily_wallets_used)
+            # Remove from holders, update SOL balance
+            del self._token_holders[pub]
+            sol_received = int(result.get("out_amount", 0))
+            self._balance_cache[pub] = self._balance_cache.get(pub, 0) + sol_received
+            self._log_tx("SELL", sol_value, result, wallet.get("label", ""))
+        else:
+            self.stats["errors"] += 1
+            self._log_tx("ERROR", sol_value, result or {"error": "No result"}, wallet.get("label", ""))
+
+    async def _do_sol_transfer(self, sub_wallets):
+        """Transfer SOL between wallets - keeps funds circulating"""
+        min_bal = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 8_000_000
+        rich = [w for w in sub_wallets
+                if self._balance_cache.get(w["public_key"], 0) >= min_bal * 2
+                and w["public_key"] not in self._token_holders]
+        poor = [w for w in sub_wallets
+                if self._balance_cache.get(w["public_key"], 0) < min_bal
+                and w["public_key"] not in self._token_holders]
+
+        if not rich or not poor:
+            return
+
+        sender = random.choice(rich)
+        receiver = random.choice(poor)
+
+        sender_kp = self._load_keypair(sender["private_key"])
+        if not sender_kp:
+            return
+
+        # Transfer a random portion of excess SOL
+        sender_bal = self._balance_cache.get(sender["public_key"], 0)
+        keep = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 6_000_000
+        available = sender_bal - keep
+        if available <= 10000:
+            return
+
+        transfer_amount = random.randint(available // 3, available * 2 // 3)
+        transfer_sol = transfer_amount / LAMPORTS_PER_SOL
+
+        logger.info(f"TRANSFER {transfer_sol:.6f} SOL: {sender.get('label')} -> {receiver.get('label')}")
+        result = await self._sol_transfer_tx(sender_kp, receiver["public_key"], transfer_amount)
+
+        if result and result.get("success"):
+            self._balance_cache[sender["public_key"]] = sender_bal - transfer_amount - 5000
+            self._balance_cache[receiver["public_key"]] = self._balance_cache.get(receiver["public_key"], 0) + transfer_amount
+            self.stats["daily_transfers"] += 1
+            self._log_tx("TRANSFER", transfer_sol, result, f"{sender.get('label','')} -> {receiver.get('label','')}")
+        else:
+            self._log_tx("ERROR", transfer_sol, result or {"error": "Transfer failed"}, sender.get("label", ""))
+
+    async def _do_auto_refund(self, wallets):
+        """Auto-refund: redistribute SOL from main or rich wallets to poor ones"""
+        main = next((w for w in wallets if w.get("is_main")), None)
+        sub = [w for w in wallets if not w.get("is_main")]
+
+        min_bal = int(self.config["min_wallet_balance"] * LAMPORTS_PER_SOL)
+        poor = [w for w in sub if self._balance_cache.get(w["public_key"], 0) < min_bal
+                and w["public_key"] not in self._token_holders]
+
+        if not poor:
+            return
+
+        # Find richest wallet (non-holder) to redistribute from
+        rich = sorted(
+            [w for w in sub if w["public_key"] not in self._token_holders],
+            key=lambda w: self._balance_cache.get(w["public_key"], 0),
+            reverse=True
+        )
+
+        # Use main wallet or richest sub-wallet
+        source = None
+        if main:
+            main_bal = self._balance_cache.get(main["public_key"], 0)
+            if main_bal > min_bal * 3:
+                source = main
+        if not source and rich:
+            rich_bal = self._balance_cache.get(rich[0]["public_key"], 0)
+            if rich_bal > min_bal * 3:
+                source = rich[0]
+
+        if not source:
+            return
+
+        source_kp = self._load_keypair(source["private_key"])
+        if not source_kp:
+            return
+
+        refund_amount = int(self.config["min_sol_per_trade"] * LAMPORTS_PER_SOL) + 5_000_000
+        target = random.choice(poor[:5])
+
+        logger.info(f"REFUND {refund_amount/LAMPORTS_PER_SOL:.6f} SOL: {source.get('label')} -> {target.get('label')}")
+        result = await self._sol_transfer_tx(source_kp, target["public_key"], refund_amount)
+
+        if result and result.get("success"):
+            self._balance_cache[source["public_key"]] = max(0,
+                self._balance_cache.get(source["public_key"], 0) - refund_amount - 5000)
+            self._balance_cache[target["public_key"]] = self._balance_cache.get(target["public_key"], 0) + refund_amount
+            self.stats["daily_transfers"] += 1
+            self._log_tx("REFUND", refund_amount / LAMPORTS_PER_SOL, result,
+                         f"{source.get('label','')} -> {target.get('label','')}")
+
+    # ==================== HELPERS ====================
+
+    async def _refresh_balances(self, wallets):
+        now = time.time()
+        if now - self._balance_cache_time < 30:
+            return
+        async with httpx.AsyncClient() as client:
+            for w in wallets:
+                try:
+                    resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "getBalance", "params": [w["public_key"]],
+                    }, timeout=5.0)
+                    bal = resp.json().get("result", {}).get("value", 0)
+                    self._balance_cache[w["public_key"]] = bal
+                except Exception:
+                    pass
+        self._balance_cache_time = now
+        funded = sum(1 for b in self._balance_cache.values() if b > 5_000_000)
+        logger.info(f"Balances refreshed: {funded} funded wallets, {len(self._token_holders)} token holders")
 
     async def _execute_swap(self, keypair, input_mint, output_mint, amount):
         try:
@@ -341,15 +531,14 @@ class VolumeBot:
         except Exception as e:
             return {"error": str(e)}
 
-    async def _sol_transfer(self, sender_keypair, receiver_pubkey_str, lamports):
+    async def _sol_transfer_tx(self, sender_kp, receiver_pub_str, lamports):
         try:
-            receiver = Pubkey.from_string(receiver_pubkey_str)
+            receiver = Pubkey.from_string(receiver_pub_str)
             ix = transfer(TransferParams(
-                from_pubkey=sender_keypair.pubkey(),
+                from_pubkey=sender_kp.pubkey(),
                 to_pubkey=receiver,
                 lamports=lamports,
             ))
-
             async with httpx.AsyncClient() as client:
                 bh_resp = await client.post(SOLANA_RPC, json={
                     "jsonrpc": "2.0", "id": 1,
@@ -357,21 +546,20 @@ class VolumeBot:
                     "params": [{"commitment": "finalized"}],
                 }, timeout=10.0)
                 bh_data = bh_resp.json()
-                blockhash_str = bh_data["result"]["value"]["blockhash"]
-                blockhash = Hash.from_string(blockhash_str)
+                blockhash = Hash.from_string(bh_data["result"]["value"]["blockhash"])
 
-                msg = Message.new_with_blockhash([ix], sender_keypair.pubkey(), blockhash)
+                msg = Message.new_with_blockhash([ix], sender_kp.pubkey(), blockhash)
                 tx = Transaction.new_unsigned(msg)
-                tx.sign([sender_keypair], blockhash)
+                tx.sign([sender_kp], blockhash)
 
                 encoded = base64.b64encode(bytes(tx)).decode("utf-8")
                 send_resp = await client.post(SOLANA_RPC, json={
                     "jsonrpc": "2.0", "id": 1,
                     "method": "sendTransaction",
-                    "params": [encoded, {"encoding": "base64"}],
+                    "params": [encoded, {"encoding": "base64", "skipPreflight": True}],
                 }, timeout=30.0)
                 send_data = send_resp.json()
-                if "error" in send_data:
+                if "error" in send_data and send_data.get("error"):
                     return {"error": str(send_data["error"])}
                 return {"signature": send_data.get("result", ""), "success": True}
         except Exception as e:
@@ -391,7 +579,7 @@ class VolumeBot:
         return None
 
     async def _get_wallets(self):
-        return await self.db.bot_wallets.find({}, {"_id": 0}).to_list(100)
+        return await self.db.bot_wallets.find({}, {"_id": 0}).to_list(200)
 
     def _log_tx(self, tx_type, sol_amount, result, wallet_label):
         entry = {
@@ -408,7 +596,7 @@ class VolumeBot:
         if len(self.transaction_log) > 500:
             self.transaction_log = self.transaction_log[-500:]
 
-    # === Wallet Management ===
+    # ==================== WALLET MANAGEMENT ====================
 
     async def add_wallet(self, label, private_key):
         keypair = self._load_keypair(private_key)
@@ -438,11 +626,12 @@ class VolumeBot:
 
     async def generate_wallets(self, count, prefix="Bot"):
         generated = []
+        existing_count = await self.db.bot_wallets.count_documents({})
         for i in range(min(count, 50)):
             kp = Keypair()
             pub = str(kp.pubkey())
             priv = base58.b58encode(bytes(kp)).decode("utf-8")
-            label = f"{prefix} #{len(await self._get_wallets()) + 1}"
+            label = f"{prefix} #{existing_count + i + 1}"
             await self.db.bot_wallets.insert_one({
                 "label": label, "public_key": pub,
                 "private_key": priv, "is_main": False,
@@ -454,8 +643,7 @@ class VolumeBot:
     async def distribute_sol(self, sol_per_wallet):
         main = await self.db.bot_wallets.find_one({"is_main": True}, {"_id": 0})
         if not main:
-            return {"error": "No main wallet set. Mark one wallet as main first."}
-
+            return {"error": "No main wallet set"}
         main_kp = self._load_keypair(main["private_key"])
         if not main_kp:
             return {"error": "Invalid main wallet keypair"}
@@ -463,33 +651,29 @@ class VolumeBot:
         wallets = await self._get_wallets()
         sub_wallets = [w for w in wallets if not w.get("is_main")]
         if not sub_wallets:
-            return {"error": "No sub-wallets to distribute to"}
+            return {"error": "No sub-wallets"}
 
         lamports = int(sol_per_wallet * LAMPORTS_PER_SOL)
-        BATCH_SIZE = 20  # max transfers per transaction
-
+        BATCH_SIZE = 20
         results = []
         total_sent = 0
+
         async with httpx.AsyncClient() as client:
             for i in range(0, len(sub_wallets), BATCH_SIZE):
                 batch = sub_wallets[i:i + BATCH_SIZE]
                 try:
-                    # Get fresh blockhash for each batch
                     bh_resp = await client.post(SOLANA_RPC, json={
                         "jsonrpc": "2.0", "id": 1,
                         "method": "getLatestBlockhash",
                         "params": [{"commitment": "finalized"}],
                     }, timeout=10.0)
-                    bh_data = bh_resp.json()
-                    blockhash = Hash.from_string(bh_data["result"]["value"]["blockhash"])
+                    blockhash = Hash.from_string(bh_resp.json()["result"]["value"]["blockhash"])
 
-                    # Build batch transaction
                     instructions = []
                     for w in batch:
-                        receiver = Pubkey.from_string(w["public_key"])
                         ix = transfer(TransferParams(
                             from_pubkey=main_kp.pubkey(),
-                            to_pubkey=receiver,
+                            to_pubkey=Pubkey.from_string(w["public_key"]),
                             lamports=lamports,
                         ))
                         instructions.append(ix)
@@ -502,34 +686,23 @@ class VolumeBot:
                     send_resp = await client.post(SOLANA_RPC, json={
                         "jsonrpc": "2.0", "id": 1,
                         "method": "sendTransaction",
-                        "params": [encoded, {"encoding": "base64"}],
+                        "params": [encoded, {"encoding": "base64", "skipPreflight": True}],
                     }, timeout=30.0)
                     send_data = send_resp.json()
 
                     if "error" in send_data and send_data.get("error"):
-                        err_msg = str(send_data["error"])
-                        logger.error(f"Distribute batch {i//BATCH_SIZE+1} error: {err_msg}")
-                        for w in batch:
-                            results.append({"wallet": w["label"], "error": err_msg})
+                        logger.error(f"Distribute batch error: {send_data['error']}")
                     else:
-                        sig = send_data.get("result", "")
-                        logger.info(f"Distribute batch {i//BATCH_SIZE+1} success: {sig[:20]}... ({len(batch)} wallets)")
-                        for w in batch:
-                            results.append({"wallet": w["label"], "success": True, "signature": sig})
                         total_sent += len(batch)
+                        logger.info(f"Distribute batch {i//BATCH_SIZE+1}: {len(batch)} wallets OK")
 
                     await asyncio.sleep(0.5)
-
                 except Exception as e:
-                    logger.error(f"Distribute batch {i//BATCH_SIZE+1} exception: {e}")
-                    for w in batch:
-                        results.append({"wallet": w["label"], "error": str(e)})
+                    logger.error(f"Distribute exception: {e}")
 
         return {
-            "success": True,
-            "total": len(sub_wallets),
-            "sent": total_sent,
-            "failed": len(sub_wallets) - total_sent,
+            "success": True, "total": len(sub_wallets),
+            "sent": total_sent, "failed": len(sub_wallets) - total_sent,
             "sol_per_wallet": sol_per_wallet,
             "total_sol_sent": round(sol_per_wallet * total_sent, 4),
             "batches": (len(sub_wallets) + BATCH_SIZE - 1) // BATCH_SIZE,
@@ -539,13 +712,12 @@ class VolumeBot:
         main = await self.db.bot_wallets.find_one({"is_main": True}, {"_id": 0})
         if not main:
             return {"error": "No main wallet set"}
-
         main_pub = main["public_key"]
         wallets = await self._get_wallets()
         sub_wallets = [w for w in wallets if not w.get("is_main")]
 
-        results = []
         total_collected = 0
+        processed = 0
         async with httpx.AsyncClient() as client:
             for w in sub_wallets:
                 kp = self._load_keypair(w["private_key"])
@@ -564,15 +736,15 @@ class VolumeBot:
                 if send_amount <= 0:
                     continue
 
-                r = await self._sol_transfer(kp, main_pub, send_amount)
+                r = await self._sol_transfer_tx(kp, main_pub, send_amount)
                 if r.get("success"):
                     total_collected += send_amount / LAMPORTS_PER_SOL
-                results.append({"wallet": w["label"], **r})
+                processed += 1
 
         return {
             "success": True,
             "total_collected_sol": round(total_collected, 6),
-            "wallets_processed": len(results),
+            "wallets_processed": processed,
         }
 
     async def get_wallets_info(self):

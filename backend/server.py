@@ -89,11 +89,13 @@ class BotConfigUpdate(BaseModel):
     token_mint: Optional[str] = None
     target_volume_sol: Optional[float] = None
     target_makers: Optional[int] = None
-    trade_interval_min: Optional[int] = None
-    trade_interval_max: Optional[int] = None
+    trade_interval_min: Optional[float] = None
+    trade_interval_max: Optional[float] = None
     min_sol_per_trade: Optional[float] = None
     max_sol_per_trade: Optional[float] = None
     slippage_bps: Optional[int] = None
+    auto_refund: Optional[bool] = None
+    min_wallet_balance: Optional[float] = None
 
 class WalletAdd(BaseModel):
     label: str

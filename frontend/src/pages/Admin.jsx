@@ -142,7 +142,7 @@ function Dashboard({ pw, onLogout }) {
             <p className="text-xl font-bold text-[#00FFD1]">{status?.daily_wallets_used || 0} <span className="text-sm text-[#666]">/ {cfg.target_makers || 0}</span></p>
             <ProgressBar pct={makerPct} />
           </div>
-          <StatCard icon={<XCircle className="w-5 h-5" />} label="Transakcje / Bledy" value={`${stats.daily_trades || 0} / ${stats.errors || 0}`} color="text-white" />
+          <StatCard icon={<XCircle className="w-5 h-5" />} label="Trades / Transfers / Bledy" value={`${stats.daily_trades || 0} / ${stats.daily_transfers || 0} / ${stats.errors || 0}`} color="text-white" />
         </div>
 
         {/* Controls + Config */}
@@ -247,12 +247,24 @@ function ConfigPanel({ config, onSave }) {
         <div className="grid grid-cols-2 gap-3">
           <Field label="Target Volume (SOL/dzien)" value={f.target_volume_sol} onChange={v => set('target_volume_sol', parseFloat(v))} step="1" />
           <Field label="Target Makers (/dzien)" value={f.target_makers} onChange={v => set('target_makers', parseInt(v))} step="1" />
-          <Field label="Trade co (min) min" value={f.trade_interval_min} onChange={v => set('trade_interval_min', parseInt(v))} step="1" />
-          <Field label="Trade co (min) max" value={f.trade_interval_max} onChange={v => set('trade_interval_max', parseInt(v))} step="1" />
+          <Field label="Przerwa min (sekundy)" value={f.trade_interval_min} onChange={v => set('trade_interval_min', parseFloat(v))} step="1" />
+          <Field label="Przerwa max (sekundy)" value={f.trade_interval_max} onChange={v => set('trade_interval_max', parseFloat(v))} step="1" />
           <Field label="Min SOL / trade" value={f.min_sol_per_trade} onChange={v => set('min_sol_per_trade', parseFloat(v))} step="0.001" />
           <Field label="Max SOL / trade" value={f.max_sol_per_trade} onChange={v => set('max_sol_per_trade', parseFloat(v))} step="0.001" />
         </div>
-        <Field label="Slippage (bps) - 100 = 1%" value={f.slippage_bps} onChange={v => set('slippage_bps', parseInt(v))} step="10" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Slippage (bps) - 100 = 1%" value={f.slippage_bps} onChange={v => set('slippage_bps', parseInt(v))} step="10" />
+          <Field label="Min saldo portfela (SOL)" value={f.min_wallet_balance} onChange={v => set('min_wallet_balance', parseFloat(v))} step="0.001" />
+        </div>
+        <div className="flex items-center gap-3 py-2">
+          <button
+            onClick={() => set('auto_refund', !f.auto_refund)}
+            className={`w-10 h-5 rounded-full transition-colors relative ${f.auto_refund ? 'bg-[#00FFD1]' : 'bg-[#333]'}`}
+          >
+            <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${f.auto_refund ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </button>
+          <span className="text-sm text-white">Auto-refund (automatyczne przeladowanie portfeli)</span>
+        </div>
         <Button data-testid="save-config-btn" onClick={handleSave} className={`w-full h-10 ${dirty ? 'btn-primary' : 'bg-[#333] text-[#888] cursor-default'}`}>
           {dirty ? 'Zapisz konfiguracje' : 'Konfiguracja aktualna'}
         </Button>
@@ -699,7 +711,7 @@ function TxLog({ transactions }) {
                 {rev.slice(0, 50).map((tx, i) => (
                   <tr key={i} className="border-b border-[rgba(255,255,255,0.03)]">
                     <td className="py-2 px-2">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${tx.type === 'BUY' ? 'bg-green-500/10 text-green-400' : tx.type === 'SELL' ? 'bg-blue-500/10 text-blue-400' : 'bg-red-500/10 text-red-400'}`}>{tx.type}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${tx.type === 'BUY' ? 'bg-green-500/10 text-green-400' : tx.type === 'SELL' ? 'bg-blue-500/10 text-blue-400' : tx.type === 'TRANSFER' ? 'bg-yellow-500/10 text-yellow-400' : tx.type === 'REFUND' ? 'bg-purple-500/10 text-purple-400' : 'bg-red-500/10 text-red-400'}`}>{tx.type}</span>
                     </td>
                     <td className="py-2 px-2 text-white font-mono">{tx.sol_amount}</td>
                     <td className="py-2 px-2 text-[#888]">{tx.wallet}</td>
