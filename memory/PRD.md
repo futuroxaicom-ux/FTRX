@@ -74,6 +74,9 @@ Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Vol
 
 ## Backlog
 ### P1
+- [x] Activity Chart - wykres BUY/SELL/TRANSFER w czasie rzeczywistym (DONE Feb 2026)
+- [x] FTRX balance display + Collect FTRX + Refresh FTRX (DONE Feb 2026)
+- [x] Batch RPC optymalizacja - 134 portfeli w < 5s (DONE Feb 2026)
 - [ ] Szyfrowanie kluczy prywatnych w MongoDB (AES)
 - [ ] Rate limiting na endpointach admina
 
