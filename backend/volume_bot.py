@@ -58,7 +58,7 @@ class VolumeBot:
             "trade_interval_max": 30,      # seconds
             "min_sol_per_trade": 0.003,
             "max_sol_per_trade": 0.03,
-            "slippage_bps": 100,
+            "slippage_bps": 1500,
             "auto_refund": True,
             "min_wallet_balance": 0.003,   # below this -> gets refunded
         }
@@ -326,7 +326,8 @@ class VolumeBot:
 
         # Gaussian random amount - each buy is unique
         sol_amount = gauss_amount(self.config["min_sol_per_trade"], self.config["max_sol_per_trade"])
-        wallet_sol = (self._balance_cache.get(wallet["public_key"], 0) / LAMPORTS_PER_SOL) - 0.002  # reserve 0.002 for fees
+        # Reserve 0.004 SOL for ATA rent (~0.002) + priority fees + base fees
+        wallet_sol = (self._balance_cache.get(wallet["public_key"], 0) / LAMPORTS_PER_SOL) - 0.004
         sol_amount = min(sol_amount, max(0, wallet_sol))
         remaining = self.config["target_volume_sol"] - self.stats["daily_volume_sol"]
         sol_amount = min(sol_amount, remaining)
@@ -563,6 +564,20 @@ class VolumeBot:
         logger.info(f"Balances refreshed: {funded} funded wallets, {len(self._token_holders)} token holders")
 
     async def _execute_swap(self, keypair, input_mint, output_mint, amount):
+        # Retry up to 2 times with fresh quotes on slippage errors
+        for attempt in range(2):
+            result = await self._execute_swap_once(keypair, input_mint, output_mint, amount)
+            if result and not result.get("error"):
+                return result
+            err = result.get("error", "") if result else ""
+            is_slippage = "Custom" in str(err) and "'1'" in str(err)
+            if not is_slippage or attempt == 1:
+                return result
+            logger.info(f"Slippage error, retrying with fresh quote (attempt {attempt + 2})...")
+            await asyncio.sleep(1)
+        return result
+
+    async def _execute_swap_once(self, keypair, input_mint, output_mint, amount):
         try:
             async with httpx.AsyncClient() as client:
                 quote_resp = await client.get(JUPITER_QUOTE_URL, params={
@@ -583,7 +598,7 @@ class VolumeBot:
                     "quoteResponse": quote,
                     "userPublicKey": str(keypair.pubkey()),
                     "dynamicComputeUnitLimit": True,
-                    "prioritizationFeeLamports": 5000,
+                    "prioritizationFeeLamports": "auto",
                 }, timeout=15.0)
 
                 if swap_resp.status_code != 200:
@@ -597,20 +612,70 @@ class VolumeBot:
                 tx_bytes = base64.b64decode(swap_tx_b64)
                 tx = VersionedTransaction.from_bytes(tx_bytes)
                 signed_tx = VersionedTransaction(tx.message, [keypair])
-
                 encoded_tx = base64.b64encode(bytes(signed_tx)).decode("utf-8")
+
+                # Simulate first
+                sim_resp = await client.post(SOLANA_RPC, json={
+                    "jsonrpc": "2.0", "id": 1,
+                    "method": "simulateTransaction",
+                    "params": [encoded_tx, {"encoding": "base64", "commitment": "confirmed"}],
+                }, timeout=15.0)
+                sim_data = sim_resp.json()
+                sim_err = sim_data.get("result", {}).get("err")
+                if sim_err:
+                    return {"error": f"Simulation failed: {sim_err}"}
+
+                # Send with skipPreflight (already simulated)
                 rpc_resp = await client.post(SOLANA_RPC, json={
                     "jsonrpc": "2.0", "id": 1,
                     "method": "sendTransaction",
-                    "params": [encoded_tx, {"encoding": "base64", "skipPreflight": True}],
+                    "params": [encoded_tx, {
+                        "encoding": "base64",
+                        "skipPreflight": True,
+                        "maxRetries": 3,
+                    }],
                 }, timeout=30.0)
 
                 rpc_data = rpc_resp.json()
-                if "error" in rpc_data:
-                    return {"error": f"RPC: {rpc_data['error']}"}
+                if "error" in rpc_data and rpc_data.get("error"):
+                    err_msg = rpc_data["error"]
+                    if isinstance(err_msg, dict):
+                        err_msg = err_msg.get("message", str(err_msg))
+                    return {"error": f"RPC: {err_msg}"}
 
+                signature = rpc_data.get("result", "")
+                if not signature:
+                    return {"error": "No signature returned"}
+
+                # Confirm transaction (wait up to 15s)
+                for _ in range(5):
+                    await asyncio.sleep(3)
+                    try:
+                        conf_resp = await client.post(SOLANA_RPC, json={
+                            "jsonrpc": "2.0", "id": 1,
+                            "method": "getSignatureStatuses",
+                            "params": [[signature]],
+                        }, timeout=10.0)
+                        conf_data = conf_resp.json()
+                        statuses = conf_data.get("result", {}).get("value", [])
+                        if statuses and statuses[0]:
+                            status = statuses[0]
+                            if status.get("err"):
+                                return {"error": f"Tx failed on-chain: {status['err']}", "signature": signature}
+                            if status.get("confirmationStatus") in ("confirmed", "finalized"):
+                                logger.info(f"Tx confirmed: {signature[:20]}...")
+                                return {
+                                    "signature": signature,
+                                    "out_amount": quote.get("outAmount"),
+                                    "price_impact": quote.get("priceImpactPct"),
+                                    "in_amount": str(amount),
+                                }
+                    except Exception:
+                        pass
+
+                # Tx sent but not confirmed yet - still return signature
                 return {
-                    "signature": rpc_data.get("result", ""),
+                    "signature": signature,
                     "out_amount": quote.get("outAmount"),
                     "price_impact": quote.get("priceImpactPct"),
                     "in_amount": str(amount),
