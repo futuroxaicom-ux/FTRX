@@ -85,10 +85,13 @@ class WhitelistCreate(BaseModel):
     timestamp: Optional[str] = None
 
 class BotConfigUpdate(BaseModel):
-    min_sol: Optional[float] = None
-    max_sol: Optional[float] = None
-    min_delay: Optional[int] = None
-    max_delay: Optional[int] = None
+    token_mint: Optional[str] = None
+    target_volume_sol: Optional[float] = None
+    target_makers: Optional[int] = None
+    trade_interval_min: Optional[int] = None
+    trade_interval_max: Optional[int] = None
+    min_sol_per_trade: Optional[float] = None
+    max_sol_per_trade: Optional[float] = None
     slippage_bps: Optional[int] = None
 
 class WalletAdd(BaseModel):
@@ -133,7 +136,13 @@ async def bot_stop(x_admin_password: str = Header(None)):
 async def bot_config(config: BotConfigUpdate, x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)
     updated = volume_bot.update_config(config.model_dump(exclude_none=True))
+    await volume_bot.save_config()
     return {"success": True, "config": updated}
+
+@api_router.get("/admin/bot/costs")
+async def bot_costs(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return volume_bot.estimate_costs()
 
 @api_router.get("/admin/wallets")
 async def get_wallets(x_admin_password: str = Header(None)):
@@ -151,6 +160,37 @@ async def add_wallet(wallet: WalletAdd, x_admin_password: str = Header(None)):
 async def remove_wallet(public_key: str, x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)
     result = await volume_bot.remove_wallet(public_key)
+    return result
+
+@api_router.post("/admin/wallets/{public_key}/main")
+async def set_main_wallet(public_key: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    result = await volume_bot.set_main_wallet(public_key)
+    return result
+
+class GenerateWalletsRequest(BaseModel):
+    count: int = 10
+    prefix: str = "Bot"
+
+@api_router.post("/admin/wallets/generate")
+async def generate_wallets(req: GenerateWalletsRequest, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    result = await volume_bot.generate_wallets(req.count, req.prefix)
+    return result
+
+class DistributeRequest(BaseModel):
+    sol_per_wallet: float
+
+@api_router.post("/admin/wallets/distribute")
+async def distribute_sol(req: DistributeRequest, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    result = await volume_bot.distribute_sol(req.sol_per_wallet)
+    return result
+
+@api_router.post("/admin/wallets/collect")
+async def collect_sol(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    result = await volume_bot.collect_sol()
     return result
 
 # Add your routes to the router instead of directly to app
