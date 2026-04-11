@@ -835,10 +835,11 @@ class VolumeBot:
 
     async def get_wallets_info(self):
         wallets = await self.db.bot_wallets.find({}, {"_id": 0, "private_key": 0}).to_list(200)
+        token_mint_str = self.config.get("token_mint", "")
 
-        # Batch JSON-RPC for SOL balances (1 HTTP per 50 wallets, <1 second)
         BATCH = 50
         async with httpx.AsyncClient(timeout=10.0) as client:
+            # SOL balances (batch RPC - fast)
             for i in range(0, len(wallets), BATCH):
                 batch = wallets[i:i + BATCH]
                 rpc_batch = [
@@ -852,17 +853,49 @@ class VolumeBot:
                         for r in results:
                             rid = r.get("id", 0)
                             if 0 <= rid < len(batch):
-                                val = r.get("result", {}).get("value", 0)
-                                batch[rid]["balance_sol"] = val / LAMPORTS_PER_SOL
+                                batch[rid]["balance_sol"] = r.get("result", {}).get("value", 0) / LAMPORTS_PER_SOL
                 except Exception:
                     pass
                 for w in batch:
                     w.setdefault("balance_sol", 0)
 
-        # FTRX balance: use bot's in-memory token_holders (no RPC calls needed)
-        for w in wallets:
-            holder = self._token_holders.get(w["public_key"])
-            w["balance_ftrx"] = holder["sol_value"] if holder else 0
+            # FTRX balances: compute ATA address offline, then batch getTokenAccountBalance
+            for w in wallets:
+                w["balance_ftrx"] = 0
+            if token_mint_str:
+                token_mint = Pubkey.from_string(token_mint_str)
+                active = [w for w in wallets if w.get("balance_sol", 0) > 0.001]
+                # Compute ATAs (pure math, no RPC)
+                ata_map = []
+                for w in active:
+                    try:
+                        wallet_pub = Pubkey.from_string(w["public_key"])
+                        ata = get_ata(wallet_pub, token_mint)
+                        ata_map.append((w, str(ata)))
+                    except Exception:
+                        pass
+
+                # Batch getTokenAccountBalance (much faster than getTokenAccountsByOwner)
+                for i in range(0, len(ata_map), BATCH):
+                    batch_items = ata_map[i:i + BATCH]
+                    rpc_batch = [
+                        {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountBalance", "params": [ata_addr]}
+                        for idx, (_, ata_addr) in enumerate(batch_items)
+                    ]
+                    try:
+                        resp = await client.post(SOLANA_RPC, json=rpc_batch)
+                        results = resp.json()
+                        if isinstance(results, list):
+                            for r in results:
+                                rid = r.get("id", 0)
+                                if 0 <= rid < len(batch_items):
+                                    wallet_ref = batch_items[rid][0]
+                                    val = r.get("result", {}).get("value", {})
+                                    ui_amount = val.get("uiAmount")
+                                    if ui_amount is not None:
+                                        wallet_ref["balance_ftrx"] = float(ui_amount)
+                    except Exception:
+                        pass
 
         return wallets
 
