@@ -6,9 +6,12 @@ import {
   Play, Square, RefreshCw, Plus, Trash2, Settings, Activity,
   Wallet, ArrowLeft, Lock, Eye, EyeOff, AlertTriangle,
   TrendingUp, Zap, XCircle, Star, Download, Upload,
-  Calculator, Users, Clock, Target, Coins
+  Calculator, Users, Clock, Target, Coins, Link2
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { SystemProgram, Transaction, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 const API = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -150,6 +153,9 @@ function Dashboard({ pw, onLogout }) {
 
         {/* Cost Calculator */}
         <CostCalculator costs={costs} config={cfg} />
+
+        {/* Fund from Phantom */}
+        <PhantomFunding wallets={wallets} onRefresh={fetchAll} />
 
         {/* Wallets */}
         <WalletSection wallets={wallets} h={h} onRefresh={fetchAll} apiCall={apiCall} />
@@ -415,6 +421,173 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PhantomFunding({ wallets, onRefresh }) {
+  const { publicKey, connected, sendTransaction, disconnect } = useWallet();
+  const { setVisible } = useWalletModal();
+  const { connection } = useConnection();
+  const [balance, setBalance] = useState(null);
+  const [fundAmount, setFundAmount] = useState(0.1);
+  const [fundMode, setFundMode] = useState('main'); // 'main' or 'all'
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (publicKey && connection) {
+      connection.getBalance(publicKey).then(b => setBalance(b / LAMPORTS_PER_SOL)).catch(() => {});
+    } else {
+      setBalance(null);
+    }
+  }, [publicKey, connection]);
+
+  const mainWallet = wallets.find(w => w.is_main);
+  const subWallets = wallets.filter(w => !w.is_main);
+
+  const fundWallets = async () => {
+    if (!publicKey || !connected) return;
+
+    const targets = fundMode === 'main'
+      ? (mainWallet ? [mainWallet] : [])
+      : (subWallets.length > 0 ? subWallets : wallets);
+
+    if (targets.length === 0) {
+      toast.error('Brak portfeli docelowych. Wygeneruj portfele i oznacz glowny.');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const lamportsPerWallet = Math.floor(fundAmount * LAMPORTS_PER_SOL);
+      const tx = new Transaction();
+
+      for (const w of targets) {
+        tx.add(SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(w.public_key),
+          lamports: lamportsPerWallet,
+        }));
+      }
+
+      const sig = await sendTransaction(tx, connection);
+      await connection.confirmTransaction(sig, 'confirmed');
+
+      toast.success(`Wyslano ${(fundAmount * targets.length).toFixed(4)} SOL do ${targets.length} portfeli!`, {
+        description: `Tx: ${sig.slice(0, 16)}...`
+      });
+
+      // Refresh balances
+      setTimeout(onRefresh, 2000);
+
+      // Refresh phantom balance
+      const newBal = await connection.getBalance(publicKey);
+      setBalance(newBal / LAMPORTS_PER_SOL);
+    } catch (e) {
+      console.error(e);
+      toast.error(e.message || 'Transakcja odrzucona');
+    }
+    setSending(false);
+  };
+
+  const totalToSend = fundMode === 'main'
+    ? fundAmount
+    : fundAmount * (subWallets.length > 0 ? subWallets.length : wallets.length);
+
+  return (
+    <Card className="bg-[#0a0a0a] border-[rgba(0,255,209,0.2)]">
+      <CardHeader>
+        <CardTitle className="text-white text-lg flex items-center gap-2">
+          <Link2 className="w-5 h-5 text-[#00FFD1]" />
+          Zasilanie Portfeli - Phantom / Solflare
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!connected ? (
+          <div className="text-center py-6 space-y-4">
+            <div className="w-16 h-16 bg-[rgba(0,255,209,0.1)] flex items-center justify-center mx-auto rounded-full">
+              <Wallet className="w-8 h-8 text-[#00FFD1]" />
+            </div>
+            <p className="text-[#888] text-sm">Polacz portfel Phantom/Solflare aby wyslac SOL do portfeli bota</p>
+            <Button
+              data-testid="connect-phantom-btn"
+              onClick={() => setVisible(true)}
+              className="btn-primary h-12 px-8 mx-auto"
+            >
+              <Wallet className="w-5 h-5 mr-2" />
+              Polacz Portfel
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Connected wallet info */}
+            <div className="flex items-center justify-between bg-[rgba(0,255,209,0.05)] border border-[rgba(0,255,209,0.2)] p-4 rounded">
+              <div>
+                <p className="text-xs text-[#666] mb-1">Polaczony portfel</p>
+                <p className="text-sm font-mono text-white">{publicKey.toString().slice(0, 8)}...{publicKey.toString().slice(-8)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-[#666] mb-1">Saldo</p>
+                <p className="text-xl font-bold text-[#00FFD1]">{balance !== null ? `${balance.toFixed(4)} SOL` : '...'}</p>
+              </div>
+              <Button onClick={disconnect} variant="ghost" className="text-red-400/60 hover:text-red-400 text-xs ml-4">
+                Rozlacz
+              </Button>
+            </div>
+
+            {/* Fund options */}
+            <div className="grid md:grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="text-xs text-[#666] mb-1 block">Wyslij do</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setFundMode('main')}
+                    className={`flex-1 text-sm py-2 px-3 rounded border transition-colors ${fundMode === 'main' ? 'border-[#00FFD1] bg-[rgba(0,255,209,0.1)] text-[#00FFD1]' : 'border-[rgba(255,255,255,0.1)] text-[#666]'}`}
+                  >
+                    Glowny portfel
+                  </button>
+                  <button
+                    onClick={() => setFundMode('all')}
+                    className={`flex-1 text-sm py-2 px-3 rounded border transition-colors ${fundMode === 'all' ? 'border-[#00FFD1] bg-[rgba(0,255,209,0.1)] text-[#00FFD1]' : 'border-[rgba(255,255,255,0.1)] text-[#666]'}`}
+                  >
+                    Wszystkie ({subWallets.length || wallets.length})
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-[#666] mb-1 block">SOL {fundMode === 'all' ? 'na portfel' : ''}</label>
+                <Input
+                  data-testid="fund-amount-input"
+                  type="number" step="0.01" min="0.001"
+                  value={fundAmount}
+                  onChange={e => setFundAmount(parseFloat(e.target.value) || 0)}
+                  className="bg-black border-[rgba(255,255,255,0.15)] text-white h-10"
+                />
+              </div>
+              <Button
+                data-testid="fund-wallets-btn"
+                onClick={fundWallets}
+                disabled={sending || fundAmount <= 0 || wallets.length === 0}
+                className="bg-gradient-to-r from-[#00FFD1] to-[#00CC99] text-black font-bold h-10 hover:opacity-90"
+              >
+                {sending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                Wyslij {totalToSend.toFixed(3)} SOL
+              </Button>
+            </div>
+
+            {/* Info */}
+            {fundMode === 'main' && !mainWallet && (
+              <p className="text-xs text-yellow-500 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Oznacz portfel jako glowny (gwiazdka) w sekcji ponizej</p>
+            )}
+            {fundMode === 'all' && wallets.length > 0 && (
+              <p className="text-xs text-[#555]">
+                Total: {totalToSend.toFixed(4)} SOL na {subWallets.length || wallets.length} portfeli
+                ({fundAmount} SOL kazdy)
+              </p>
+            )}
           </div>
         )}
       </CardContent>
