@@ -1072,10 +1072,10 @@ class VolumeBot:
         await self.load_config()
         wallets = await self.db.bot_wallets.find({}, {"_id": 0, "private_key": 0}).to_list(200)
         token_mint_str = self.config.get("token_mint", "")
-
         BATCH = 50
+
+        # Step 1: SOL balances via publicnode
         async with httpx.AsyncClient(timeout=15.0) as client:
-            # SOL balances (batch RPC - fast)
             for i in range(0, len(wallets), BATCH):
                 batch = wallets[i:i + BATCH]
                 rpc_batch = [
@@ -1095,56 +1095,48 @@ class VolumeBot:
                 for w in batch:
                     w.setdefault("balance_sol", 0)
 
-            # FTRX balances: compute ATA address offline, then batch getTokenAccountBalance
+        # Step 2: FTRX balances via DIFFERENT RPC (avoid rate limit)
+        for w in wallets:
+            w["balance_ftrx"] = 0
+        if token_mint_str:
+            token_mint = Pubkey.from_string(token_mint_str)
+            ata_map = []
             for w in wallets:
-                w["balance_ftrx"] = 0
-            if token_mint_str:
-                token_mint = Pubkey.from_string(token_mint_str)
-                ata_map = []
-                for w in wallets:
-                    try:
-                        wallet_pub = Pubkey.from_string(w["public_key"])
-                        ata = get_ata(wallet_pub, token_mint)
-                        ata_map.append((w, str(ata)))
-                    except Exception:
-                        pass
+                try:
+                    wallet_pub = Pubkey.from_string(w["public_key"])
+                    ata = get_ata(wallet_pub, token_mint)
+                    ata_map.append((w, str(ata)))
+                except Exception:
+                    pass
 
-                # Wait before FTRX calls to avoid RPC rate limit after SOL batch
-                await asyncio.sleep(1)
-
-                # Use separate client with longer timeout + retry for FTRX
-                rpcs = [SOLANA_RPC, "https://api.mainnet-beta.solana.com"]
-                for rpc_url in rpcs:
-                    ftrx_found = 0
+            # Use mainnet-beta for FTRX (different endpoint = no rate limit conflict)
+            ftrx_rpc = "https://api.mainnet-beta.solana.com"
+            async with httpx.AsyncClient(timeout=25.0) as ftrx_client:
+                for i in range(0, len(ata_map), BATCH):
+                    batch_items = ata_map[i:i + BATCH]
+                    rpc_batch = [
+                        {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountBalance", "params": [ata_addr]}
+                        for idx, (_, ata_addr) in enumerate(batch_items)
+                    ]
                     try:
-                        async with httpx.AsyncClient(timeout=20.0) as ftrx_client:
-                            for i in range(0, len(ata_map), BATCH):
-                                batch_items = ata_map[i:i + BATCH]
-                                rpc_batch = [
-                                    {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountBalance", "params": [ata_addr]}
-                                    for idx, (_, ata_addr) in enumerate(batch_items)
-                                ]
-                                resp = await ftrx_client.post(rpc_url, json=rpc_batch)
-                                if resp.status_code == 429:
-                                    logger.warning(f"FTRX RPC 429 on {rpc_url}, trying next...")
-                                    break
-                                results = resp.json()
-                                if isinstance(results, list):
-                                    for r in results:
-                                        rid = r.get("id", 0)
-                                        if 0 <= rid < len(batch_items):
-                                            wallet_ref = batch_items[rid][0]
-                                            val = r.get("result", {}).get("value", {})
-                                            ui_amount = val.get("uiAmount")
-                                            if ui_amount is not None:
-                                                wallet_ref["balance_ftrx"] = float(ui_amount)
-                                                ftrx_found += 1
-                                await asyncio.sleep(0.3)  # Small delay between batches
-                        if ftrx_found > 0:
-                            logger.info(f"FTRX balances fetched: {ftrx_found} holders via {rpc_url}")
-                            break  # Success, don't try next RPC
+                        resp = await ftrx_client.post(ftrx_rpc, json=rpc_batch)
+                        if resp.status_code == 429:
+                            # Fallback to publicnode
+                            await asyncio.sleep(2)
+                            resp = await ftrx_client.post(SOLANA_RPC, json=rpc_batch)
+                        results = resp.json()
+                        if isinstance(results, list):
+                            for r in results:
+                                rid = r.get("id", 0)
+                                if 0 <= rid < len(batch_items):
+                                    wallet_ref = batch_items[rid][0]
+                                    val = r.get("result", {}).get("value", {})
+                                    ui_amount = val.get("uiAmount")
+                                    if ui_amount is not None:
+                                        wallet_ref["balance_ftrx"] = float(ui_amount)
                     except Exception as e:
-                        logger.error(f"FTRX balance error on {rpc_url}: {e}")
+                        logger.error(f"FTRX batch {i//BATCH} error: {e}")
+                    await asyncio.sleep(0.5)
 
         return wallets
 
