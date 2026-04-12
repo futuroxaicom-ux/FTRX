@@ -4,6 +4,7 @@ import { MessageCircle, X, Send, Bot, User, Mail, Sparkles } from 'lucide-react'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { findAnswer, getGreeting, getQuickReplies } from '../utils/chatKnowledge';
+import { trackChat } from '../utils/analytics';
 
 export const ChatBot = () => {
   const { i18n } = useTranslation();
@@ -63,6 +64,7 @@ export const ChatBot = () => {
     // Simulate bot thinking with realistic delay
     setTimeout(() => {
       const answer = findAnswer(text, currentLang);
+      trackChat(text, answer, currentLang);
       const botMessage = {
         id: Date.now() + 1,
         text: answer,

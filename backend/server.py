@@ -495,6 +495,75 @@ async def holder_close_accounts(x_admin_password: str = Header(None)):
     result = await run()
     return result
 
+# ========== ANALYTICS ==========
+from datetime import datetime, timezone
+
+@api_router.post("/analytics/visit")
+async def log_visit(body: dict):
+    """Log page visit - called from frontend"""
+    doc = {
+        "page": body.get("page", "/"),
+        "referrer": body.get("referrer", "direct"),
+        "source": body.get("source", "direct"),
+        "user_agent": body.get("user_agent", ""),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.analytics_visits.insert_one(doc)
+    return {"ok": True}
+
+@api_router.post("/analytics/chat")
+async def log_chat(body: dict):
+    """Log chatbot question"""
+    doc = {
+        "question": body.get("question", ""),
+        "answer": body.get("answer", "")[:200],
+        "language": body.get("language", "en"),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.analytics_chats.insert_one(doc)
+    return {"ok": True}
+
+@api_router.get("/admin/analytics")
+async def get_analytics(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    
+    # Visits
+    visits = await db.analytics_visits.find({}, {"_id": 0}).sort("timestamp", -1).to_list(500)
+    
+    # Chat questions
+    chats = await db.analytics_chats.find({}, {"_id": 0}).sort("timestamp", -1).to_list(200)
+    
+    # Aggregate sources
+    sources = {}
+    pages = {}
+    daily = {}
+    for v in visits:
+        src = v.get("source", "direct")
+        sources[src] = sources.get(src, 0) + 1
+        pg = v.get("page", "/")
+        pages[pg] = pages.get(pg, 0) + 1
+        day = v.get("timestamp", "")[:10]
+        daily[day] = daily.get(day, 0) + 1
+    
+    # Top chat questions
+    questions = {}
+    for c in chats:
+        q = c.get("question", "").strip().lower()[:100]
+        if q:
+            questions[q] = questions.get(q, 0) + 1
+    top_questions = sorted(questions.items(), key=lambda x: -x[1])[:20]
+    
+    return {
+        "total_visits": len(visits),
+        "sources": sources,
+        "pages": pages,
+        "daily_visits": daily,
+        "total_chats": len(chats),
+        "top_questions": [{"question": q, "count": c} for q, c in top_questions],
+        "recent_chats": chats[:20],
+        "recent_visits": visits[:20],
+    }
+
 # Solana RPC proxy - avoids browser CORS/403 issues
 @api_router.post("/solana/rpc")
 async def solana_rpc_proxy(body: dict):

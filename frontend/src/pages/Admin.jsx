@@ -75,6 +75,10 @@ export default function AdminPage() {
     return <Dashboard pw={pw} onLogout={() => { sessionStorage.removeItem('adm'); setAuthed(false); }} onSwitchBot={setSelectedBot} />;
   }
 
+  if (selectedBot === 'analytics') {
+    return <AnalyticsDashboard pw={pw} onBack={() => setSelectedBot('volume')} />;
+  }
+
   return <GenericBotDashboard botType={selectedBot} pw={pw} onBack={() => setSelectedBot('volume')} />;
 }
 
@@ -153,6 +157,10 @@ function Dashboard({ pw, onLogout, onSwitchBot }) {
               {b.name}
             </button>
           ))}
+          <button onClick={() => onSwitchBot('analytics')}
+            className="text-xs px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] hover:border-opacity-40 transition-all whitespace-nowrap text-[#00FF88] border-[#00FF8833]">
+            Analytics
+          </button>
         </div>
       </header>
 
@@ -1368,6 +1376,134 @@ function GenericBotDashboard({ botType, pw, onBack }) {
             </div>
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+
+function AnalyticsDashboard({ pw, onBack }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const headers = { 'x-admin-password': pw };
+
+  const fetchData = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/api/admin/analytics`, { headers });
+      if (r.ok) setData(await r.json());
+    } catch {}
+    setLoading(false);
+  }, [pw]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const sourceColors = { direct: '#00FFD1', google: '#4285F4', twitter: '#1DA1F2', telegram: '#0088cc', discord: '#5865F2', raydium: '#6366f1', jupiter: '#FF6B00', dexscreener: '#00FF88', facebook: '#1877F2', reddit: '#FF4500', youtube: '#FF0000', other: '#888' };
+
+  if (loading) return <div className="min-h-screen bg-black text-white flex items-center justify-center"><RefreshCw className="w-6 h-6 animate-spin" /></div>;
+
+  const sources = data?.sources || {};
+  const daily = data?.daily_visits || {};
+  const topQ = data?.top_questions || [];
+  const recentChats = data?.recent_chats || [];
+  const dailyData = Object.entries(daily).sort().slice(-14).map(([d, c]) => ({ date: d.slice(5), visits: c }));
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <header className="border-b border-[rgba(255,255,255,0.1)] px-4 md:px-8 py-4">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="text-[#666] hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
+            <span className="text-lg font-bold text-[#00FF88]">Analytics</span>
+          </div>
+          <button onClick={fetchData} className="p-2 hover:bg-white/5 rounded"><RefreshCw className="w-4 h-4 text-[#666]" /></button>
+        </div>
+      </header>
+
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6 space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]"><CardContent className="p-4"><p className="text-xs text-[#666]">ODWIEDZINY</p><p className="font-bold text-2xl text-white">{data?.total_visits || 0}</p></CardContent></Card>
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]"><CardContent className="p-4"><p className="text-xs text-[#666]">ZRODLA</p><p className="font-bold text-2xl text-white">{Object.keys(sources).length}</p></CardContent></Card>
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]"><CardContent className="p-4"><p className="text-xs text-[#666]">PYTANIA CHATBOTA</p><p className="font-bold text-2xl text-white">{data?.total_chats || 0}</p></CardContent></Card>
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]"><CardContent className="p-4"><p className="text-xs text-[#666]">UNIKALNE PYTANIA</p><p className="font-bold text-2xl text-white">{topQ.length}</p></CardContent></Card>
+        </div>
+
+        {/* Daily visits chart + Sources */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]">
+            <CardHeader className="pb-2"><CardTitle className="text-white text-sm">Odwiedziny dzienne (14 dni)</CardTitle></CardHeader>
+            <CardContent>
+              {dailyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={dailyData}>
+                    <XAxis dataKey="date" tick={{ fill: '#666', fontSize: 10 }} />
+                    <YAxis tick={{ fill: '#666', fontSize: 10 }} />
+                    <Tooltip contentStyle={{ background: '#111', border: '1px solid #333' }} />
+                    <Bar dataKey="visits" fill="#00FF88" radius={[4,4,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <p className="text-[#555] text-center py-8">Brak danych - tracking rozpocznie się po redeploy</p>}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]">
+            <CardHeader className="pb-2"><CardTitle className="text-white text-sm">Źródła ruchu</CardTitle></CardHeader>
+            <CardContent>
+              {Object.keys(sources).length > 0 ? (
+                <div className="space-y-2">
+                  {Object.entries(sources).sort((a,b) => b[1]-a[1]).map(([src, count]) => (
+                    <div key={src} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ background: sourceColors[src] || '#888' }}></div>
+                        <span className="text-sm text-white capitalize">{src}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 rounded" style={{ width: `${Math.max(20, count / Math.max(...Object.values(sources)) * 150)}px`, background: sourceColors[src] || '#888' }}></div>
+                        <span className="text-sm text-[#888] w-8 text-right">{count}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-[#555] text-center py-8">Brak danych</p>}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Chat questions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]">
+            <CardHeader className="pb-2"><CardTitle className="text-white text-sm">Najczęstsze pytania chatbota</CardTitle></CardHeader>
+            <CardContent>
+              {topQ.length > 0 ? (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {topQ.map((q, i) => (
+                    <div key={i} className="flex items-center justify-between py-1 border-b border-[rgba(255,255,255,0.05)]">
+                      <span className="text-sm text-white truncate mr-2">{q.question}</span>
+                      <span className="text-xs text-[#00FFD1] font-bold whitespace-nowrap">{q.count}x</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-[#555] text-center py-8">Brak pytań</p>}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]">
+            <CardHeader className="pb-2"><CardTitle className="text-white text-sm">Ostatnie rozmowy chatbota</CardTitle></CardHeader>
+            <CardContent>
+              {recentChats.length > 0 ? (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {recentChats.map((c, i) => (
+                    <div key={i} className="py-2 border-b border-[rgba(255,255,255,0.05)]">
+                      <p className="text-xs text-[#888]">{c.timestamp ? new Date(c.timestamp).toLocaleString('pl-PL') : ''} ({c.language})</p>
+                      <p className="text-sm text-[#FFD700]">Q: {c.question}</p>
+                      <p className="text-xs text-[#666] truncate">A: {c.answer}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-[#555] text-center py-8">Brak rozmów</p>}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

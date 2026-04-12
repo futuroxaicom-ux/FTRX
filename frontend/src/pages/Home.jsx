@@ -8,6 +8,7 @@ import { ArrowRight, Zap, Sparkles, Globe, Clock, Cpu, TrendingUp } from 'lucide
 import Spline from '@splinetool/react-spline';
 import { WalletConnect } from '../components/WalletConnect';
 import { TokenPurchase } from '../components/TokenPurchase';
+import { trackVisit } from '../utils/analytics';
 import { BuyOptions } from '../components/BuyOptions';
 import { LivePriceChart } from '../components/LivePriceChart';
 import { SolanaInfoModal } from '../components/SolanaInfoModal';
@@ -32,6 +33,7 @@ const Home = () => {
   const [showDirectPurchase, setShowDirectPurchase] = useState(false);
   const [showSolanaModal, setShowSolanaModal] = useState(false);
 
+  useEffect(() => { trackVisit('/'); }, []);
   useEffect(() => {
     const targetDate = new Date('2026-05-10T00:00:00');
     
