@@ -729,7 +729,7 @@ class VolumeBot:
                     logger.info(f"Swap succeeded on attempt {attempt + 1} with slippage {slippage} bps")
                 return result
             err = str(result.get("error", "")) if result else ""
-            is_slippage = "Custom" in err or "InstructionError" in err or "Sim:" in err
+            is_slippage = "Custom" in err or "InstructionError" in err
             is_rate_limit = "429" in err
             if is_rate_limit:
                 # Rate limited - wait longer before retry
@@ -764,8 +764,9 @@ class VolumeBot:
                 swap_resp = await client.post(JUPITER_SWAP_URL, json={
                     "quoteResponse": quote,
                     "userPublicKey": str(keypair.pubkey()),
+                    "wrapAndUnwrapSol": True,
                     "dynamicComputeUnitLimit": True,
-                    "prioritizationFeeLamports": 50000,
+                    "prioritizationFeeLamports": "auto",
                 }, timeout=15.0)
 
                 if swap_resp.status_code != 200:
@@ -781,21 +782,7 @@ class VolumeBot:
                 signed_tx = VersionedTransaction(tx.message, [keypair])
                 encoded_tx = base64.b64encode(bytes(signed_tx)).decode("utf-8")
 
-                # Simulate first to catch slippage errors before sending to chain
-                try:
-                    sim_resp = await client.post(SOLANA_RPC, json={
-                        "jsonrpc": "2.0", "id": 1,
-                        "method": "simulateTransaction",
-                        "params": [encoded_tx, {"encoding": "base64", "commitment": "confirmed"}],
-                    }, timeout=10.0)
-                    sim_data = sim_resp.json()
-                    sim_err = sim_data.get("result", {}).get("err")
-                    if sim_err:
-                        return {"error": f"Sim: {sim_err}"}
-                except Exception:
-                    pass  # If simulation fails/times out, try sending anyway
-
-                # Send transaction
+                # Send transaction directly (skipPreflight for speed)
                 rpc_resp = await client.post(SOLANA_RPC, json={
                     "jsonrpc": "2.0", "id": 1,
                     "method": "sendTransaction",
