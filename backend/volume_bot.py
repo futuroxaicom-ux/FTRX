@@ -331,11 +331,13 @@ class VolumeBot:
     def _pick_action(self, sub_wallets):
         """Pick organic action - accumulate buys before selling, vary sequences"""
         min_trade = self.config["min_sol_per_trade"]
-        # Wallets with ATA need less reserve (no rent), so lower threshold
+        # ATA rent = 0.00204 SOL, tx fee = 0.000005 SOL, extra buffer = 0.001
+        # Without ATA: need trade + 0.004 SOL (rent + fees + buffer)
+        # With ATA: need trade + 0.001 SOL (fees + buffer only)
         funded_buy = []
         for w in sub_wallets:
             bal = self._balance_cache.get(w["public_key"], 0) / LAMPORTS_PER_SOL
-            reserve = 0.001 if w["public_key"] in self._has_ata else 0.005
+            reserve = 0.002 if w["public_key"] in self._has_ata else 0.005
             if bal >= min_trade + reserve:
                 funded_buy.append(w)
         funded_sell = [w for w in sub_wallets
@@ -413,18 +415,18 @@ class VolumeBot:
         funded = []
         for w in sub_wallets:
             bal = self._balance_cache.get(w["public_key"], 0) / LAMPORTS_PER_SOL
-            reserve = 0.001 if w["public_key"] in self._has_ata else 0.005
+            # Need: trade_amount + ATA_rent(0.00204) + fees(0.001) if no ATA
+            # Or: trade_amount + fees(0.001) if has ATA
+            reserve = 0.002 if w["public_key"] in self._has_ata else 0.006
             if bal >= min_trade + reserve:
                 funded.append(w)
         if not funded:
             return
 
-        # Avoid same wallet as last trade (organic pattern)
         candidates = [w for w in funded if w["public_key"] != self._last_trade_wallet]
         if not candidates:
-            candidates = funded  # fallback if only 1 wallet
+            candidates = funded
 
-        # Prefer unused wallets (new makers)
         unused = [w for w in candidates if w["public_key"] not in self.daily_wallets_used]
         wallet = random.choice(unused) if unused else random.choice(candidates)
 
@@ -432,11 +434,9 @@ class VolumeBot:
         if not keypair:
             return
 
-        # Gaussian random amount - each buy is unique
         sol_amount = gauss_amount(self.config["min_sol_per_trade"], self.config["max_sol_per_trade"])
-        # Reserve: 0.001 if wallet already has ATA, 0.005 if not (ATA rent 0.00204 + fees)
         pub = wallet["public_key"]
-        reserve = 0.001 if pub in self._has_ata else 0.005
+        reserve = 0.002 if pub in self._has_ata else 0.006
         wallet_sol = (self._balance_cache.get(pub, 0) / LAMPORTS_PER_SOL) - reserve
         sol_amount = min(sol_amount, max(0, wallet_sol))
         remaining = self.config["target_volume_sol"] - self.stats["daily_volume_sol"]
@@ -782,13 +782,14 @@ class VolumeBot:
                 signed_tx = VersionedTransaction(tx.message, [keypair])
                 encoded_tx = base64.b64encode(bytes(signed_tx)).decode("utf-8")
 
-                # Send transaction directly (skipPreflight for speed)
+                # Send transaction with preflight check (catches insufficient SOL before on-chain)
                 rpc_resp = await client.post(SOLANA_RPC, json={
                     "jsonrpc": "2.0", "id": 1,
                     "method": "sendTransaction",
                     "params": [encoded_tx, {
                         "encoding": "base64",
-                        "skipPreflight": True,
+                        "skipPreflight": False,
+                        "preflightCommitment": "confirmed",
                         "maxRetries": 3,
                     }],
                 }, timeout=30.0)

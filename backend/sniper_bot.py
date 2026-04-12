@@ -390,47 +390,49 @@ class SniperBot:
         return {"error": "No wallet holds this token"}
 
     async def get_holdings(self):
-        """Scan ALL sniper wallets for ANY token holdings (not just in-memory positions)"""
+        """Scan ALL sniper wallets for ANY token holdings (from chain, not memory)"""
         wallets = await self.db[self.collection_wallets].find({}, {"_id": 0}).to_list(200)
         if not wallets:
             return []
         holdings = []
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        rpcs = ["https://api.mainnet-beta.solana.com", "https://solana.publicnode.com"]
+        async with httpx.AsyncClient(timeout=12.0) as client:
             for w in wallets:
-                try:
-                    resp = await client.post("https://solana.publicnode.com", json={
-                        "jsonrpc": "2.0", "id": 1,
-                        "method": "getTokenAccountsByOwner",
-                        "params": [w["public_key"], {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"}, {"encoding": "jsonParsed"}],
-                    })
-                    if resp.status_code == 429:
-                        await asyncio.sleep(2)
+                for rpc in rpcs:
+                    try:
+                        resp = await client.post(rpc, json={
+                            "jsonrpc": "2.0", "id": 1,
+                            "method": "getTokenAccountsByOwner",
+                            "params": [w["public_key"], {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"}, {"encoding": "jsonParsed"}],
+                        })
+                        if resp.status_code == 429:
+                            await asyncio.sleep(2)
+                            continue
+                        data = resp.json()
+                        accounts = data.get("result", {}).get("value", [])
+                        for acc in accounts:
+                            info = acc["account"]["data"]["parsed"]["info"]
+                            mint = info["mint"]
+                            ui_amount = float(info["tokenAmount"].get("uiAmount", 0) or 0)
+                            if ui_amount > 0 and mint != SOL_MINT:
+                                price_data = {}
+                                try:
+                                    price_data = await get_token_price(mint)
+                                except Exception:
+                                    pass
+                                holdings.append({
+                                    "token_mint": mint,
+                                    "wallet": w["public_key"],
+                                    "wallet_label": w.get("label", ""),
+                                    "balance": ui_amount,
+                                    "value_usd": ui_amount * price_data.get("price_usd", 0),
+                                    "price_usd": price_data.get("price_usd", 0),
+                                    "liquidity_usd": price_data.get("liquidity_usd", 0),
+                                })
+                        break  # Success on this RPC
+                    except Exception:
                         continue
-                    data = resp.json()
-                    accounts = data.get("result", {}).get("value", [])
-                    for acc in accounts:
-                        info = acc["account"]["data"]["parsed"]["info"]
-                        mint = info["mint"]
-                        ui_amount = float(info["tokenAmount"].get("uiAmount", 0) or 0)
-                        if ui_amount > 0 and mint != SOL_MINT:
-                            # Get price from DexScreener
-                            price_data = {}
-                            try:
-                                price_data = await get_token_price(mint)
-                            except Exception:
-                                pass
-                            holdings.append({
-                                "token_mint": mint,
-                                "wallet": w["public_key"],
-                                "wallet_label": w.get("label", ""),
-                                "balance": ui_amount,
-                                "value_usd": ui_amount * price_data.get("price_usd", 0),
-                                "price_usd": price_data.get("price_usd", 0),
-                                "liquidity_usd": price_data.get("liquidity_usd", 0),
-                            })
-                except Exception:
-                    continue
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.5)
         return holdings
 
     async def get_wallets_info(self):
