@@ -1,4 +1,4 @@
-"""Sniper Bot - Auto-discovers new Raydium pools and snipes them"""
+"""Sniper Bot - Auto-discovers new Raydium/Solana pools and snipes them"""
 import asyncio
 import time
 import random
@@ -23,7 +23,7 @@ class SniperBot:
         self.running = False
         self.task = None
         self.config = {
-            "token_mint": "",  # Optional: specific token to snipe. Empty = auto-discover
+            "token_mint": "",
             "max_buy_sol": 0.1,
             "auto_sell": True,
             "take_profit_percent": 10.0,
@@ -33,13 +33,13 @@ class SniperBot:
             "min_liquidity_usd": 500,
             "max_liquidity_usd": 50000,
             "min_pool_age_seconds": 0,
-            "max_pool_age_seconds": 3600,  # Only snipe pools < 1 hour old
-            "auto_discover": True,  # Auto-find new tokens on Raydium
+            "max_pool_age_seconds": 3600,
+            "auto_discover": True,
             "max_concurrent_positions": 3,
         }
         self.stats = self._empty_stats()
         self.transaction_log = []
-        self._positions = {}  # token_mint -> {wallet, entry_price, sol_spent, time}
+        self._positions = {}
         self._known_pairs = set()
         self._blacklisted_tokens = set()
 
@@ -101,86 +101,114 @@ class SniperBot:
             self.transaction_log = self.transaction_log[-100:]
 
     async def _run_loop(self):
+        self._log("INFO", "", 0, "Sniper Bot started - scanning for new pools...")
         while self.running:
             try:
                 # Phase 1: Discover new tokens
                 if self.config.get("auto_discover", True):
                     await self._discover_new_pools()
 
-                # Phase 2: Check if we should snipe a specific token
+                # Phase 2: Snipe specific token if set
                 if self.config.get("token_mint") and self.config["token_mint"] not in self._positions:
                     await self._snipe_token(self.config["token_mint"])
 
-                # Phase 3: Monitor open positions for take-profit/stop-loss
+                # Phase 3: Monitor open positions
                 await self._monitor_positions()
 
             except Exception as e:
                 logger.error(f"SniperBot error: {e}")
                 self.stats["errors"] += 1
-                self._log("ERROR", "", 0, str(e))
+                self._log("ERROR", "", 0, str(e)[:100])
             await asyncio.sleep(self.config.get("check_interval", 10))
 
     async def _discover_new_pools(self):
-        """Scan DexScreener for new Raydium pools on Solana"""
+        """Scan DexScreener for new Solana pools"""
         try:
             async with httpx.AsyncClient(timeout=12.0) as client:
-                # Search for newest Raydium pairs
-                resp = await client.get("https://api.dexscreener.com/latest/dex/search", params={
-                    "q": "raydium SOL"
-                })
-                data = resp.json()
-                pairs = data.get("pairs", [])
-                self.stats["pools_scanned"] = len(pairs)
+                # Try multiple discovery methods
+                pairs = []
 
+                # Method 1: Latest boosted tokens (often new)
+                try:
+                    resp = await client.get("https://api.dexscreener.com/token-boosts/latest/v1")
+                    if resp.status_code == 200:
+                        boosts = resp.json()
+                        if isinstance(boosts, list):
+                            for b in boosts:
+                                if b.get("chainId") == "solana":
+                                    token_addr = b.get("tokenAddress", "")
+                                    if token_addr and token_addr not in self._known_pairs:
+                                        # Fetch pair data for this token
+                                        try:
+                                            tr = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_addr}")
+                                            td = tr.json()
+                                            for p in td.get("pairs", [])[:1]:
+                                                pairs.append(p)
+                                        except Exception:
+                                            pass
+                except Exception:
+                    pass
+
+                # Method 2: Search for new SOL pairs
+                try:
+                    resp2 = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": "SOL"})
+                    if resp2.status_code == 200:
+                        data2 = resp2.json()
+                        pairs.extend(data2.get("pairs", []))
+                except Exception:
+                    pass
+
+                self.stats["pools_scanned"] += len(pairs)
+
+                found_new = 0
                 for pair in pairs:
                     pair_addr = pair.get("pairAddress", "")
                     if not pair_addr or pair_addr in self._known_pairs:
                         continue
                     self._known_pairs.add(pair_addr)
 
-                    # Check if this is a Solana Raydium pair
                     chain = pair.get("chainId", "")
-                    dex = pair.get("dexId", "")
-                    if chain != "solana" or "raydium" not in dex.lower():
+                    if chain != "solana":
                         continue
 
-                    # Get token info
                     base_token = pair.get("baseToken", {})
                     token_addr = base_token.get("address", "")
-                    token_name = base_token.get("name", "???")
                     token_symbol = base_token.get("symbol", "???")
+                    token_name = base_token.get("name", "???")
 
                     if not token_addr or token_addr == SOL_MINT:
                         continue
-                    if token_addr in self._blacklisted_tokens:
-                        continue
-                    if token_addr in self._positions:
+                    if token_addr in self._blacklisted_tokens or token_addr in self._positions:
                         continue
 
-                    # Check liquidity
                     liq_usd = float(pair.get("liquidity", {}).get("usd", 0) or 0)
                     min_liq = self.config.get("min_liquidity_usd", 500)
                     max_liq = self.config.get("max_liquidity_usd", 50000)
                     if liq_usd < min_liq or liq_usd > max_liq:
                         continue
 
-                    # Check pool age
                     pair_created = pair.get("pairCreatedAt", 0)
+                    age_seconds = 999999
                     if pair_created:
                         age_seconds = (time.time() * 1000 - pair_created) / 1000
                         max_age = self.config.get("max_pool_age_seconds", 3600)
-                        if age_seconds > max_age:
+                        if max_age > 0 and age_seconds > max_age:
                             continue
 
+                    found_new += 1
                     self.stats["new_pools_found"] += 1
-                    self._log("NEW_POOL", "", liq_usd, f"{token_symbol} ({token_name}) | Liq: ${liq_usd:.0f} | {pair_addr[:12]}")
+                    self._log("NEW_POOL", "", liq_usd, f"{token_symbol} Liq:${liq_usd:.0f} Age:{age_seconds/60:.0f}m")
+                    logger.info(f"SNIPER: New pool found: {token_symbol} ({token_addr[:16]}) Liq:${liq_usd:.0f}")
 
-                    # Auto-snipe if we have room for more positions
                     if len(self._positions) < self.config.get("max_concurrent_positions", 3):
                         await self._snipe_token(token_addr)
 
+                if found_new == 0 and len(self.transaction_log) < 3:
+                    self._log("SCAN", "", 0, f"Scanned {len(pairs)} pairs - no new matches yet. Waiting...")
+
         except Exception as e:
-            logger.debug(f"Pool discovery error: {e}")
+            logger.error(f"Pool discovery error: {e}")
+            self._log("ERROR", "", 0, f"Discovery: {str(e)[:80]}")
 
     async def _snipe_token(self, token_mint):
         """Execute snipe buy on a token"""
@@ -190,19 +218,20 @@ class SniperBot:
             return
 
         wallets = await self.db[self.collection_wallets].find({}, {"_id": 0}).to_list(200)
-        subs = [w for w in wallets if not w.get("is_main")]
-        if not subs:
+        if not wallets:
+            self._log("ERROR", "", 0, "No wallets! Generate wallets first.")
             return
 
-        # Find wallet with enough SOL
+        # Use ANY funded wallet (including main)
         wallet = None
-        for w in random.sample(subs, min(len(subs), 10)):
-            bals = await batch_get_sol_balances([w["public_key"]])
+        pubs = [w["public_key"] for w in wallets]
+        bals = await batch_get_sol_balances(pubs)
+        for w in wallets:
             if bals.get(w["public_key"], 0) >= self.config["max_buy_sol"] + 0.005:
                 wallet = w
                 break
         if not wallet:
-            self._log("SKIP", "", 0, f"No funded wallet for {token_mint[:12]}")
+            self._log("SKIP", "", 0, f"No wallet with {self.config['max_buy_sol']+0.005:.3f} SOL for {token_mint[:12]}")
             return
 
         pub = wallet["public_key"]
@@ -210,66 +239,54 @@ class SniperBot:
         kp = Keypair.from_bytes(base58.b58decode(wallet["private_key"]))
         amount_lamports = int(buy_amount * LAMPORTS_PER_SOL)
 
+        self._log("SNIPE_TRY", pub, buy_amount, f"Trying to snipe {token_mint[:20]}...")
         result = await jupiter_swap(kp, SOL_MINT, token_mint, amount_lamports, self.config["slippage_bps"])
 
         if result["success"]:
             price_data = await get_token_price(token_mint)
-            entry_price = price_data.get("price_usd", 0)
             self._positions[token_mint] = {
-                "wallet": pub, "entry_price": entry_price,
+                "wallet": pub, "entry_price": price_data.get("price_usd", 0),
                 "entry_price_native": price_data.get("price_native", 0),
                 "sol_spent": buy_amount, "time": time.time(),
-                "token_symbol": "",
             }
             self.stats["total_snipes"] += 1
             self.stats["successful_snipes"] += 1
             self.stats["total_sol_spent"] += buy_amount
             self.stats["last_snipe_time"] = time.time()
-            self._log("SNIPE_BUY", pub, buy_amount, f"Sniped {token_mint[:16]}... | tx: {result.get('tx', '')[:16]}")
-            logger.info(f"SNIPED {token_mint[:16]} for {buy_amount} SOL")
+            self._log("SNIPE_BUY", pub, buy_amount, f"SNIPED {token_mint[:16]}... tx:{result.get('tx','')[:16]}")
         else:
             self.stats["errors"] += 1
-            self._blacklisted_tokens.add(token_mint)  # Don't retry failed tokens
-            self._log("SNIPE_FAIL", pub, 0, f"{token_mint[:16]}... | {result.get('error', '')[:60]}")
+            self._blacklisted_tokens.add(token_mint)
+            self._log("SNIPE_FAIL", pub, 0, f"{token_mint[:16]}... {result.get('error','')[:60]}")
 
     async def _monitor_positions(self):
-        """Check all open positions for take-profit or stop-loss"""
         for token_mint, pos in list(self._positions.items()):
             try:
                 price_data = await get_token_price(token_mint)
                 current_price = price_data.get("price_usd", 0)
                 entry_price = pos.get("entry_price", 0)
 
-                if entry_price <= 0 or current_price <= 0:
-                    # Use native price as fallback
+                if entry_price > 0 and current_price > 0:
+                    change_pct = ((current_price - entry_price) / entry_price) * 100
+                else:
                     current_native = price_data.get("price_native", 0)
                     entry_native = pos.get("entry_price_native", 0)
                     if entry_native > 0 and current_native > 0:
                         change_pct = ((current_native - entry_native) / entry_native) * 100
                     else:
                         continue
-                else:
-                    change_pct = ((current_price - entry_price) / entry_price) * 100
 
-                # Take profit
                 if change_pct >= self.config["take_profit_percent"]:
                     await self._sell_position(token_mint, pos, f"TAKE_PROFIT +{change_pct:.1f}%")
                     self.stats["take_profits"] += 1
-                # Stop loss
                 elif change_pct <= -self.config["stop_loss_percent"]:
                     await self._sell_position(token_mint, pos, f"STOP_LOSS {change_pct:.1f}%")
                     self.stats["stop_losses"] += 1
-                else:
-                    # Log position status periodically
-                    age = time.time() - pos.get("time", 0)
-                    if age > 300 and int(age) % 60 < self.config.get("check_interval", 10) + 2:
-                        self._log("HOLDING", pos["wallet"], pos["sol_spent"], f"{token_mint[:12]}... P/L: {change_pct:+.1f}%")
 
             except Exception as e:
-                logger.debug(f"Position monitor error for {token_mint[:12]}: {e}")
+                logger.debug(f"Position monitor error: {e}")
 
     async def _sell_position(self, token_mint, pos, reason):
-        """Sell a sniped position"""
         wallet_pub = pos["wallet"]
         wallet = await self.db[self.collection_wallets].find_one({"public_key": wallet_pub}, {"_id": 0})
         if not wallet:
@@ -283,19 +300,18 @@ class SniperBot:
             return
 
         kp = Keypair.from_bytes(base58.b58decode(wallet["private_key"]))
-        sell_amount = int(token_bal * 0.95 * 1e9)  # Sell 95%
+        sell_amount = int(token_bal * 0.95 * 1e9)
         result = await jupiter_swap(kp, token_mint, SOL_MINT, sell_amount, self.config["slippage_bps"])
 
         if result["success"]:
             sol_out = result.get("out_amount", 0) / LAMPORTS_PER_SOL
             self.stats["total_sol_recovered"] += sol_out
             self.stats["profit_sol"] = self.stats["total_sol_recovered"] - self.stats["total_sol_spent"]
-            self._log(reason.split()[0], wallet_pub, sol_out, f"{reason} | {token_mint[:12]}... | tx: {result.get('tx','')[:12]}")
+            self._log(reason.split()[0], wallet_pub, sol_out, f"{reason} | tx:{result.get('tx','')[:12]}")
             del self._positions[token_mint]
-            logger.info(f"SOLD {token_mint[:12]} - {reason} - recovered {sol_out:.4f} SOL")
         else:
             self.stats["errors"] += 1
-            self._log("SELL_FAIL", wallet_pub, 0, f"{token_mint[:12]}... | {result.get('error', '')[:60]}")
+            self._log("SELL_FAIL", wallet_pub, 0, result.get("error", "")[:60])
 
     def get_status(self):
         positions_info = []
@@ -317,9 +333,7 @@ class SniperBot:
         }
 
     async def get_wallets_info(self):
-        wallets = await self.db[self.collection_wallets].find(
-            {}, {"_id": 0, "private_key": 0}
-        ).to_list(200)
+        wallets = await self.db[self.collection_wallets].find({}, {"_id": 0, "private_key": 0}).to_list(200)
         if not wallets:
             return []
         pubs = [w["public_key"] for w in wallets]
