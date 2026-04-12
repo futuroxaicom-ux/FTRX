@@ -336,58 +336,101 @@ class SniperBot:
 
     async def manual_sell(self, token_mint: str, wallet_pubkey: str = ""):
         """Manually sell a token from sniper wallets"""
+        try:
+            from solders.pubkey import Pubkey
+            Pubkey.from_string(token_mint)  # Validate mint address
+        except Exception:
+            return {"error": "Invalid token mint address"}
+
         wallets = await self.db[self.collection_wallets].find({}, {"_id": 0}).to_list(200)
         if not wallets:
             return {"error": "No wallets"}
 
-        # Find wallet holding the token
         target_wallets = [w for w in wallets if not wallet_pubkey or w["public_key"] == wallet_pubkey]
         if not target_wallets:
             target_wallets = wallets
 
         for wallet in target_wallets:
             pub = wallet["public_key"]
-            token_bals = await batch_get_token_balances([pub], token_mint)
-            token_bal = token_bals.get(pub, 0)
-            if token_bal <= 0:
+            # Get actual token balance from chain
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.post("https://solana.publicnode.com", json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "getTokenAccountsByOwner",
+                        "params": [pub, {"mint": token_mint}, {"encoding": "jsonParsed"}],
+                    })
+                    data = resp.json()
+                    accounts = data.get("result", {}).get("value", [])
+                    if not accounts:
+                        continue
+                    info = accounts[0]["account"]["data"]["parsed"]["info"]
+                    raw_amount = int(info["tokenAmount"]["amount"])
+                    if raw_amount <= 0:
+                        continue
+                    # Sell 95% of holdings (raw amount, proper decimals)
+                    sell_amount = int(raw_amount * 0.95)
+            except Exception:
                 continue
 
             kp = Keypair.from_bytes(base58.b58decode(wallet["private_key"]))
-            sell_amount = int(token_bal * 0.95 * 1e9)
             await self.load_config()
             result = await jupiter_swap(kp, token_mint, SOL_MINT, sell_amount, self.config.get("slippage_bps", 2000))
 
             if result["success"]:
                 sol_out = result.get("out_amount", 0) / LAMPORTS_PER_SOL
                 self.stats["total_sol_recovered"] += sol_out
-                self.stats["profit_sol"] = self.stats["total_sol_recovered"] - self.stats["total_sol_spent"]
                 self._log("MANUAL_SELL", pub, sol_out, f"Sold {token_mint[:20]}... tx:{result.get('tx','')[:16]}")
                 if token_mint in self._positions:
                     del self._positions[token_mint]
                 return {"success": True, "sol_received": sol_out, "tx": result.get("tx", "")}
             else:
-                self._log("SELL_FAIL", pub, 0, result.get("error", "")[:60])
                 return {"success": False, "error": result.get("error", "")}
 
         return {"error": "No wallet holds this token"}
 
     async def get_holdings(self):
-        """Get all token holdings across sniper wallets"""
+        """Scan ALL sniper wallets for ANY token holdings (not just in-memory positions)"""
         wallets = await self.db[self.collection_wallets].find({}, {"_id": 0}).to_list(200)
         if not wallets:
             return []
         holdings = []
-        # Check positions first
-        for token_mint, pos in self._positions.items():
-            price_data = await get_token_price(token_mint)
-            holdings.append({
-                "token_mint": token_mint,
-                "wallet": pos["wallet"],
-                "sol_spent": pos["sol_spent"],
-                "current_price_usd": price_data.get("price_usd", 0),
-                "entry_price_usd": pos.get("entry_price", 0),
-                "age_minutes": round((time.time() - pos.get("time", 0)) / 60, 1),
-            })
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            for w in wallets:
+                try:
+                    resp = await client.post("https://solana.publicnode.com", json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "getTokenAccountsByOwner",
+                        "params": [w["public_key"], {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"}, {"encoding": "jsonParsed"}],
+                    })
+                    if resp.status_code == 429:
+                        await asyncio.sleep(2)
+                        continue
+                    data = resp.json()
+                    accounts = data.get("result", {}).get("value", [])
+                    for acc in accounts:
+                        info = acc["account"]["data"]["parsed"]["info"]
+                        mint = info["mint"]
+                        ui_amount = float(info["tokenAmount"].get("uiAmount", 0) or 0)
+                        if ui_amount > 0 and mint != SOL_MINT:
+                            # Get price from DexScreener
+                            price_data = {}
+                            try:
+                                price_data = await get_token_price(mint)
+                            except Exception:
+                                pass
+                            holdings.append({
+                                "token_mint": mint,
+                                "wallet": w["public_key"],
+                                "wallet_label": w.get("label", ""),
+                                "balance": ui_amount,
+                                "value_usd": ui_amount * price_data.get("price_usd", 0),
+                                "price_usd": price_data.get("price_usd", 0),
+                                "liquidity_usd": price_data.get("liquidity_usd", 0),
+                            })
+                except Exception:
+                    continue
+                await asyncio.sleep(0.3)
         return holdings
 
     async def get_wallets_info(self):

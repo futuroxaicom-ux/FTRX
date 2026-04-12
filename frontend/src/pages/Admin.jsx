@@ -996,6 +996,8 @@ function GenericBotDashboard({ botType, pw, onBack }) {
   const [genCount, setGenCount] = useState(10);
   const [distAmount, setDistAmount] = useState(0.005);
   const [fundAmount, setFundAmount] = useState(0.1);
+  const [holdings, setHoldings] = useState([]);
+  const [holdingsLoading, setHoldingsLoading] = useState(false);
   const headers = { 'Content-Type': 'application/json', 'x-admin-password': pw };
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
@@ -1020,6 +1022,27 @@ function GenericBotDashboard({ botType, pw, onBack }) {
   const generateWallets = async () => { setLoading(true); await fetch(`${API}/api/admin/bot/${botType}/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: genCount, prefix: botInfo?.name?.split(' ')[0] || 'Bot' }) }); fetchData(); setLoading(false); toast.success('Wygenerowano'); };
   const distributeSol = async () => { await fetch(`${API}/api/admin/bot/${botType}/wallets/distribute`, { method: 'POST', headers, body: JSON.stringify({ sol_per_wallet: distAmount }) }); toast.success('Dystrybucja rozpoczęta'); };
   const collectSol = async () => { await fetch(`${API}/api/admin/bot/${botType}/wallets/collect`, { method: 'POST', headers }); toast.success('Zbieranie SOL'); };
+
+  const fetchHoldings = async () => {
+    if (botType !== 'sniper') return;
+    setHoldingsLoading(true);
+    try {
+      const r = await fetch(`${API}/api/admin/bot/sniper/holdings`, { headers });
+      if (r.ok) { const d = await r.json(); setHoldings(d.holdings || []); }
+    } catch {}
+    setHoldingsLoading(false);
+  };
+
+  const sellToken = async (token_mint, wallet) => {
+    try {
+      const r = await fetch(`${API}/api/admin/bot/sniper/sell`, {
+        method: 'POST', headers, body: JSON.stringify({ token_mint, wallet })
+      });
+      const d = await r.json();
+      if (d.success) { toast.success(`Sprzedano! ${d.sol_received?.toFixed(4)} SOL`); fetchHoldings(); fetchData(); }
+      else toast.error(d.error || 'Blad sprzedazy');
+    } catch (e) { toast.error('Blad: ' + e.message); }
+  };
 
   const stats = status?.stats || {};
   const txs = status?.recent_transactions || [];
@@ -1055,41 +1078,46 @@ function GenericBotDashboard({ botType, pw, onBack }) {
         </div>
 
 
-        {/* Sniper Positions - show token holdings with manual sell */}
-        {botType === 'sniper' && (status?.open_positions?.length > 0) && (
+        {/* Sniper Holdings - real token balances from chain */}
+        {botType === 'sniper' && (
           <Card className="bg-[#0a0a0a] border-[#FFD700]/20">
-            <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><Crosshair className="w-4 h-4 text-[#FFD700]" /> Otwarte Pozycje ({status?.positions_count || 0})</CardTitle></CardHeader>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm flex items-center justify-between">
+                <span className="flex items-center gap-2"><Crosshair className="w-4 h-4 text-[#FFD700]" /> Tokeny w portfelach ({holdings.length})</span>
+                <Button onClick={fetchHoldings} disabled={holdingsLoading} variant="ghost" className="text-[#FFD700] text-xs">
+                  {holdingsLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : 'Skanuj portfele'}
+                </Button>
+              </CardTitle>
+            </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {(status?.open_positions || []).map((pos, i) => (
-                  <div key={i} className="bg-black/50 border border-[rgba(255,255,255,0.1)] rounded p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1 mr-3">
-                        <p className="text-xs text-[#666]">Token Mint:</p>
-                        <p className="text-sm text-[#FFD700] font-mono break-all">{pos.token_mint}</p>
+              {holdings.length > 0 ? (
+                <div className="space-y-2">
+                  {holdings.map((h, i) => (
+                    <div key={i} className="bg-black/50 border border-[rgba(255,255,255,0.1)] rounded p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex-1 mr-3">
+                          <p className="text-xs text-[#666]">Token Mint:</p>
+                          <p className="text-xs text-[#FFD700] font-mono break-all select-all">{h.token_mint}</p>
+                        </div>
+                        <Button onClick={() => sellToken(h.token_mint, h.wallet)} className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 whitespace-nowrap">
+                          Sprzedaj
+                        </Button>
                       </div>
-                      <Button onClick={async () => {
-                        const r = await fetch(`${API}/api/admin/bot/sniper/sell`, {
-                          method: 'POST', headers, body: JSON.stringify({ token_mint: pos.token_mint, wallet: pos.wallet })
-                        });
-                        const d = await r.json();
-                        if (d.success) toast.success(`Sprzedano! Otrzymano ${d.sol_received?.toFixed(4)} SOL`);
-                        else toast.error(d.error || 'Blad sprzedazy');
-                        fetchData();
-                      }} className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 whitespace-nowrap">
-                        Sprzedaj teraz
-                      </Button>
+                      <div className="flex flex-wrap gap-3 text-xs text-[#888]">
+                        <span>Ilość: <span className="text-white font-bold">{h.balance?.toFixed(2)}</span></span>
+                        {h.price_usd > 0 && <span>Cena: <span className="text-green-400">${h.price_usd?.toFixed(8)}</span></span>}
+                        {h.value_usd > 0 && <span>Wartość: <span className="text-green-400">${h.value_usd?.toFixed(4)}</span></span>}
+                        {h.liquidity_usd > 0 && <span>Płynność: <span className="text-blue-400">${h.liquidity_usd?.toFixed(0)}</span></span>}
+                        <span>Portfel: <span className="text-white">{h.wallet_label || h.wallet?.substring(0,8)}</span></span>
+                        <a href={`https://solscan.io/token/${h.token_mint}`} target="_blank" rel="noreferrer" className="text-[#00FFD1] hover:underline">Solscan</a>
+                        <a href={`https://dexscreener.com/solana/${h.token_mint}`} target="_blank" rel="noreferrer" className="text-[#00FFD1] hover:underline">DexScreener</a>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-4 text-xs text-[#888]">
-                      <span>Wydano: <span className="text-white">{pos.sol_spent} SOL</span></span>
-                      <span>Portfel: <span className="text-white">{pos.wallet?.substring(0,8)}...</span></span>
-                      <span>Czas: <span className="text-white">{pos.age_minutes} min</span></span>
-                      <a href={`https://solscan.io/token/${pos.token_mint}`} target="_blank" rel="noreferrer" className="text-[#00FFD1] hover:underline">Solscan</a>
-                      <a href={`https://dexscreener.com/solana/${pos.token_mint}`} target="_blank" rel="noreferrer" className="text-[#00FFD1] hover:underline">DexScreener</a>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[#555] text-center py-3 text-sm">{holdingsLoading ? 'Skanowanie portfeli...' : 'Kliknij "Skanuj portfele" aby zobaczyć tokeny'}</p>
+              )}
             </CardContent>
           </Card>
         )}
