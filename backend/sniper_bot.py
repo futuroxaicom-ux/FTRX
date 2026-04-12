@@ -502,6 +502,18 @@ class SniperBot:
                 await asyncio.sleep(0.5)
         return holdings
 
+
+    async def get_wallets_info(self):
+        wallets = await self.db[self.collection_wallets].find({}, {"_id": 0, "private_key": 0}).to_list(200)
+        if not wallets:
+            return []
+        pubs = [w["public_key"] for w in wallets]
+        sol_bals = await batch_get_sol_balances(pubs)
+        for w in wallets:
+            w["balance_sol"] = sol_bals.get(w["public_key"], 0)
+            w["balance_token"] = 0
+        return wallets
+
     async def generate_wallets(self, count: int, prefix: str = "Sniper"):
         created = []
         for i in range(count):
