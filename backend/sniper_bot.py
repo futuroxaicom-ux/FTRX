@@ -33,7 +33,7 @@ class SniperBot:
             "min_liquidity_usd": 500,
             "max_liquidity_usd": 50000,
             "min_pool_age_seconds": 0,
-            "max_pool_age_seconds": 3600,
+            "max_pool_age_seconds": 86400,  # 24 hours - wider net for finding tokens
             "auto_discover": True,
             "max_concurrent_positions": 3,
         }
@@ -188,10 +188,10 @@ class SniperBot:
                         continue
 
                     pair_created = pair.get("pairCreatedAt", 0)
-                    age_seconds = 999999
+                    age_seconds = 0
                     if pair_created:
                         age_seconds = (time.time() * 1000 - pair_created) / 1000
-                        max_age = self.config.get("max_pool_age_seconds", 3600)
+                        max_age = self.config.get("max_pool_age_seconds", 86400)
                         if max_age > 0 and age_seconds > max_age:
                             continue
 
