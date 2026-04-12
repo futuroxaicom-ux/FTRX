@@ -453,6 +453,22 @@ async def generic_bot_collect_status(bot_type: str, x_admin_password: str = Head
     verify_admin(x_admin_password)
     return _bot_collect_status.get(bot_type, {"running": False, "result": None})
 
+# Sniper bot specific endpoints
+@api_router.post("/admin/bot/sniper/sell")
+async def sniper_manual_sell(body: dict, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    token_mint = body.get("token_mint", "")
+    wallet = body.get("wallet", "")
+    if not token_mint:
+        raise HTTPException(status_code=400, detail="token_mint required")
+    return await sniper_bot.manual_sell(token_mint, wallet)
+
+@api_router.get("/admin/bot/sniper/holdings")
+async def sniper_holdings(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    holdings = await sniper_bot.get_holdings()
+    return {"holdings": holdings}
+
 # Solana RPC proxy - avoids browser CORS/403 issues
 @api_router.post("/solana/rpc")
 async def solana_rpc_proxy(body: dict):

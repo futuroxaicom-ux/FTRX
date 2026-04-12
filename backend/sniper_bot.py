@@ -30,10 +30,10 @@ class SniperBot:
             "stop_loss_percent": 20.0,
             "check_interval": 10,
             "slippage_bps": 2000,
-            "min_liquidity_usd": 500,
-            "max_liquidity_usd": 50000,
+            "min_liquidity_usd": 100,
+            "max_liquidity_usd": 500000,
             "min_pool_age_seconds": 0,
-            "max_pool_age_seconds": 86400,  # 24 hours - wider net for finding tokens
+            "max_pool_age_seconds": 0,  # 0 = no age filter
             "auto_discover": True,
             "max_concurrent_positions": 3,
         }
@@ -248,12 +248,13 @@ class SniperBot:
                 "wallet": pub, "entry_price": price_data.get("price_usd", 0),
                 "entry_price_native": price_data.get("price_native", 0),
                 "sol_spent": buy_amount, "time": time.time(),
+                "token_mint": token_mint,
             }
             self.stats["total_snipes"] += 1
             self.stats["successful_snipes"] += 1
             self.stats["total_sol_spent"] += buy_amount
             self.stats["last_snipe_time"] = time.time()
-            self._log("SNIPE_BUY", pub, buy_amount, f"SNIPED {token_mint[:16]}... tx:{result.get('tx','')[:16]}")
+            self._log("SNIPE_BUY", pub, buy_amount, f"SNIPED {token_mint} tx:{result.get('tx','')[:16]}")
         else:
             self.stats["errors"] += 1
             self._blacklisted_tokens.add(token_mint)
@@ -317,9 +318,10 @@ class SniperBot:
         positions_info = []
         for token, pos in self._positions.items():
             positions_info.append({
-                "token": token[:16] + "...",
-                "wallet": pos["wallet"][:8],
+                "token_mint": token,
+                "wallet": pos["wallet"],
                 "sol_spent": pos["sol_spent"],
+                "entry_price": pos.get("entry_price", 0),
                 "age_minutes": round((time.time() - pos.get("time", 0)) / 60, 1),
             })
         return {
@@ -331,6 +333,62 @@ class SniperBot:
             "known_pairs": len(self._known_pairs),
             "recent_transactions": self.transaction_log[-50:],
         }
+
+    async def manual_sell(self, token_mint: str, wallet_pubkey: str = ""):
+        """Manually sell a token from sniper wallets"""
+        wallets = await self.db[self.collection_wallets].find({}, {"_id": 0}).to_list(200)
+        if not wallets:
+            return {"error": "No wallets"}
+
+        # Find wallet holding the token
+        target_wallets = [w for w in wallets if not wallet_pubkey or w["public_key"] == wallet_pubkey]
+        if not target_wallets:
+            target_wallets = wallets
+
+        for wallet in target_wallets:
+            pub = wallet["public_key"]
+            token_bals = await batch_get_token_balances([pub], token_mint)
+            token_bal = token_bals.get(pub, 0)
+            if token_bal <= 0:
+                continue
+
+            kp = Keypair.from_bytes(base58.b58decode(wallet["private_key"]))
+            sell_amount = int(token_bal * 0.95 * 1e9)
+            await self.load_config()
+            result = await jupiter_swap(kp, token_mint, SOL_MINT, sell_amount, self.config.get("slippage_bps", 2000))
+
+            if result["success"]:
+                sol_out = result.get("out_amount", 0) / LAMPORTS_PER_SOL
+                self.stats["total_sol_recovered"] += sol_out
+                self.stats["profit_sol"] = self.stats["total_sol_recovered"] - self.stats["total_sol_spent"]
+                self._log("MANUAL_SELL", pub, sol_out, f"Sold {token_mint[:20]}... tx:{result.get('tx','')[:16]}")
+                if token_mint in self._positions:
+                    del self._positions[token_mint]
+                return {"success": True, "sol_received": sol_out, "tx": result.get("tx", "")}
+            else:
+                self._log("SELL_FAIL", pub, 0, result.get("error", "")[:60])
+                return {"success": False, "error": result.get("error", "")}
+
+        return {"error": "No wallet holds this token"}
+
+    async def get_holdings(self):
+        """Get all token holdings across sniper wallets"""
+        wallets = await self.db[self.collection_wallets].find({}, {"_id": 0}).to_list(200)
+        if not wallets:
+            return []
+        holdings = []
+        # Check positions first
+        for token_mint, pos in self._positions.items():
+            price_data = await get_token_price(token_mint)
+            holdings.append({
+                "token_mint": token_mint,
+                "wallet": pos["wallet"],
+                "sol_spent": pos["sol_spent"],
+                "current_price_usd": price_data.get("price_usd", 0),
+                "entry_price_usd": pos.get("entry_price", 0),
+                "age_minutes": round((time.time() - pos.get("time", 0)) / 60, 1),
+            })
+        return holdings
 
     async def get_wallets_info(self):
         wallets = await self.db[self.collection_wallets].find({}, {"_id": 0, "private_key": 0}).to_list(200)

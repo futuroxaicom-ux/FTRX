@@ -1054,6 +1054,46 @@ function GenericBotDashboard({ botType, pw, onBack }) {
           <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]"><CardContent className="p-4"><p className="text-xs text-[#666]">ERRORS</p><p className="font-bold text-lg text-[#666]">{stats.errors || 0}</p></CardContent></Card>
         </div>
 
+
+        {/* Sniper Positions - show token holdings with manual sell */}
+        {botType === 'sniper' && (status?.open_positions?.length > 0) && (
+          <Card className="bg-[#0a0a0a] border-[#FFD700]/20">
+            <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><Crosshair className="w-4 h-4 text-[#FFD700]" /> Otwarte Pozycje ({status?.positions_count || 0})</CardTitle></CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {(status?.open_positions || []).map((pos, i) => (
+                  <div key={i} className="bg-black/50 border border-[rgba(255,255,255,0.1)] rounded p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex-1 mr-3">
+                        <p className="text-xs text-[#666]">Token Mint:</p>
+                        <p className="text-sm text-[#FFD700] font-mono break-all">{pos.token_mint}</p>
+                      </div>
+                      <Button onClick={async () => {
+                        const r = await fetch(`${API}/api/admin/bot/sniper/sell`, {
+                          method: 'POST', headers, body: JSON.stringify({ token_mint: pos.token_mint, wallet: pos.wallet })
+                        });
+                        const d = await r.json();
+                        if (d.success) toast.success(`Sprzedano! Otrzymano ${d.sol_received?.toFixed(4)} SOL`);
+                        else toast.error(d.error || 'Blad sprzedazy');
+                        fetchData();
+                      }} className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 whitespace-nowrap">
+                        Sprzedaj teraz
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-4 text-xs text-[#888]">
+                      <span>Wydano: <span className="text-white">{pos.sol_spent} SOL</span></span>
+                      <span>Portfel: <span className="text-white">{pos.wallet?.substring(0,8)}...</span></span>
+                      <span>Czas: <span className="text-white">{pos.age_minutes} min</span></span>
+                      <a href={`https://solscan.io/token/${pos.token_mint}`} target="_blank" rel="noreferrer" className="text-[#00FFD1] hover:underline">Solscan</a>
+                      <a href={`https://dexscreener.com/solana/${pos.token_mint}`} target="_blank" rel="noreferrer" className="text-[#00FFD1] hover:underline">DexScreener</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Controls + Config */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]">
