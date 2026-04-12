@@ -174,6 +174,22 @@ class SniperBot:
                 except Exception:
                     pass
 
+                # Method 3: Pump.fun tokens
+                try:
+                    resp3 = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": "pump.fun SOL"})
+                    if resp3.status_code == 200:
+                        pairs.extend(resp3.json().get("pairs", []))
+                except Exception:
+                    pass
+
+                # Method 4: Raydium Launchlab
+                try:
+                    resp4 = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": "launchlab SOL"})
+                    if resp4.status_code == 200:
+                        pairs.extend(resp4.json().get("pairs", []))
+                except Exception:
+                    pass
+
                 self.stats["pools_scanned"] += len(pairs)
 
                 found_new = 0
