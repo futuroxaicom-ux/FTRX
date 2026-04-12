@@ -38,7 +38,7 @@ class SniperBot:
             "slippage_bps": 2000,
             "min_liquidity_usd": 500,
             "max_liquidity_usd": 500000,
-            "max_pool_age_seconds": 300,
+            "max_pool_age_seconds": 3600,
             "auto_discover": True,
             "max_concurrent_positions": 3,
             "scan_pumpfun": True,
