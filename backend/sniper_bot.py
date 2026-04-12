@@ -140,44 +140,46 @@ class SniperBot:
             await asyncio.sleep(self.config.get("check_interval", 5))
 
     async def _discover_new_pools(self):
-        """Speed scan: pump.fun + Raydium Launchlab for brand new tokens"""
+        """Speed scan: token-profiles + DexScreener for brand new tokens on pump.fun/Raydium"""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 pairs = []
 
-                # pump.fun - biggest source of new Solana tokens
-                if self.config.get("scan_pumpfun", True):
-                    try:
-                        r = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": "pump.fun"})
-                        if r.status_code == 200:
-                            pairs.extend(r.json().get("pairs", []))
-                    except Exception:
-                        pass
-
-                # Raydium + Launchlab
-                if self.config.get("scan_raydium", True):
-                    for q in ["raydium launchlab", "raydium SOL"]:
-                        try:
-                            r = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": q})
-                            if r.status_code == 200:
-                                pairs.extend(r.json().get("pairs", []))
-                        except Exception:
-                            pass
-
-                # Boosted tokens (trending new)
+                # PRIMARY: DexScreener token-profiles/latest - returns ACTUALLY new tokens
                 try:
-                    r = await client.get("https://api.dexscreener.com/token-boosts/latest/v1")
+                    r = await client.get("https://api.dexscreener.com/token-profiles/latest/v1")
                     if r.status_code == 200:
-                        boosts = r.json()
+                        profiles = r.json()
+                        if isinstance(profiles, list):
+                            sol_profiles = [p for p in profiles if p.get("chainId") == "solana"]
+                            for p in sol_profiles[:15]:
+                                addr = p.get("tokenAddress", "")
+                                if addr and addr not in self._known_pairs:
+                                    self._known_pairs.add(addr)
+                                    try:
+                                        tr = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{addr}")
+                                        for pair in tr.json().get("pairs", [])[:1]:
+                                            pairs.append(pair)
+                                    except Exception:
+                                        pass
+                except Exception:
+                    pass
+
+                # SECONDARY: Boosted tokens (trending)
+                try:
+                    r2 = await client.get("https://api.dexscreener.com/token-boosts/latest/v1")
+                    if r2.status_code == 200:
+                        boosts = r2.json()
                         if isinstance(boosts, list):
                             for b in boosts:
                                 if b.get("chainId") == "solana":
                                     addr = b.get("tokenAddress", "")
                                     if addr and addr not in self._known_pairs:
+                                        self._known_pairs.add(addr)
                                         try:
                                             tr = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{addr}")
-                                            for p in tr.json().get("pairs", [])[:1]:
-                                                pairs.append(p)
+                                            for pair in tr.json().get("pairs", [])[:1]:
+                                                pairs.append(pair)
                                         except Exception:
                                             pass
                 except Exception:
@@ -204,11 +206,17 @@ class SniperBot:
                     if token_addr in self._bought_tokens or token_addr in self._positions:
                         continue
 
-                    # Filter: liquidity
+                    # Filter: must have real liquidity (skip bonding curve tokens with $0 liq)
                     liq = float(pair.get("liquidity", {}).get("usd", 0) or 0)
                     if liq < self.config.get("min_liquidity_usd", 500):
                         continue
                     if liq > self.config.get("max_liquidity_usd", 500000):
+                        continue
+
+                    # Filter: accepted DEXs (pumpswap, raydium, meteora, orca)
+                    dex = pair.get("dexId", "").lower()
+                    allowed_dex = ["pumpswap", "raydium", "meteora", "orca"]
+                    if not any(d in dex for d in allowed_dex):
                         continue
 
                     # Filter: pool age (SPEED - only fresh pools)
