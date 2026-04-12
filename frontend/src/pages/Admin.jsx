@@ -1019,7 +1019,11 @@ function GenericBotDashboard({ botType, pw, onBack }) {
 
   const startBot = async () => { await fetch(`${API}/api/admin/bot/${botType}/start`, { method: 'POST', headers }); toast.success('Bot uruchomiony'); fetchData(); };
   const stopBot = async () => { await fetch(`${API}/api/admin/bot/${botType}/stop`, { method: 'POST', headers }); toast.success('Bot zatrzymany'); fetchData(); };
-  const saveConfig = async () => { await fetch(`${API}/api/admin/bot/${botType}/config`, { method: 'POST', headers, body: JSON.stringify(config) }); toast.success('Zapisano'); };
+  const saveConfig = async () => { 
+    const r = await fetch(`${API}/api/admin/bot/${botType}/config`, { method: 'POST', headers, body: JSON.stringify(config) }); 
+    if (r.ok) { const d = await r.json(); if (d.config) setConfig(d.config); toast.success('Zapisano'); }
+    else toast.error('Blad zapisu');
+  };
   const generateWallets = async () => { setLoading(true); await fetch(`${API}/api/admin/bot/${botType}/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: genCount, prefix: botInfo?.name?.split(' ')[0] || 'Bot' }) }); fetchData(); setLoading(false); toast.success('Wygenerowano'); };
   const distributeSol = async () => { await fetch(`${API}/api/admin/bot/${botType}/wallets/distribute`, { method: 'POST', headers, body: JSON.stringify({ sol_per_wallet: distAmount }) }); toast.success('Dystrybucja rozpoczęta'); };
   const collectSol = async () => { await fetch(`${API}/api/admin/bot/${botType}/wallets/collect`, { method: 'POST', headers }); toast.success('Zbieranie SOL'); };
