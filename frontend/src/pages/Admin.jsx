@@ -1006,6 +1006,7 @@ function GenericBotDashboard({ botType, pw, onBack }) {
   const [status, setStatus] = useState(null);
   const [wallets, setWallets] = useState([]);
   const [config, setConfig] = useState({});
+  const [configDirty, setConfigDirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [genCount, setGenCount] = useState(10);
   const [distAmount, setDistAmount] = useState(0.005);
@@ -1024,7 +1025,7 @@ function GenericBotDashboard({ botType, pw, onBack }) {
         fetch(`${API}/api/admin/bot/${botType}/status`, { headers }),
         fetch(`${API}/api/admin/bot/${botType}/wallets`, { headers }),
       ]);
-      if (sR.ok) { const d = await sR.json(); setStatus(d); setConfig(d.config || {}); }
+      if (sR.ok) { const d = await sR.json(); setStatus(d); if (!configDirty) setConfig(d.config || {}); }
       if (wR.ok) { const d = await wR.json(); setWallets(d.wallets || []); }
     } catch {}
   }, [botType, pw]);
@@ -1035,7 +1036,7 @@ function GenericBotDashboard({ botType, pw, onBack }) {
   const stopBot = async () => { await fetch(`${API}/api/admin/bot/${botType}/stop`, { method: 'POST', headers }); toast.success('Bot zatrzymany'); fetchData(); };
   const saveConfig = async () => { 
     const r = await fetch(`${API}/api/admin/bot/${botType}/config`, { method: 'POST', headers, body: JSON.stringify(config) }); 
-    if (r.ok) { const d = await r.json(); if (d.config) setConfig(d.config); toast.success('Zapisano'); }
+    if (r.ok) { const d = await r.json(); if (d.config) setConfig(d.config); setConfigDirty(false); toast.success('Zapisano'); }
     else toast.error('Blad zapisu');
   };
   const generateWallets = async () => { setLoading(true); await fetch(`${API}/api/admin/bot/${botType}/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: genCount, prefix: botInfo?.name?.split(' ')[0] || 'Bot' }) }); fetchData(); setLoading(false); toast.success('Wygenerowano'); };
@@ -1285,11 +1286,11 @@ function GenericBotDashboard({ botType, pw, onBack }) {
                 <div key={f.key}>
                   <label className="text-xs text-[#666]">{f.label}</label>
                   {f.type === 'select' ? (
-                    <select value={config[f.key] || ''} onChange={e => setConfig({ ...config, [f.key]: e.target.value })} className="w-full bg-black border border-[rgba(255,255,255,0.15)] rounded px-3 py-2 text-white text-sm">
+                    <select value={config[f.key] || ''} onChange={e => { setConfig({ ...config, [f.key]: e.target.value }); setConfigDirty(true); }} className="w-full bg-black border border-[rgba(255,255,255,0.15)] rounded px-3 py-2 text-white text-sm">
                       {f.options?.map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
                   ) : (
-                    <Input type={f.type} step={f.step} value={config[f.key] ?? ''} onChange={e => setConfig({ ...config, [f.key]: f.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value })} className="bg-black border-[rgba(255,255,255,0.15)] text-white" />
+                    <Input type={f.type} step={f.step} value={config[f.key] ?? ''} onChange={e => { setConfig({ ...config, [f.key]: f.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value }); setConfigDirty(true); }} className="bg-black border-[rgba(255,255,255,0.15)] text-white" />
                   )}
                 </div>
               ))}
