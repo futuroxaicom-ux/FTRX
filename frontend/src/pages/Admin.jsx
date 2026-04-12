@@ -7,7 +7,7 @@ import {
   Wallet, ArrowLeft, Lock, Eye, EyeOff, AlertTriangle,
   TrendingUp, Zap, XCircle, Star, Download, Upload,
   Calculator, Users, Clock, Target, Coins, Link2, BarChart3,
-  Crosshair, GitBranch, Copy, ChevronRight
+  Crosshair, GitBranch, Copy, ChevronRight, UserPlus
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
@@ -23,6 +23,7 @@ const OTHER_BOTS = [
   { id: 'trade', name: 'Trade Bot', icon: Target, color: '#4488FF', desc: 'Auto-trading' },
   { id: 'arbitrage', name: 'Arbitrage Bot', icon: GitBranch, color: '#AA44FF', desc: 'Arbitraz DEX' },
   { id: 'copytrade', name: 'Copy Trade', icon: Copy, color: '#FF8844', desc: 'Kopiuj wieloryby' },
+  { id: 'holder', name: 'Holder Bot', icon: UserPlus, color: '#00CCFF', desc: 'Twórz holderów' },
 ];
 
 export default function AdminPage() {
@@ -985,6 +986,11 @@ const BOT_CONFIG_FIELDS = {
     { key: 'slippage_bps', label: 'Slippage (bps)', type: 'number' },
     { key: 'min_whale_trade_sol', label: 'Min whale trade (SOL)', type: 'number', step: 0.01 },
   ],
+  holder: [
+    { key: 'token_mint', label: 'Token Mint Address', type: 'text' },
+    { key: 'sol_per_buy', label: 'SOL per zakup (na portfel)', type: 'number', step: 0.001 },
+    { key: 'slippage_bps', label: 'Slippage (bps)', type: 'number' },
+  ],
 };
 
 function GenericBotDashboard({ botType, pw, onBack }) {
@@ -1177,6 +1183,68 @@ function GenericBotDashboard({ botType, pw, onBack }) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+
+        {/* Holder Bot - Preset buttons + Collect/Close */}
+        {botType === 'holder' && (
+          <Card className="bg-[#0a0a0a] border-[#00CCFF]/20">
+            <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><UserPlus className="w-4 h-4 text-[#00CCFF]" /> Utwórz Holderów</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-xs text-[#888] mb-3">Wybierz ile holderów chcesz stworzyć (generuje portfele, rozdziela SOL, kupuje tokeny):</p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {[50, 100, 200, 250, 500, 750].map(n => (
+                  <Button key={n} onClick={async () => {
+                    if (!config.token_mint) { toast.error('Najpierw ustaw Token Mint!'); return; }
+                    const existing = wallets.filter(w => !w.is_main).length;
+                    const toGen = Math.max(0, n - existing);
+                    if (toGen > 0) {
+                      toast.info(`Generowanie ${toGen} portfeli...`);
+                      await fetch(`${API}/api/admin/bot/holder/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: toGen, prefix: 'Holder' }) });
+                    }
+                    toast.info(`Uruchamianie zakupów dla ${n} holderów...`);
+                    await fetch(`${API}/api/admin/bot/holder/start`, { method: 'POST', headers });
+                    fetchData();
+                  }} className="px-4 py-2 text-sm font-bold" style={{ background: '#00CCFF22', color: '#00CCFF', border: '1px solid #00CCFF33' }}>
+                    {n} holderów
+                  </Button>
+                ))}
+              </div>
+              {/* Progress */}
+              {stats.phase && stats.phase !== 'idle' && (
+                <div className="mb-3 p-3 bg-black/50 rounded border border-[rgba(255,255,255,0.1)]">
+                  <p className="text-xs text-[#00CCFF] font-bold mb-1">Faza: {stats.phase}</p>
+                  <div className="w-full bg-gray-800 rounded h-2">
+                    <div className="bg-[#00CCFF] h-2 rounded transition-all" style={{ width: `${stats.progress_total ? (stats.progress / stats.progress_total * 100) : 0}%` }}></div>
+                  </div>
+                  <p className="text-xs text-[#888] mt-1">{stats.progress}/{stats.progress_total} | Kupiono: {stats.wallets_bought} | Błędy: {stats.errors}</p>
+                </div>
+              )}
+              {/* Collect + Close actions */}
+              <div className="flex gap-2">
+                <Button onClick={async () => {
+                  toast.info('Zbieranie tokenów i SOL...');
+                  const r = await fetch(`${API}/api/admin/bot/holder/collect-tokens`, { method: 'POST', headers });
+                  const d = await r.json();
+                  if (d.collected) toast.success(`Zebrano tokeny z ${d.collected} portfeli → ${d.total_sol?.toFixed(4)} SOL`);
+                  else toast.info(d.error || 'Brak tokenów do zebrania');
+                  fetchData();
+                }} className="flex-1 bg-orange-700 hover:bg-orange-600 text-sm">
+                  Zbierz tokeny → SOL
+                </Button>
+                <Button onClick={async () => {
+                  toast.info('Zamykanie kont → odzyskiwanie rent...');
+                  const r = await fetch(`${API}/api/admin/bot/holder/close-accounts`, { method: 'POST', headers });
+                  const d = await r.json();
+                  if (d.closed) toast.success(`Zamknięto ${d.closed} kont → odzyskano ~${d.rent_recovered_approx} SOL`);
+                  else toast.info(d.error || 'Brak kont do zamknięcia');
+                  fetchData();
+                }} className="flex-1 bg-purple-700 hover:bg-purple-600 text-sm">
+                  Zamknij konta → odzyskaj SOL
+                </Button>
               </div>
             </CardContent>
           </Card>

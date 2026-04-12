@@ -18,6 +18,7 @@ from sniper_bot import SniperBot
 from trade_bot import TradeBot
 from arbitrage_bot import ArbitrageBot
 from copytrade_bot import CopyTradeBot
+from holder_bot import HolderBot
 
 # Simple in-memory cache for CoinGecko API
 class PriceCache:
@@ -115,6 +116,7 @@ sniper_bot = SniperBot(db)
 trade_bot = TradeBot(db)
 arbitrage_bot = ArbitrageBot(db)
 copytrade_bot = CopyTradeBot(db)
+holder_bot = HolderBot(db)
 
 BOT_REGISTRY = {
     "volume": volume_bot,
@@ -123,6 +125,7 @@ BOT_REGISTRY = {
     "trade": trade_bot,
     "arbitrage": arbitrage_bot,
     "copytrade": copytrade_bot,
+    "holder": holder_bot,
 }
 
 # Admin auth helper
@@ -474,6 +477,23 @@ async def sniper_history(x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)
     history = await db.sniper_bot_history.find({}, {"_id": 0}).sort("timestamp", -1).to_list(100)
     return {"history": history}
+
+# Holder Bot specific endpoints
+@api_router.post("/admin/bot/holder/collect-tokens")
+async def holder_collect_tokens(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    async def run():
+        return await holder_bot.collect_all_tokens()
+    result = await run()
+    return result
+
+@api_router.post("/admin/bot/holder/close-accounts")
+async def holder_close_accounts(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    async def run():
+        return await holder_bot.close_accounts_and_recover()
+    result = await run()
+    return result
 
 # Solana RPC proxy - avoids browser CORS/403 issues
 @api_router.post("/solana/rpc")
