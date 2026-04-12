@@ -766,7 +766,7 @@ class VolumeBot:
                     "userPublicKey": str(keypair.pubkey()),
                     "wrapAndUnwrapSol": True,
                     "dynamicComputeUnitLimit": True,
-                    "prioritizationFeeLamports": "auto",
+                    "prioritizationFeeLamports": 10000,
                 }, timeout=15.0)
 
                 if swap_resp.status_code != 200:
