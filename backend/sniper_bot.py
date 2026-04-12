@@ -333,7 +333,8 @@ class SniperBot:
             self.stats["errors"] += 1
             self._log("SELL_FAIL", wallet_pub, 0, result.get("error", "")[:60])
 
-    def get_status(self):
+    async def get_status_async(self):
+        await self.load_config()
         positions_info = []
         for token, pos in self._positions.items():
             positions_info.append({

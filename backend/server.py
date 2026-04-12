@@ -331,7 +331,7 @@ async def generic_bot_status(bot_type: str, x_admin_password: str = Header(None)
     if bot_type == "volume":
         return volume_bot.get_status()
     bot = _get_bot(bot_type)
-    return bot.get_status()
+    return await bot.get_status_async()
 
 @api_router.post("/admin/bot/{bot_type}/start")
 async def generic_bot_start(bot_type: str, x_admin_password: str = Header(None)):

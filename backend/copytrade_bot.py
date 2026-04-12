@@ -222,7 +222,8 @@ class CopyTradeBot:
                 self._log("ERROR", pub, 0, result.get("error", ""))
             break  # Only sell from one wallet per signal
 
-    def get_status(self):
+    async def get_status_async(self):
+        await self.load_config()
         return {
             "running": self.running,
             "config": self.config,

@@ -161,7 +161,8 @@ class SpreadBot:
                 self.stats["errors"] += 1
                 self._log("ERROR", pub, 0, result.get("error", ""))
 
-    def get_status(self):
+    async def get_status_async(self):
+        await self.load_config()
         return {
             "running": self.running,
             "config": self.config,

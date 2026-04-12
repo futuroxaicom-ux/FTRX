@@ -235,7 +235,8 @@ class TradeBot:
             elif change <= -self.config["stop_loss_percent"]:
                 await self._execute_sell(current_price, f"Stop loss: {change:.1f}%")
 
-    def get_status(self):
+    async def get_status_async(self):
+        await self.load_config()
         return {
             "running": self.running,
             "config": self.config,

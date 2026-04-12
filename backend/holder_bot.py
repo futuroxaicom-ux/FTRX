@@ -334,7 +334,8 @@ class HolderBot:
         self.stats["phase"] = "idle"
         return {"closed": closed, "errors": errors, "rent_recovered_approx": round(closed * 0.00204, 4)}
 
-    def get_status(self):
+    async def get_status_async(self):
+        await self.load_config()
         return {
             "running": self.running,
             "config": self.config,
