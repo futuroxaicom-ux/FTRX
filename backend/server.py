@@ -469,6 +469,12 @@ async def sniper_holdings(x_admin_password: str = Header(None)):
     holdings = await sniper_bot.get_holdings()
     return {"holdings": holdings}
 
+@api_router.get("/admin/bot/sniper/history")
+async def sniper_history(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    history = await db.sniper_bot_history.find({}, {"_id": 0}).sort("timestamp", -1).to_list(100)
+    return {"history": history}
+
 # Solana RPC proxy - avoids browser CORS/403 issues
 @api_router.post("/solana/rpc")
 async def solana_rpc_proxy(body: dict):

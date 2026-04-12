@@ -20,6 +20,7 @@ class SniperBot:
         self.db = db
         self.collection_wallets = "sniper_bot_wallets"
         self.collection_config = "sniper_bot_config"
+        self.collection_history = "sniper_bot_history"
         self.running = False
         self.task = None
         self.config = {
@@ -99,6 +100,21 @@ class SniperBot:
         })
         if len(self.transaction_log) > 100:
             self.transaction_log = self.transaction_log[-100:]
+
+    async def _save_trade(self, action, token_mint, wallet, sol_amount, tx_sig="", profit_sol=None):
+        """Save trade to MongoDB for permanent history"""
+        from datetime import datetime, timezone
+        doc = {
+            "action": action,
+            "token_mint": token_mint,
+            "wallet": wallet,
+            "sol_amount": round(sol_amount, 6),
+            "tx_signature": tx_sig,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if profit_sol is not None:
+            doc["profit_sol"] = round(profit_sol, 6)
+        await self.db[self.collection_history].insert_one(doc)
 
     async def _run_loop(self):
         self._log("INFO", "", 0, "Sniper Bot started - scanning for new pools...")
@@ -255,6 +271,7 @@ class SniperBot:
             self.stats["total_sol_spent"] += buy_amount
             self.stats["last_snipe_time"] = time.time()
             self._log("SNIPE_BUY", pub, buy_amount, f"SNIPED {token_mint} tx:{result.get('tx','')[:16]}")
+            await self._save_trade("BUY", token_mint, pub, buy_amount, result.get("tx", ""))
         else:
             self.stats["errors"] += 1
             self._blacklisted_tokens.add(token_mint)
@@ -309,6 +326,8 @@ class SniperBot:
             self.stats["total_sol_recovered"] += sol_out
             self.stats["profit_sol"] = self.stats["total_sol_recovered"] - self.stats["total_sol_spent"]
             self._log(reason.split()[0], wallet_pub, sol_out, f"{reason} | tx:{result.get('tx','')[:12]}")
+            profit = sol_out - pos.get("sol_spent", 0)
+            await self._save_trade("SELL", token_mint, wallet_pub, sol_out, result.get("tx", ""), profit)
             del self._positions[token_mint]
         else:
             self.stats["errors"] += 1
@@ -381,6 +400,7 @@ class SniperBot:
                 sol_out = result.get("out_amount", 0) / LAMPORTS_PER_SOL
                 self.stats["total_sol_recovered"] += sol_out
                 self._log("MANUAL_SELL", pub, sol_out, f"Sold {token_mint[:20]}... tx:{result.get('tx','')[:16]}")
+                await self._save_trade("MANUAL_SELL", token_mint, pub, sol_out, result.get("tx", ""))
                 if token_mint in self._positions:
                     del self._positions[token_mint]
                 return {"success": True, "sol_received": sol_out, "tx": result.get("tx", "")}

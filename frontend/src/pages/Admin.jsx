@@ -998,6 +998,7 @@ function GenericBotDashboard({ botType, pw, onBack }) {
   const [fundAmount, setFundAmount] = useState(0.1);
   const [holdings, setHoldings] = useState([]);
   const [holdingsLoading, setHoldingsLoading] = useState(false);
+  const [tradeHistory, setTradeHistory] = useState([]);
   const headers = { 'Content-Type': 'application/json', 'x-admin-password': pw };
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
@@ -1027,8 +1028,12 @@ function GenericBotDashboard({ botType, pw, onBack }) {
     if (botType !== 'sniper') return;
     setHoldingsLoading(true);
     try {
-      const r = await fetch(`${API}/api/admin/bot/sniper/holdings`, { headers });
-      if (r.ok) { const d = await r.json(); setHoldings(d.holdings || []); }
+      const [hR, histR] = await Promise.all([
+        fetch(`${API}/api/admin/bot/sniper/holdings`, { headers }),
+        fetch(`${API}/api/admin/bot/sniper/history`, { headers }),
+      ]);
+      if (hR.ok) { const d = await hR.json(); setHoldings(d.holdings || []); }
+      if (histR.ok) { const d = await histR.json(); setTradeHistory(d.history || []); }
     } catch {}
     setHoldingsLoading(false);
   };
@@ -1121,6 +1126,58 @@ function GenericBotDashboard({ botType, pw, onBack }) {
             </CardContent>
           </Card>
         )}
+
+        {/* Sniper Trade History */}
+        {botType === 'sniper' && tradeHistory.length > 0 && (
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]">
+            <CardHeader className="pb-2"><CardTitle className="text-white text-sm">Historia Transakcji ({tradeHistory.length})</CardTitle></CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead><tr className="text-[#666] border-b border-[rgba(255,255,255,0.1)]">
+                    <th className="text-left py-2 px-2">Typ</th>
+                    <th className="text-left py-2 px-2">Token Mint</th>
+                    <th className="text-right py-2 px-2">SOL</th>
+                    <th className="text-right py-2 px-2">Zysk/Strata</th>
+                    <th className="text-left py-2 px-2">Data</th>
+                    <th className="text-left py-2 px-2">Tx</th>
+                  </tr></thead>
+                  <tbody>
+                    {tradeHistory.map((h, i) => (
+                      <tr key={i} className="border-b border-[rgba(255,255,255,0.05)] hover:bg-white/5">
+                        <td className="py-2 px-2">
+                          <span className={`font-bold ${h.action === 'BUY' ? 'text-green-400' : h.action === 'SELL' ? 'text-red-400' : 'text-orange-400'}`}>{h.action}</span>
+                        </td>
+                        <td className="py-2 px-2 font-mono text-[#FFD700]">
+                          <a href={`https://dexscreener.com/solana/${h.token_mint}`} target="_blank" rel="noreferrer" className="hover:underline">
+                            {h.token_mint?.substring(0,12)}...
+                          </a>
+                        </td>
+                        <td className="py-2 px-2 text-right text-white">{h.sol_amount?.toFixed(4)}</td>
+                        <td className="py-2 px-2 text-right">
+                          {h.profit_sol !== undefined && h.profit_sol !== null ? (
+                            <span className={h.profit_sol >= 0 ? 'text-green-400' : 'text-red-400'}>
+                              {h.profit_sol >= 0 ? '+' : ''}{h.profit_sol?.toFixed(4)} SOL
+                            </span>
+                          ) : <span className="text-[#555]">-</span>}
+                        </td>
+                        <td className="py-2 px-2 text-[#888]">{h.timestamp ? new Date(h.timestamp).toLocaleString('pl-PL') : '-'}</td>
+                        <td className="py-2 px-2">
+                          {h.tx_signature ? (
+                            <a href={`https://solscan.io/tx/${h.tx_signature}`} target="_blank" rel="noreferrer" className="text-[#00FFD1] hover:underline">
+                              {h.tx_signature.substring(0,8)}...
+                            </a>
+                          ) : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
 
         {/* Controls + Config */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
