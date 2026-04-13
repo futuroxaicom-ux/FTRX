@@ -367,38 +367,35 @@ class VolumeBot:
         if len(holders) < min_holders_before_sell:
             return "BUY"
 
-        # Accumulate buys before allowing sells (random 2-5 buys between sells)
-        buys_needed = random.randint(2, 5)
-        sell_allowed = self._buys_since_sell >= buys_needed and len(holders) >= 2
+        # Accumulate buys before allowing sells (fixed threshold, not random each cycle)
+        sell_allowed = self._buys_since_sell >= 2 and len(holders) >= 2
 
-        # Build weighted random choices - organic sequences
+        # Build weighted random choices - balanced BUY/SELL for SOL recycling
         weights = []
         actions = []
 
         if funded_buy:
-            # More buys if few holders, less if many
-            buy_weight = 50 if len(holders) < 4 else 35
-            # If last action was also BUY, slightly reduce (but don't block)
+            buy_weight = 40 if len(holders) < 3 else 25
             if self._last_action == "BUY":
-                buy_weight = max(20, buy_weight - 10)
+                buy_weight = max(15, buy_weight - 10)
             actions.append("BUY")
             weights.append(buy_weight)
 
         if sell_allowed:
-            # Only sell from wallets that are NOT the last buyer AND can pay fees
             eligible_sellers = [h for h in holders
                                 if h["public_key"] != self._last_trade_wallet
-                                and self._balance_cache.get(h["public_key"], 0) >= 3_000_000]
+                                and self._balance_cache.get(h["public_key"], 0) >= 1_500_000]
             if eligible_sellers:
-                sell_weight = 30 if len(holders) < 5 else 45
+                # SELL more aggressively to recycle SOL
+                sell_weight = 45 if len(holders) >= 3 else 35
                 if self._last_action == "SELL":
-                    sell_weight = max(10, sell_weight - 15)
+                    sell_weight = max(15, sell_weight - 10)
                 actions.append("SELL")
                 weights.append(sell_weight)
 
         if len(funded_buy) > 1:
             actions.append("TRANSFER_SOL")
-            weights.append(20)  # Higher weight - SOL concentration is key for bigger trades
+            weights.append(25)  # SOL concentration
 
         if self.config.get("auto_refund"):
             actions.append("REFUND")
@@ -518,7 +515,7 @@ class VolumeBot:
             return
 
         # Partial sell: sell 30-80% of holdings (organic, not always 100%)
-        sell_pct = random.uniform(0.3, 0.8)
+        sell_pct = random.uniform(0.6, 0.95)  # Sell 60-95% to recover more SOL
         sell_tokens = int(token_amount * sell_pct)
         sell_sol_value = round(sol_value * sell_pct, 6)
 
