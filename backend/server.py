@@ -311,6 +311,47 @@ async def refresh_ftrx(x_admin_password: str = Header(None)):
     asyncio.create_task(run_refresh())
     return {"success": True, "message": "Refreshing FTRX balances..."}
 
+_token_collect_status = {"running": False, "result": None}
+_token_distribute_status = {"running": False, "result": None}
+
+@api_router.post("/admin/wallets/collect-tokens")
+async def collect_tokens_to_main(x_admin_password: str = Header(None)):
+    """Collect ALL tokens from sub wallets to main (direct SPL transfer)"""
+    verify_admin(x_admin_password)
+    if _token_collect_status["running"]:
+        return {"error": "Already running"}
+    async def run():
+        _token_collect_status["running"] = True
+        _token_collect_status["result"] = await volume_bot.collect_tokens_to_main()
+        _token_collect_status["running"] = False
+    asyncio.create_task(run())
+    return {"success": True, "message": "Collecting tokens to main wallet..."}
+
+@api_router.get("/admin/wallets/collect-tokens/status")
+async def collect_tokens_status(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return _token_collect_status
+
+@api_router.post("/admin/wallets/distribute-tokens")
+async def distribute_tokens(body: dict, x_admin_password: str = Header(None)):
+    """Distribute tokens from main to sub wallets (direct SPL transfer)"""
+    verify_admin(x_admin_password)
+    if _token_distribute_status["running"]:
+        return {"error": "Already running"}
+    tokens_per_wallet = body.get("tokens_per_wallet", 0)
+    async def run():
+        _token_distribute_status["running"] = True
+        _token_distribute_status["result"] = await volume_bot.distribute_tokens(tokens_per_wallet)
+        _token_distribute_status["running"] = False
+    asyncio.create_task(run())
+    return {"success": True, "message": "Distributing tokens..."}
+
+@api_router.get("/admin/wallets/distribute-tokens/status")
+async def distribute_tokens_status(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return _token_distribute_status
+
+
 @api_router.post("/admin/wallets/cleanup")
 async def cleanup_wallets(body: dict, x_admin_password: str = Header(None)):
     """Delete empty wallets, keep N wallets + main"""

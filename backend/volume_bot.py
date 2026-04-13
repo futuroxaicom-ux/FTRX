@@ -1055,6 +1055,167 @@ class VolumeBot:
             "wallets_processed": processed,
         }
 
+
+    async def collect_tokens_to_main(self):
+        """Transfer ALL tokens from sub wallets to main wallet (SPL transfer, NOT sell)"""
+        wallets = await self.db[self.wallets_collection].find({}, {"_id": 0}).to_list(200)
+        main = next((w for w in wallets if w.get("is_main")), None)
+        subs = [w for w in wallets if not w.get("is_main")]
+        if not main or not subs:
+            return {"error": "No main or sub wallets"}
+
+        token_mint_str = self.config.get("token_mint", "")
+        if not token_mint_str:
+            return {"error": "No token mint configured"}
+
+        mint_pub = Pubkey.from_string(token_mint_str)
+        main_pub = Pubkey.from_string(main["public_key"])
+        main_ata = get_ata(main_pub, mint_pub)
+        collected = 0
+        total_tokens = 0
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            for w in subs:
+                try:
+                    # Get token balance
+                    resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "getTokenAccountsByOwner",
+                        "params": [w["public_key"], {"mint": token_mint_str}, {"encoding": "jsonParsed"}],
+                    })
+                    accounts = resp.json().get("result", {}).get("value", [])
+                    if not accounts:
+                        continue
+                    raw_amount = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"])
+                    if raw_amount <= 0:
+                        continue
+
+                    kp = Keypair.from_bytes(base58.b58decode(w["private_key"]))
+                    wallet_pub = Pubkey.from_string(w["public_key"])
+                    source_ata = get_ata(wallet_pub, mint_pub)
+
+                    # SPL Token transfer instruction
+                    from solders.instruction import Instruction, AccountMeta
+                    # Transfer instruction = index 3, then amount as u64 little-endian
+                    transfer_data = bytes([3]) + raw_amount.to_bytes(8, 'little')
+                    transfer_ix = Instruction(
+                        program_id=TOKEN_PROGRAM_ID,
+                        accounts=[
+                            AccountMeta(pubkey=source_ata, is_signer=False, is_writable=True),
+                            AccountMeta(pubkey=main_ata, is_signer=False, is_writable=True),
+                            AccountMeta(pubkey=wallet_pub, is_signer=True, is_writable=False),
+                        ],
+                        data=transfer_data,
+                    )
+
+                    bh_resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash",
+                        "params": [{"commitment": "confirmed"}],
+                    })
+                    bh = Hash.from_string(bh_resp.json()["result"]["value"]["blockhash"])
+                    msg = Message.new_with_blockhash([transfer_ix], wallet_pub, bh)
+                    tx = Transaction.new_unsigned(msg)
+                    tx.sign([kp], bh)
+                    encoded = base64.b64encode(bytes(tx)).decode("utf-8")
+
+                    send_resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1, "method": "sendTransaction",
+                        "params": [encoded, {"encoding": "base64", "skipPreflight": False}],
+                    })
+                    if "result" in send_resp.json():
+                        collected += 1
+                        total_tokens += raw_amount
+                except Exception as e:
+                    logger.error(f"Token transfer error: {e}")
+                await asyncio.sleep(0.5)
+
+        return {"success": True, "wallets_collected": collected, "total_tokens": total_tokens}
+
+    async def distribute_tokens(self, tokens_per_wallet: float = 0):
+        """Distribute tokens from main wallet to sub wallets (SPL transfer)"""
+        wallets = await self.db[self.wallets_collection].find({}, {"_id": 0}).to_list(200)
+        main = next((w for w in wallets if w.get("is_main")), None)
+        subs = [w for w in wallets if not w.get("is_main")]
+        if not main or not subs:
+            return {"error": "No main or sub wallets"}
+
+        token_mint_str = self.config.get("token_mint", "")
+        if not token_mint_str:
+            return {"error": "No token mint configured"}
+
+        mint_pub = Pubkey.from_string(token_mint_str)
+        main_kp = Keypair.from_bytes(base58.b58decode(main["private_key"]))
+        main_pub = main_kp.pubkey()
+        source_ata = get_ata(main_pub, mint_pub)
+
+        # Get main token balance
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(SOLANA_RPC, json={
+                "jsonrpc": "2.0", "id": 1,
+                "method": "getTokenAccountsByOwner",
+                "params": [str(main_pub), {"mint": token_mint_str}, {"encoding": "jsonParsed"}],
+            })
+            accounts = resp.json().get("result", {}).get("value", [])
+            if not accounts:
+                return {"error": "Main wallet has no token account"}
+            main_raw = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"])
+            decimals = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["decimals"])
+
+        if main_raw <= 0:
+            return {"error": "Main wallet has 0 tokens"}
+
+        # Calculate per wallet amount
+        if tokens_per_wallet > 0:
+            raw_per_wallet = int(tokens_per_wallet * (10 ** decimals))
+        else:
+            raw_per_wallet = main_raw // len(subs)
+
+        if raw_per_wallet <= 0:
+            return {"error": "Not enough tokens to distribute"}
+
+        distributed = 0
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            for w in subs:
+                if raw_per_wallet * (len(subs) - distributed) > main_raw - (raw_per_wallet * distributed):
+                    break
+                try:
+                    wallet_pub = Pubkey.from_string(w["public_key"])
+                    dest_ata = get_ata(wallet_pub, mint_pub)
+
+                    from solders.instruction import Instruction, AccountMeta
+                    transfer_data = bytes([3]) + raw_per_wallet.to_bytes(8, 'little')
+                    transfer_ix = Instruction(
+                        program_id=TOKEN_PROGRAM_ID,
+                        accounts=[
+                            AccountMeta(pubkey=source_ata, is_signer=False, is_writable=True),
+                            AccountMeta(pubkey=dest_ata, is_signer=False, is_writable=True),
+                            AccountMeta(pubkey=main_pub, is_signer=True, is_writable=False),
+                        ],
+                        data=transfer_data,
+                    )
+
+                    bh_resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash",
+                        "params": [{"commitment": "confirmed"}],
+                    })
+                    bh = Hash.from_string(bh_resp.json()["result"]["value"]["blockhash"])
+                    msg = Message.new_with_blockhash([transfer_ix], main_pub, bh)
+                    tx = Transaction.new_unsigned(msg)
+                    tx.sign([main_kp], bh)
+                    encoded = base64.b64encode(bytes(tx)).decode("utf-8")
+
+                    send_resp = await client.post(SOLANA_RPC, json={
+                        "jsonrpc": "2.0", "id": 1, "method": "sendTransaction",
+                        "params": [encoded, {"encoding": "base64", "skipPreflight": False}],
+                    })
+                    if "result" in send_resp.json():
+                        distributed += 1
+                except Exception as e:
+                    logger.error(f"Token distribute error: {e}")
+                await asyncio.sleep(0.5)
+
+        return {"success": True, "wallets_distributed": distributed, "tokens_per_wallet": raw_per_wallet / (10 ** decimals)}
+
     async def get_wallets_info(self):
         await self.load_config()
         wallets = await self.db[self.wallets_collection].find({}, {"_id": 0, "private_key": 0}).to_list(200)
