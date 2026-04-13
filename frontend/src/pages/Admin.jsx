@@ -74,7 +74,11 @@ export default function AdminPage() {
   }
 
   if (selectedBot === 'volume') {
-    return <Dashboard pw={pw} onLogout={() => { sessionStorage.removeItem('adm'); setAuthed(false); }} onSwitchBot={setSelectedBot} />;
+    return <Dashboard pw={pw} onLogout={() => { sessionStorage.removeItem('adm'); setAuthed(false); }} onSwitchBot={setSelectedBot} botType="volume" />;
+  }
+
+  if (selectedBot === 'volume2' || selectedBot === 'volume3') {
+    return <Dashboard pw={pw} onLogout={() => { sessionStorage.removeItem('adm'); setAuthed(false); }} onSwitchBot={setSelectedBot} botType={selectedBot} />;
   }
 
   if (selectedBot === 'analytics') {
@@ -84,7 +88,9 @@ export default function AdminPage() {
   return <GenericBotDashboard botType={selectedBot} pw={pw} onBack={() => setSelectedBot('volume')} />;
 }
 
-function Dashboard({ pw, onLogout, onSwitchBot }) {
+function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
+  const isMainVolume = botType === 'volume';
+  const apiPrefix = isMainVolume ? '' : `/bot/${botType}`;
   const [status, setStatus] = useState(null);
   const [wallets, setWallets] = useState([]);
   const [costs, setCosts] = useState(null);
@@ -93,31 +99,55 @@ function Dashboard({ pw, onLogout, onSwitchBot }) {
 
   const fetchAll = useCallback(async () => {
     const headers = { 'Content-Type': 'application/json', 'x-admin-password': pw };
+    const statusUrl = isMainVolume ? `${API}/api/admin/bot/status` : `${API}/api/admin/bot/${botType}/status`;
+    const walletsUrl = isMainVolume ? `${API}/api/admin/wallets` : `${API}/api/admin/bot/${botType}/wallets`;
+    const costsUrl = isMainVolume ? `${API}/api/admin/bot/costs` : null;
     try {
-      const [sR, wR, cR] = await Promise.all([
-        fetch(`${API}/api/admin/bot/status`, { headers }),
-        fetch(`${API}/api/admin/wallets`, { headers }),
-        fetch(`${API}/api/admin/bot/costs`, { headers }),
-      ]);
-      if (sR.ok) setStatus(await sR.json());
-      if (wR.ok) { const d = await wR.json(); setWallets(d.wallets || []); }
-      if (cR.ok) setCosts(await cR.json());
+      const fetches = [fetch(statusUrl, { headers }), fetch(walletsUrl, { headers })];
+      if (costsUrl) fetches.push(fetch(costsUrl, { headers }));
+      const results = await Promise.all(fetches);
+      if (results[0].ok) setStatus(await results[0].json());
+      if (results[1].ok) { const d = await results[1].json(); setWallets(d.wallets || []); }
+      if (results[2]?.ok) setCosts(await results[2].json());
     } catch { /* ignore */ }
-  }, [pw]);
+  }, [pw, botType, isMainVolume]);
 
   const fetchStatus = useCallback(async () => {
+    const statusUrl = isMainVolume ? `${API}/api/admin/bot/status` : `${API}/api/admin/bot/${botType}/status`;
     try {
-      const r = await fetch(`${API}/api/admin/bot/status`, { headers: { 'x-admin-password': pw } });
+      const r = await fetch(statusUrl, { headers: { 'x-admin-password': pw } });
       if (r.ok) setStatus(await r.json());
     } catch { /* */ }
-  }, [pw]);
+  }, [pw, botType, isMainVolume]);
 
   useEffect(() => { fetchAll(); const i = setInterval(fetchStatus, 5000); return () => clearInterval(i); }, [fetchAll, fetchStatus]);
 
+  const mapUrl = (url) => {
+    if (isMainVolume) return url;
+    // Map old volume endpoints to generic bot endpoints
+    return url
+      .replace('/api/admin/bot/start', `/api/admin/bot/${botType}/start`)
+      .replace('/api/admin/bot/stop', `/api/admin/bot/${botType}/stop`)
+      .replace('/api/admin/bot/config', `/api/admin/bot/${botType}/config`)
+      .replace('/api/admin/bot/costs', `/api/admin/bot/${botType}/status`)
+      .replace(/\/api\/admin\/wallets\/([^/]+)\/main/, `/api/admin/bot/${botType}/wallets/$1/main`)
+      .replace(/\/api\/admin\/wallets\/([^/]+)$/, `/api/admin/bot/${botType}/wallets/$1`)
+      .replace('/api/admin/wallets/generate', `/api/admin/bot/${botType}/wallets/generate`)
+      .replace('/api/admin/wallets/distribute/status', `/api/admin/bot/${botType}/wallets/distribute/status`)
+      .replace('/api/admin/wallets/distribute', `/api/admin/bot/${botType}/wallets/distribute`)
+      .replace('/api/admin/wallets/collect-ftrx/status', `/api/admin/bot/${botType}/wallets/collect/status`)
+      .replace('/api/admin/wallets/collect-ftrx', `/api/admin/bot/${botType}/wallets/collect`)
+      .replace('/api/admin/wallets/collect/status', `/api/admin/bot/${botType}/wallets/collect/status`)
+      .replace('/api/admin/wallets/collect', `/api/admin/bot/${botType}/wallets/collect`)
+      .replace('/api/admin/wallets/refresh-ftrx', `/api/admin/bot/${botType}/wallets`)
+      .replace('/api/admin/wallets', `/api/admin/bot/${botType}/wallets`);
+  };
+
   const apiCall = async (url, method = 'POST', body = null) => {
+    const mappedUrl = mapUrl(url);
     setBusy(true);
     try {
-      const r = await fetch(`${API}${url}`, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
+      const r = await fetch(`${API}${mappedUrl}`, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
       const d = await r.json();
       if (d.success !== false && !d.error) toast.success(d.message || 'OK');
       else toast.error(d.error || d.message || d.detail || 'Blad');
@@ -141,7 +171,7 @@ function Dashboard({ pw, onLogout, onSwitchBot }) {
           <div className="flex items-center gap-3">
             <a href="/" className="text-[#666] hover:text-white transition-colors"><ArrowLeft className="w-5 h-5" /></a>
             <div className="w-8 h-8 bg-[#00FFD1] flex items-center justify-center font-bold text-black text-[10px]">FTRX</div>
-            <span className="text-lg font-bold">Volume Bot</span>
+            <span className="text-lg font-bold">{botType === 'volume' ? 'Volume Bot' : botType === 'volume2' ? 'Volume Bot #2' : 'Volume Bot #3'}</span>
             {running && <span data-testid="bot-running-badge" className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded animate-pulse">AKTYWNY</span>}
           </div>
           <div className="flex items-center gap-3">
@@ -565,11 +595,11 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
                     {(w.balance_ftrx || 0) > 0 && <span className="text-xs font-medium text-orange-400">{(w.balance_ftrx).toFixed(2)} <span className="text-[10px] text-[#666]">FTRX</span></span>}
                   </div>
                   {!w.is_main && (
-                    <button onClick={() => { fetch(`${API}/api/admin/wallets/${w.public_key}/main`, { method: 'POST', headers: h }).then(() => { toast.success('Glowny portfel ustawiony'); onRefresh(); }); }} title="Ustaw jako glowny" className="text-yellow-500/50 hover:text-yellow-400 transition-colors">
+                    <button onClick={() => { fetch(`${API}${mapUrl(`/api/admin/wallets/${w.public_key}/main`)}`, { method: 'POST', headers: h }).then(() => { toast.success('Glowny portfel ustawiony'); onRefresh(); }); }} title="Ustaw jako glowny" className="text-yellow-500/50 hover:text-yellow-400 transition-colors">
                       <Star className="w-4 h-4" />
                     </button>
                   )}
-                  <button onClick={async () => { await fetch(`${API}/api/admin/wallets/${w.public_key}`, { method: 'DELETE', headers: h }); toast.success('Usuniety'); onRefresh(); }} className="text-red-400/50 hover:text-red-400 transition-colors">
+                  <button onClick={async () => { await fetch(`${API}${mapUrl(`/api/admin/wallets/${w.public_key}`)}`, { method: 'DELETE', headers: h }); toast.success('Usuniety'); onRefresh(); }} className="text-red-400/50 hover:text-red-400 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
