@@ -114,8 +114,8 @@ class HolderBot:
             pubs = [w["public_key"] for w in subs]
             sol_bals = await batch_get_sol_balances(pubs)
 
-            # Need: sol_per_buy + 0.005 SOL (ATA rent 0.00204 + fees + priority + buffer)
-            sol_needed = self.config["sol_per_buy"] + 0.005
+            # Need: sol_per_buy + 0.003 SOL (ATA rent + fees)
+            sol_needed = self.config["sol_per_buy"] + 0.003
             unfunded = [w for w in subs if sol_bals.get(w["public_key"], 0) < sol_needed]
 
             # Check if main has enough to fund all unfunded
