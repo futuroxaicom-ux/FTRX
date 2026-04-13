@@ -118,8 +118,14 @@ class SniperBot:
 
     async def _run_loop(self):
         self._log("INFO", "", 0, "Sniper v3 started - high-liq + trend filter")
+        last_reset = time.time()
         while self.running:
             try:
+                # Reset known pairs every 10 min to discover new tokens
+                if time.time() - last_reset > 600:
+                    self._known_pairs.clear()
+                    last_reset = time.time()
+
                 if self.config.get("auto_discover", True):
                     await self._discover_new_pools()
                 if self.config.get("token_mint") and self.config["token_mint"] not in self._bought_tokens:
@@ -240,7 +246,9 @@ class SniperBot:
                         await self._snipe_token(token_addr, token_symbol)
 
                 if not pairs:
-                    self._log("SCAN", "", 0, "Scanning...")
+                    # Only log scan status every 5 minutes, not every cycle
+                    if int(time.time()) % 300 < self.config.get("check_interval", 8) + 1:
+                        self._log("SCAN", "", 0, f"Scanning... {len(self._known_pairs)} pairs known, waiting for new tokens")
 
         except Exception as e:
             logger.error(f"Discovery error: {e}")
