@@ -1132,7 +1132,7 @@ class VolumeBot:
                         logger.error(f"Token collect fail {w.get('label','')}: {send_resp.json().get('error',{}).get('message','')}")
                 except Exception as e:
                     logger.error(f"Token transfer error for {w.get('label','')}: {type(e).__name__}: {e}")
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1.5)
 
         return {"success": True, "wallets_collected": collected, "total_tokens": total_tokens}
 
