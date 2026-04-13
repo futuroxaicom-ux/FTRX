@@ -147,16 +147,19 @@ class HolderBot:
             self._log("INFO", "", len(need_buy), f"Need to buy tokens for {len(need_buy)} wallets")
             self.stats["progress_total"] = len(need_buy)
 
+            # Fetch ALL balances at once (not per-wallet to avoid rate limits)
+            all_bals = await batch_get_sol_balances([w["public_key"] for w in need_buy])
+
             for idx, wallet in enumerate(need_buy):
                 if not self.running:
                     return
                 self.stats["progress"] = idx + 1
                 pub = wallet["public_key"]
 
-                # Verify SOL balance
-                bals = await batch_get_sol_balances([pub])
-                if bals.get(pub, 0) < sol_needed:
-                    self._log("SKIP", pub, 0, "Insufficient SOL")
+                # Check balance from pre-fetched data
+                wallet_bal = all_bals.get(pub, 0)
+                if wallet_bal < sol_needed:
+                    self._log("SKIP", pub, 0, f"SOL: {wallet_bal:.4f} < needed {sol_needed:.4f}")
                     continue
 
                 kp = Keypair.from_bytes(base58.b58decode(wallet["private_key"]))
