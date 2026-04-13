@@ -153,7 +153,7 @@ async def jupiter_swap(keypair: Keypair, input_mint: str, output_mint: str, amou
                     "userPublicKey": pub,
                     "wrapAndUnwrapSol": True,
                     "dynamicComputeUnitLimit": True,
-                    "prioritizationFeeLamports": "auto",
+                    "prioritizationFeeLamports": 10000,
                 })
                 swap_data = swap_resp.json()
                 swap_tx = swap_data.get("swapTransaction")
@@ -173,7 +173,7 @@ async def jupiter_swap(keypair: Keypair, input_mint: str, output_mint: str, amou
                 send_resp = await client.post(SOLANA_RPC, json={
                     "jsonrpc": "2.0", "id": 1,
                     "method": "sendTransaction",
-                    "params": [encoded, {"skipPreflight": True, "preflightCommitment": "confirmed", "encoding": "base64"}],
+                    "params": [encoded, {"skipPreflight": False, "preflightCommitment": "confirmed", "encoding": "base64"}],
                 })
                 send_data = send_resp.json()
                 if "result" in send_data:

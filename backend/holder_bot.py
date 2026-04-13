@@ -113,10 +113,22 @@ class HolderBot:
             pubs = [w["public_key"] for w in subs]
             sol_bals = await batch_get_sol_balances(pubs)
 
-            # Need: sol_per_buy + 0.004 SOL (ATA rent + fees)
-            sol_needed = self.config["sol_per_buy"] + 0.004
+            # Need: sol_per_buy + 0.005 SOL (ATA rent 0.00204 + fees + priority + buffer)
+            sol_needed = self.config["sol_per_buy"] + 0.005
             unfunded = [w for w in subs if sol_bals.get(w["public_key"], 0) < sol_needed]
-            self._log("INFO", "", len(unfunded), f"Need to fund {len(unfunded)} wallets ({sol_needed:.4f} SOL each)")
+
+            # Check if main has enough to fund all unfunded
+            main_pub = main["public_key"]
+            main_bals = await batch_get_sol_balances([main_pub])
+            main_sol = main_bals.get(main_pub, 0)
+            total_needed = len(unfunded) * sol_needed
+            self._log("INFO", "", len(unfunded), f"Need to fund {len(unfunded)} wallets ({sol_needed:.4f} each). Main has {main_sol:.4f} SOL, needs {total_needed:.4f}")
+
+            if main_sol < sol_needed and unfunded:
+                self._log("ERROR", "", 0, f"Main wallet needs {total_needed:.4f} SOL but has only {main_sol:.4f}. Uzupelnij SOL!")
+                self.stats["phase"] = "error - insufficient SOL on main"
+                self.running = False
+                return
 
             # Phase 2: Distribute SOL to unfunded wallets
             if unfunded:
