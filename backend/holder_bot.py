@@ -5,6 +5,7 @@ import logging
 import base58
 import base64
 import httpx
+import httpx
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.system_program import transfer, TransferParams
@@ -355,19 +356,57 @@ class HolderBot:
             "running": self.running,
             "config": self.config,
             "stats": self.stats,
+            "total_holders": self.stats.get("total_holders", 0),
             "recent_transactions": self.transaction_log[-50:],
         }
 
     async def get_wallets_info(self):
+        await self.load_config()
         wallets = await self.db[self.collection_wallets].find({}, {"_id": 0, "private_key": 0}).to_list(1000)
         if not wallets:
             return []
         pubs = [w["public_key"] for w in wallets]
         sol_bals = await batch_get_sol_balances(pubs)
-        token_bals = await batch_get_token_balances(pubs, self.config.get("token_mint", ""))
         for w in wallets:
             w["balance_sol"] = sol_bals.get(w["public_key"], 0)
-            w["balance_token"] = token_bals.get(w["public_key"], 0)
+            w["balance_token"] = 0
+
+        # Fetch token balances using getTokenAccountsByOwner (reliable)
+        token_mint = self.config.get("token_mint", "")
+        if token_mint:
+            BATCH = 5
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                for i in range(0, len(wallets), BATCH):
+                    batch = wallets[i:i + BATCH]
+                    rpc_batch = [
+                        {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountsByOwner",
+                         "params": [w["public_key"], {"mint": token_mint}, {"encoding": "jsonParsed"}]}
+                        for idx, w in enumerate(batch)
+                    ]
+                    for rpc in [SOLANA_RPC, "https://api.mainnet-beta.solana.com"]:
+                        try:
+                            resp = await client.post(rpc, json=rpc_batch)
+                            if resp.status_code == 429:
+                                await asyncio.sleep(2)
+                                continue
+                            results = resp.json()
+                            if isinstance(results, list):
+                                for r in results:
+                                    rid = r.get("id", 0)
+                                    if 0 <= rid < len(batch):
+                                        accounts = r.get("result", {}).get("value", [])
+                                        if accounts:
+                                            ui = float(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"].get("uiAmount", 0) or 0)
+                                            batch[rid]["balance_token"] = ui
+                            break
+                        except Exception:
+                            continue
+                    await asyncio.sleep(0.3)
+
+        # Count holders
+        holders = len([w for w in wallets if w.get("balance_token", 0) > 0])
+        self.stats["total_holders"] = holders
+
         return wallets
 
     async def generate_wallets(self, count: int, prefix: str = "Holder"):
