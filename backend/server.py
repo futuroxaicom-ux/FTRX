@@ -108,7 +108,11 @@ class WalletAdd(BaseModel):
     private_key: str
 
 # Initialize volume bot
-volume_bot = VolumeBot(db)
+volume_bot = VolumeBot(db, "bot")
+
+# Initialize volume bot instances for other tokens
+volume_bot_2 = VolumeBot(db, "vol2")
+volume_bot_3 = VolumeBot(db, "vol3")
 
 # Initialize new bots
 spread_bot = SpreadBot(db)
@@ -120,6 +124,8 @@ holder_bot = HolderBot(db)
 
 BOT_REGISTRY = {
     "volume": volume_bot,
+    "volume2": volume_bot_2,
+    "volume3": volume_bot_3,
     "spread": spread_bot,
     "sniper": sniper_bot,
     "trade": trade_bot,
@@ -309,7 +315,7 @@ async def refresh_ftrx(x_admin_password: str = Header(None)):
 
 def _get_bot(bot_type: str):
     bot = BOT_REGISTRY.get(bot_type)
-    if not bot or bot_type == "volume":
+    if not bot:
         raise HTTPException(status_code=404, detail=f"Bot type '{bot_type}' not found")
     return bot
 
@@ -331,14 +337,17 @@ async def generic_bot_status(bot_type: str, x_admin_password: str = Header(None)
     if bot_type == "volume":
         return volume_bot.get_status()
     bot = _get_bot(bot_type)
+    if bot_type in ("volume2", "volume3"):
+        return bot.get_status()
     return await bot.get_status_async()
 
 @api_router.post("/admin/bot/{bot_type}/start")
 async def generic_bot_start(bot_type: str, x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)
-    if bot_type == "volume":
-        result = await volume_bot.start()
-        return {"success": result}
+    if bot_type in ("volume", "volume2", "volume3"):
+        bot = BOT_REGISTRY[bot_type]
+        result = await bot.start()
+        return {"success": result, "message": f"{bot_type} started" if result else "Already running or no token"}
     bot = _get_bot(bot_type)
     result = await bot.start()
     return {"success": result, "message": f"{bot_type} bot started" if result else f"{bot_type} bot already running or no token configured"}
@@ -346,8 +355,9 @@ async def generic_bot_start(bot_type: str, x_admin_password: str = Header(None))
 @api_router.post("/admin/bot/{bot_type}/stop")
 async def generic_bot_stop(bot_type: str, x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)
-    if bot_type == "volume":
-        result = await volume_bot.stop()
+    if bot_type in ("volume", "volume2", "volume3"):
+        bot = BOT_REGISTRY[bot_type]
+        result = await bot.stop()
         return {"success": result}
     bot = _get_bot(bot_type)
     result = await bot.stop()
@@ -356,9 +366,10 @@ async def generic_bot_stop(bot_type: str, x_admin_password: str = Header(None)):
 @api_router.post("/admin/bot/{bot_type}/config")
 async def generic_bot_config(bot_type: str, config: dict, x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)
-    if bot_type == "volume":
-        updated = volume_bot.update_config(config)
-        await volume_bot.save_config()
+    if bot_type in ("volume", "volume2", "volume3"):
+        bot = BOT_REGISTRY[bot_type]
+        updated = bot.update_config(config)
+        await bot.save_config()
         return {"success": True, "config": updated}
     bot = _get_bot(bot_type)
     updated = bot.update_config(config)
@@ -368,8 +379,9 @@ async def generic_bot_config(bot_type: str, config: dict, x_admin_password: str 
 @api_router.get("/admin/bot/{bot_type}/wallets")
 async def generic_bot_wallets(bot_type: str, x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)
-    if bot_type == "volume":
-        wallets = await volume_bot.get_wallets_info()
+    if bot_type in ("volume", "volume2", "volume3"):
+        bot = BOT_REGISTRY[bot_type]
+        wallets = await bot.get_wallets_info()
         return {"wallets": wallets}
     bot = _get_bot(bot_type)
     wallets = await bot.get_wallets_info()

@@ -18,6 +18,8 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, 
 const API = process.env.REACT_APP_BACKEND_URL || '';
 
 const OTHER_BOTS = [
+  { id: 'volume2', name: 'Volume Bot #2', icon: BarChart3, color: '#00FFD1', desc: 'Volume dla drugiego tokena' },
+  { id: 'volume3', name: 'Volume Bot #3', icon: BarChart3, color: '#00FFD1', desc: 'Volume dla trzeciego tokena' },
   { id: 'spread', name: 'Spread Bot', icon: TrendingUp, color: '#FFD700', desc: 'Market making' },
   { id: 'sniper', name: 'Sniper Bot', icon: Crosshair, color: '#FF4444', desc: 'Snipuj nowe pule' },
   { id: 'trade', name: 'Trade Bot', icon: Target, color: '#4488FF', desc: 'Auto-trading' },
@@ -941,6 +943,28 @@ function ActivityChart({ transactions }) {
 
 
 const BOT_CONFIG_FIELDS = {
+  volume2: [
+    { key: 'token_mint', label: 'Token Mint Address', type: 'text' },
+    { key: 'target_volume_sol', label: 'Target Volume (SOL/dzien)', type: 'number', step: 1 },
+    { key: 'target_makers', label: 'Target Makers (/dzien)', type: 'number' },
+    { key: 'trade_interval_min', label: 'Przerwa min (sekundy)', type: 'number' },
+    { key: 'trade_interval_max', label: 'Przerwa max (sekundy)', type: 'number' },
+    { key: 'min_sol_per_trade', label: 'Min SOL / trade', type: 'number', step: 0.001 },
+    { key: 'max_sol_per_trade', label: 'Max SOL / trade', type: 'number', step: 0.001 },
+    { key: 'slippage_bps', label: 'Slippage (bps)', type: 'number' },
+    { key: 'min_wallet_balance', label: 'Min saldo portfela (SOL)', type: 'number', step: 0.001 },
+  ],
+  volume3: [
+    { key: 'token_mint', label: 'Token Mint Address', type: 'text' },
+    { key: 'target_volume_sol', label: 'Target Volume (SOL/dzien)', type: 'number', step: 1 },
+    { key: 'target_makers', label: 'Target Makers (/dzien)', type: 'number' },
+    { key: 'trade_interval_min', label: 'Przerwa min (sekundy)', type: 'number' },
+    { key: 'trade_interval_max', label: 'Przerwa max (sekundy)', type: 'number' },
+    { key: 'min_sol_per_trade', label: 'Min SOL / trade', type: 'number', step: 0.001 },
+    { key: 'max_sol_per_trade', label: 'Max SOL / trade', type: 'number', step: 0.001 },
+    { key: 'slippage_bps', label: 'Slippage (bps)', type: 'number' },
+    { key: 'min_wallet_balance', label: 'Min saldo portfela (SOL)', type: 'number', step: 0.001 },
+  ],
   spread: [
     { key: 'token_mint', label: 'Token Mint Address', type: 'text' },
     { key: 'spread_percent', label: 'Spread (%)', type: 'number', step: 0.1 },

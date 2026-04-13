@@ -47,8 +47,10 @@ def gauss_amount(min_val, max_val):
 
 
 class VolumeBot:
-    def __init__(self, db):
+    def __init__(self, db, collection_prefix="bot"):
         self.db = db
+        self.wallets_collection = f"{collection_prefix}_wallets"
+        self.config_collection = f"{collection_prefix}_config"
         self.running = False
         self.task = None
         self.config = {
@@ -96,14 +98,14 @@ class VolumeBot:
         self._has_ata = set()
 
     async def load_config(self):
-        saved = await self.db.bot_config.find_one({"_id": "main"}, {"_id": 0})
+        saved = await self.db[self.config_collection].find_one({"_id": "main"}, {"_id": 0})
         if saved:
             for k, v in saved.items():
                 if k in self.config:
                     self.config[k] = v
 
     async def save_config(self):
-        await self.db.bot_config.update_one(
+        await self.db[self.config_collection].update_one(
             {"_id": "main"}, {"$set": self.config}, upsert=True
         )
 
@@ -886,7 +888,7 @@ class VolumeBot:
         return None
 
     async def _get_wallets(self):
-        return await self.db.bot_wallets.find({}, {"_id": 0}).to_list(200)
+        return await self.db[self.wallets_collection].find({}, {"_id": 0}).to_list(200)
 
     def _log_tx(self, tx_type, sol_amount, result, wallet_label):
         entry = {
@@ -910,10 +912,10 @@ class VolumeBot:
         if not keypair:
             return {"success": False, "error": "Invalid private key format"}
         pub = str(keypair.pubkey())
-        existing = await self.db.bot_wallets.find_one({"public_key": pub}, {"_id": 0})
+        existing = await self.db[self.wallets_collection].find_one({"public_key": pub}, {"_id": 0})
         if existing:
             return {"success": False, "error": "Wallet already exists"}
-        await self.db.bot_wallets.insert_one({
+        await self.db[self.wallets_collection].insert_one({
             "label": label, "public_key": pub,
             "private_key": private_key, "is_main": False,
             "added_at": datetime.now(timezone.utc).isoformat(),
@@ -921,25 +923,25 @@ class VolumeBot:
         return {"success": True, "public_key": pub}
 
     async def remove_wallet(self, public_key):
-        r = await self.db.bot_wallets.delete_one({"public_key": public_key})
+        r = await self.db[self.wallets_collection].delete_one({"public_key": public_key})
         return {"success": r.deleted_count > 0}
 
     async def set_main_wallet(self, public_key):
-        await self.db.bot_wallets.update_many({}, {"$set": {"is_main": False}})
-        await self.db.bot_wallets.update_one(
+        await self.db[self.wallets_collection].update_many({}, {"$set": {"is_main": False}})
+        await self.db[self.wallets_collection].update_one(
             {"public_key": public_key}, {"$set": {"is_main": True}}
         )
         return {"success": True}
 
     async def generate_wallets(self, count, prefix="Bot"):
         generated = []
-        existing_count = await self.db.bot_wallets.count_documents({})
+        existing_count = await self.db[self.wallets_collection].count_documents({})
         for i in range(min(count, 50)):
             kp = Keypair()
             pub = str(kp.pubkey())
             priv = base58.b58encode(bytes(kp)).decode("utf-8")
             label = f"{prefix} #{existing_count + i + 1}"
-            await self.db.bot_wallets.insert_one({
+            await self.db[self.wallets_collection].insert_one({
                 "label": label, "public_key": pub,
                 "private_key": priv, "is_main": False,
                 "added_at": datetime.now(timezone.utc).isoformat(),
@@ -948,7 +950,7 @@ class VolumeBot:
         return {"success": True, "count": len(generated), "wallets": generated}
 
     async def distribute_sol(self, sol_per_wallet):
-        main = await self.db.bot_wallets.find_one({"is_main": True}, {"_id": 0})
+        main = await self.db[self.wallets_collection].find_one({"is_main": True}, {"_id": 0})
         if not main:
             return {"error": "No main wallet set"}
         main_kp = self._load_keypair(main["private_key"])
@@ -1015,7 +1017,7 @@ class VolumeBot:
         }
 
     async def collect_sol(self):
-        main = await self.db.bot_wallets.find_one({"is_main": True}, {"_id": 0})
+        main = await self.db[self.wallets_collection].find_one({"is_main": True}, {"_id": 0})
         if not main:
             return {"error": "No main wallet set"}
         main_pub = main["public_key"]
@@ -1055,7 +1057,7 @@ class VolumeBot:
 
     async def get_wallets_info(self):
         await self.load_config()
-        wallets = await self.db.bot_wallets.find({}, {"_id": 0, "private_key": 0}).to_list(200)
+        wallets = await self.db[self.wallets_collection].find({}, {"_id": 0, "private_key": 0}).to_list(200)
         token_mint_str = self.config.get("token_mint", "")
         BATCH = 50
 
@@ -1127,7 +1129,7 @@ class VolumeBot:
 
     async def refresh_ftrx_balances(self):
         """Fetch actual FTRX balances from blockchain for active wallets"""
-        wallets = await self.db.bot_wallets.find({}, {"_id": 0, "private_key": 0}).to_list(200)
+        wallets = await self.db[self.wallets_collection].find({}, {"_id": 0, "private_key": 0}).to_list(200)
         token_mint = self.config.get("token_mint", "")
         if not token_mint:
             return {"wallets": 0, "holders": 0}
@@ -1162,7 +1164,7 @@ class VolumeBot:
 
     async def collect_ftrx(self):
         """Collect FTRX tokens from all sub-wallets to the main wallet"""
-        main = await self.db.bot_wallets.find_one({"is_main": True}, {"_id": 0})
+        main = await self.db[self.wallets_collection].find_one({"is_main": True}, {"_id": 0})
         if not main:
             return {"error": "Brak portfela glownego"}
         main_pub = Pubkey.from_string(main["public_key"])
