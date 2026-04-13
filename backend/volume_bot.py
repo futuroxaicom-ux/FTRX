@@ -1058,7 +1058,7 @@ class VolumeBot:
 
     async def collect_tokens_to_main(self):
         """Transfer ALL tokens from sub wallets to main wallet (SPL transfer, NOT sell)"""
-        wallets = await self.db[self.wallets_collection].find({}, {"_id": 0}).to_list(200)
+        wallets = await self.db[self.wallets_collection].find({}, {"_id": 0}).to_list(500)
         main = next((w for w in wallets if w.get("is_main")), None)
         subs = [w for w in wallets if not w.get("is_main")]
         if not main or not subs:
@@ -1073,58 +1073,63 @@ class VolumeBot:
         main_ata = get_ata(main_pub, mint_pub)
         collected = 0
         total_tokens = 0
+        RPC = "https://api.mainnet-beta.solana.com"
 
         async with httpx.AsyncClient(timeout=15.0) as client:
-            for w in subs:
+            for i, w in enumerate(subs):
                 try:
-                    # Get token balance
-                    resp = await client.post(SOLANA_RPC, json={
+                    sub_pub = Pubkey.from_string(w["public_key"])
+                    source_ata = get_ata(sub_pub, mint_pub)
+
+                    resp = await client.post(RPC, json={
                         "jsonrpc": "2.0", "id": 1,
-                        "method": "getTokenAccountsByOwner",
-                        "params": [w["public_key"], {"mint": token_mint_str}, {"encoding": "jsonParsed"}],
+                        "method": "getTokenAccountBalance",
+                        "params": [str(source_ata)],
                     })
-                    accounts = resp.json().get("result", {}).get("value", [])
-                    if not accounts:
+                    data = resp.json()
+                    if "error" in data:
                         continue
-                    raw_amount = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"])
+                    raw_amount = int(data["result"]["value"]["amount"])
                     if raw_amount <= 0:
                         continue
 
                     kp = Keypair.from_bytes(base58.b58decode(w["private_key"]))
-                    wallet_pub = Pubkey.from_string(w["public_key"])
-                    source_ata = get_ata(wallet_pub, mint_pub)
 
-                    # SPL Token transfer instruction
+                    # Fresh blockhash every 10 wallets
+                    if i % 10 == 0:
+                        bh_resp = await client.post(RPC, json={
+                            "jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash",
+                            "params": [{"commitment": "finalized"}],
+                        })
+                        bh = Hash.from_string(bh_resp.json()["result"]["value"]["blockhash"])
+
                     from solders.instruction import Instruction, AccountMeta
-                    # Transfer instruction = index 3, then amount as u64 little-endian
                     transfer_data = bytes([3]) + raw_amount.to_bytes(8, 'little')
                     transfer_ix = Instruction(
                         program_id=TOKEN_PROGRAM_ID,
                         accounts=[
                             AccountMeta(pubkey=source_ata, is_signer=False, is_writable=True),
                             AccountMeta(pubkey=main_ata, is_signer=False, is_writable=True),
-                            AccountMeta(pubkey=wallet_pub, is_signer=True, is_writable=False),
+                            AccountMeta(pubkey=sub_pub, is_signer=True, is_writable=False),
                         ],
                         data=transfer_data,
                     )
 
-                    bh_resp = await client.post(SOLANA_RPC, json={
-                        "jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash",
-                        "params": [{"commitment": "confirmed"}],
-                    })
-                    bh = Hash.from_string(bh_resp.json()["result"]["value"]["blockhash"])
-                    msg = Message.new_with_blockhash([transfer_ix], wallet_pub, bh)
+                    msg = Message.new_with_blockhash([transfer_ix], sub_pub, bh)
                     tx = Transaction.new_unsigned(msg)
                     tx.sign([kp], bh)
                     encoded = base64.b64encode(bytes(tx)).decode("utf-8")
 
-                    send_resp = await client.post(SOLANA_RPC, json={
+                    send_resp = await client.post(RPC, json={
                         "jsonrpc": "2.0", "id": 1, "method": "sendTransaction",
-                        "params": [encoded, {"encoding": "base64", "skipPreflight": False}],
+                        "params": [encoded, {"encoding": "base64", "skipPreflight": True}],
                     })
                     if "result" in send_resp.json():
                         collected += 1
                         total_tokens += raw_amount
+                        logger.info(f"Collected {raw_amount} tokens from {w.get('label','')}")
+                    else:
+                        logger.error(f"Token collect fail {w.get('label','')}: {send_resp.json().get('error',{}).get('message','')}")
                 except Exception as e:
                     logger.error(f"Token transfer error for {w.get('label','')}: {type(e).__name__}: {e}")
                 await asyncio.sleep(0.5)
