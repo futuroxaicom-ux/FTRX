@@ -311,6 +311,34 @@ async def refresh_ftrx(x_admin_password: str = Header(None)):
     asyncio.create_task(run_refresh())
     return {"success": True, "message": "Refreshing FTRX balances..."}
 
+@api_router.post("/admin/wallets/cleanup")
+async def cleanup_wallets(body: dict, x_admin_password: str = Header(None)):
+    """Delete empty wallets, keep N wallets + main"""
+    verify_admin(x_admin_password)
+    keep_count = body.get("keep_count", 25)
+    wallets = await db[volume_bot.wallets_collection].find({}, {"_id": 0}).to_list(500)
+    main = next((w for w in wallets if w.get("is_main")), None)
+    subs = [w for w in wallets if not w.get("is_main")]
+    
+    # Sort by SOL balance descending - keep the richest
+    from bot_utils import batch_get_sol_balances
+    pubs = [w["public_key"] for w in subs]
+    bals = await batch_get_sol_balances(pubs)
+    for w in subs:
+        w["_sol"] = bals.get(w["public_key"], 0)
+    subs.sort(key=lambda x: x["_sol"], reverse=True)
+    
+    keep = subs[:keep_count]
+    delete = subs[keep_count:]
+    
+    deleted = 0
+    for w in delete:
+        await db[volume_bot.wallets_collection].delete_one({"public_key": w["public_key"]})
+        deleted += 1
+    
+    return {"deleted": deleted, "remaining": keep_count + 1, "message": f"Deleted {deleted} wallets, kept {keep_count} + main"}
+
+
 # ========== GENERIC BOT ENDPOINTS (spread, sniper, trade, arbitrage, copytrade) ==========
 
 def _get_bot(bot_type: str):
