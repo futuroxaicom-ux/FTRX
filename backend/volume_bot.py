@@ -1179,15 +1179,33 @@ class VolumeBot:
             return {"error": "Not enough tokens to distribute"}
 
         distributed = 0
+        RPC = "https://api.mainnet-beta.solana.com"
+        from solders.instruction import Instruction, AccountMeta
+        SYSTEM_PROGRAM = Pubkey.from_string("11111111111111111111111111111111")
+
         async with httpx.AsyncClient(timeout=15.0) as client:
-            for w in subs:
+            for i, w in enumerate(subs):
                 if raw_per_wallet * (len(subs) - distributed) > main_raw - (raw_per_wallet * distributed):
                     break
                 try:
                     wallet_pub = Pubkey.from_string(w["public_key"])
                     dest_ata = get_ata(wallet_pub, mint_pub)
 
-                    from solders.instruction import Instruction, AccountMeta
+                    # Create ATA instruction (idempotent - won't fail if exists)
+                    create_ata_ix = Instruction(
+                        program_id=ASSOCIATED_TOKEN_PROGRAM_ID,
+                        accounts=[
+                            AccountMeta(pubkey=main_pub, is_signer=True, is_writable=True),
+                            AccountMeta(pubkey=dest_ata, is_signer=False, is_writable=True),
+                            AccountMeta(pubkey=wallet_pub, is_signer=False, is_writable=False),
+                            AccountMeta(pubkey=mint_pub, is_signer=False, is_writable=False),
+                            AccountMeta(pubkey=SYSTEM_PROGRAM, is_signer=False, is_writable=False),
+                            AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+                        ],
+                        data=bytes([1]),  # CreateIdempotent
+                    )
+
+                    # SPL Transfer instruction
                     transfer_data = bytes([3]) + raw_per_wallet.to_bytes(8, 'little')
                     transfer_ix = Instruction(
                         program_id=TOKEN_PROGRAM_ID,
@@ -1199,19 +1217,21 @@ class VolumeBot:
                         data=transfer_data,
                     )
 
-                    bh_resp = await client.post(SOLANA_RPC, json={
-                        "jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash",
-                        "params": [{"commitment": "confirmed"}],
-                    })
-                    bh = Hash.from_string(bh_resp.json()["result"]["value"]["blockhash"])
-                    msg = Message.new_with_blockhash([transfer_ix], main_pub, bh)
+                    if i % 10 == 0:
+                        bh_resp = await client.post(RPC, json={
+                            "jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash",
+                            "params": [{"commitment": "finalized"}],
+                        })
+                        bh = Hash.from_string(bh_resp.json()["result"]["value"]["blockhash"])
+
+                    msg = Message.new_with_blockhash([create_ata_ix, transfer_ix], main_pub, bh)
                     tx = Transaction.new_unsigned(msg)
                     tx.sign([main_kp], bh)
                     encoded = base64.b64encode(bytes(tx)).decode("utf-8")
 
-                    send_resp = await client.post(SOLANA_RPC, json={
+                    send_resp = await client.post(RPC, json={
                         "jsonrpc": "2.0", "id": 1, "method": "sendTransaction",
-                        "params": [encoded, {"encoding": "base64", "skipPreflight": False}],
+                        "params": [encoded, {"encoding": "base64", "skipPreflight": True}],
                     })
                     if "result" in send_resp.json():
                         distributed += 1
