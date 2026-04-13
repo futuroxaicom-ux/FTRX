@@ -373,7 +373,18 @@ class HolderBot:
 
         # Fetch token balances using getTokenAccountsByOwner (reliable)
         token_mint = self.config.get("token_mint", "")
+        token_symbol = ""
         if token_mint:
+            # Get token symbol from DexScreener
+            try:
+                async with httpx.AsyncClient(timeout=8.0) as ds_client:
+                    ds_resp = await ds_client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_mint}")
+                    ds_pairs = ds_resp.json().get("pairs", [])
+                    if ds_pairs:
+                        token_symbol = ds_pairs[0].get("baseToken", {}).get("symbol", "")
+            except Exception:
+                pass
+
             BATCH = 5
             async with httpx.AsyncClient(timeout=15.0) as client:
                 for i in range(0, len(wallets), BATCH):
@@ -406,6 +417,10 @@ class HolderBot:
         # Count holders
         holders = len([w for w in wallets if w.get("balance_token", 0) > 0])
         self.stats["total_holders"] = holders
+
+        # Add token symbol to each wallet
+        for w in wallets:
+            w["token_symbol"] = token_symbol
 
         return wallets
 

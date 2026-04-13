@@ -1076,6 +1076,8 @@ function GenericBotDashboard({ botType, pw, onBack }) {
   const running = status?.running || false;
   const totalSol = wallets.reduce((s, w) => s + (w.balance_sol || 0), 0);
   const totalToken = wallets.reduce((s, w) => s + (w.balance_token || 0), 0);
+  const tokenSymbol = wallets.find(w => w.token_symbol)?.token_symbol || 'Token';
+  const holdersCount = wallets.filter(w => (w.balance_token || 0) > 0).length;
   const fields = BOT_CONFIG_FIELDS[botType] || [];
   const txColors = { BUY: '#00FF88', SELL: '#FF4444', TRANSFER: '#4488FF', ERROR: '#666', SNIPE_BUY: '#FFD700', TAKE_PROFIT: '#00FF88', STOP_LOSS: '#FF4444', COPY_BUY: '#FF8844', COPY_SELL: '#FF4444', WHALE_BUY: '#FFD700', WHALE_SELL: '#FF8844', ARB_SUCCESS: '#00FF88', ARB_FAIL: '#FF4444', OPPORTUNITY: '#AA44FF', NEW_POOL: '#FFD700', REFUND: '#888' };
 
@@ -1304,7 +1306,7 @@ function GenericBotDashboard({ botType, pw, onBack }) {
 
         {/* Wallets */}
         <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.1)]">
-          <CardHeader className="pb-2"><CardTitle className="text-white text-sm">Portfele ({wallets.length}) | {totalSol.toFixed(4)} SOL{totalToken > 0 ? ` | ${totalToken.toFixed(2)} Token` : ''}</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-white text-sm">Portfele ({wallets.length}) | {totalSol.toFixed(4)} SOL{totalToken > 0 ? ` | ${totalToken.toFixed(2)} ${tokenSymbol}` : ''}{botType === 'holder' ? ` | Holders: ${holdersCount}` : ''}</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
               <div className="flex gap-2"><Input type="number" value={genCount} onChange={e => setGenCount(parseInt(e.target.value)||1)} className="bg-black border-[rgba(255,255,255,0.15)] text-white w-20" /><Button onClick={generateWallets} disabled={loading} className="flex-1 bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.1)]"><Plus className="w-4 h-4 mr-1" /> Generuj</Button></div>
@@ -1317,7 +1319,7 @@ function GenericBotDashboard({ botType, pw, onBack }) {
                   <div className="flex items-center gap-2"><span className="text-sm">{w.label}</span>{w.is_main && <span className="text-[10px] bg-yellow-600 text-black px-1.5 rounded font-bold">GLOWNY</span>}<span className="text-xs text-[#555] truncate max-w-[200px]">{w.public_key}</span></div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-green-400">{(w.balance_sol||0).toFixed(4)} SOL</span>
-                    {(w.balance_token||0) > 0 && <span className="text-sm text-orange-400">{(w.balance_token||0).toFixed(2)}</span>}
+                    {(w.balance_token||0) > 0 && <span className="text-sm text-orange-400">{(w.balance_token||0).toFixed(2)} {w.token_symbol || tokenSymbol}</span>}
                     <button onClick={async () => { await fetch(`${API}/api/admin/bot/${botType}/wallets/${w.public_key}/main`, { method: 'POST', headers }); fetchData(); }} className="text-yellow-500/50 hover:text-yellow-400"><Star className="w-4 h-4" /></button>
                     <button onClick={async () => { await fetch(`${API}/api/admin/bot/${botType}/wallets/${w.public_key}`, { method: 'DELETE', headers }); fetchData(); }} className="text-red-400/50 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                   </div>
