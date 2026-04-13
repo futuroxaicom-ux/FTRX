@@ -140,16 +140,26 @@ class VolumeBot:
         return True
 
     async def _prescan_atas(self):
-        """Force ATA detection on startup - prevents errors from unknown ATA state"""
+        """Force ATA detection + token holder detection on startup"""
         try:
             wallets = await self._get_wallets()
             sub_wallets = [w for w in wallets if not w.get("is_main")]
             if sub_wallets:
                 await self._refresh_balances(sub_wallets)
                 await self._detect_existing_atas(sub_wallets)
-                logger.info(f"Pre-scan complete: {len(self._has_ata)} wallets with ATA detected")
+                # Scan for existing token holdings
+                token_mint = self.config.get("token_mint", "")
+                if token_mint:
+                    pubs = [w["public_key"] for w in sub_wallets]
+                    from bot_utils import batch_get_token_balances
+                    token_bals = await batch_get_token_balances(pubs, token_mint)
+                    for pub, bal in token_bals.items():
+                        if bal > 0:
+                            self._token_holders[pub] = {"amount": int(bal * 1e6), "time": time.time()}
+                            self._has_ata.add(pub)
+                logger.info(f"Pre-scan complete: {len(self._has_ata)} ATAs, {len(self._token_holders)} token holders")
         except Exception as e:
-            logger.error(f"Pre-scan ATA error: {e}")
+            logger.error(f"Pre-scan error: {e}")
 
     async def stop(self):
         self.running = False
