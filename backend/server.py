@@ -555,6 +555,56 @@ async def generic_bot_collect_status(bot_type: str, x_admin_password: str = Head
     verify_admin(x_admin_password)
     return _bot_collect_status.get(bot_type, {"running": False, "result": None})
 
+_bot_token_distribute_status = {}
+_bot_token_collect_status = {}
+
+@api_router.post("/admin/bot/{bot_type}/wallets/distribute-tokens")
+async def generic_bot_distribute_tokens(bot_type: str, body: dict, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    bot = _get_bot(bot_type)
+    key = f"{bot_type}_tokens"
+    if _bot_token_distribute_status.get(key, {}).get("running"):
+        return {"error": "Already running"}
+    tokens_per_wallet = body.get("tokens_per_wallet", 0)
+    async def run():
+        _bot_token_distribute_status[key] = {"running": True, "result": None}
+        try:
+            result = await bot.distribute_tokens(tokens_per_wallet)
+            _bot_token_distribute_status[key]["result"] = result
+        except Exception as e:
+            _bot_token_distribute_status[key]["result"] = {"error": str(e)}
+        _bot_token_distribute_status[key]["running"] = False
+    asyncio.create_task(run())
+    return {"success": True, "message": f"Distributing tokens to {bot_type} wallets..."}
+
+@api_router.get("/admin/bot/{bot_type}/wallets/distribute-tokens/status")
+async def generic_bot_distribute_tokens_status(bot_type: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return _bot_token_distribute_status.get(f"{bot_type}_tokens", {"running": False, "result": None})
+
+@api_router.post("/admin/bot/{bot_type}/wallets/collect-tokens")
+async def generic_bot_collect_tokens(bot_type: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    bot = _get_bot(bot_type)
+    key = f"{bot_type}_tokens"
+    if _bot_token_collect_status.get(key, {}).get("running"):
+        return {"error": "Already running"}
+    async def run():
+        _bot_token_collect_status[key] = {"running": True, "result": None}
+        try:
+            result = await bot.collect_tokens_to_main()
+            _bot_token_collect_status[key]["result"] = result
+        except Exception as e:
+            _bot_token_collect_status[key]["result"] = {"error": str(e)}
+        _bot_token_collect_status[key]["running"] = False
+    asyncio.create_task(run())
+    return {"success": True, "message": f"Collecting tokens from {bot_type} wallets..."}
+
+@api_router.get("/admin/bot/{bot_type}/wallets/collect-tokens/status")
+async def generic_bot_collect_tokens_status(bot_type: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return _bot_token_collect_status.get(f"{bot_type}_tokens", {"running": False, "result": None})
+
 # Sniper bot specific endpoints
 @api_router.post("/admin/bot/sniper/sell")
 async def sniper_manual_sell(body: dict, x_admin_password: str = Header(None)):

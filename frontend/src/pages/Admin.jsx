@@ -133,10 +133,12 @@ function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
       .replace(/\/api\/admin\/wallets\/([^/]+)\/main/, `/api/admin/bot/${botType}/wallets/$1/main`)
       .replace(/\/api\/admin\/wallets\/([^/]+)$/, `/api/admin/bot/${botType}/wallets/$1`)
       .replace('/api/admin/wallets/generate', `/api/admin/bot/${botType}/wallets/generate`)
+      .replace('/api/admin/wallets/distribute-tokens/status', `/api/admin/bot/${botType}/wallets/distribute-tokens/status`)
+      .replace('/api/admin/wallets/distribute-tokens', `/api/admin/bot/${botType}/wallets/distribute-tokens`)
       .replace('/api/admin/wallets/distribute/status', `/api/admin/bot/${botType}/wallets/distribute/status`)
       .replace('/api/admin/wallets/distribute', `/api/admin/bot/${botType}/wallets/distribute`)
-      .replace('/api/admin/wallets/collect-ftrx/status', `/api/admin/bot/${botType}/wallets/collect/status`)
-      .replace('/api/admin/wallets/collect-ftrx', `/api/admin/bot/${botType}/wallets/collect`)
+      .replace('/api/admin/wallets/collect-ftrx/status', `/api/admin/bot/${botType}/wallets/collect-tokens/status`)
+      .replace('/api/admin/wallets/collect-ftrx', `/api/admin/bot/${botType}/wallets/collect-tokens`)
       .replace('/api/admin/wallets/collect/status', `/api/admin/bot/${botType}/wallets/collect/status`)
       .replace('/api/admin/wallets/collect', `/api/admin/bot/${botType}/wallets/collect`)
       .replace('/api/admin/wallets/refresh-ftrx', `/api/admin/bot/${botType}/wallets`)
@@ -447,6 +449,7 @@ function WalletSection({ wallets, h, onRefresh, apiCall, pairMode, botType, mapU
   const [distributing, setDistributing] = useState(false);
   const [collecting, setCollecting] = useState(false);
   const [collectingFtrx, setCollectingFtrx] = useState(false);
+  const [distributingTokens, setDistributingTokens] = useState(false);
 
   const addWallet = async (e) => {
     e.preventDefault();
@@ -499,6 +502,12 @@ function WalletSection({ wallets, h, onRefresh, apiCall, pairMode, botType, mapU
     setCollectingFtrx(true);
     await apiCall('/api/admin/wallets/collect-ftrx', 'POST');
     pollStatus('/api/admin/wallets/collect-ftrx/status', setCollectingFtrx);
+  };
+
+  const handleDistributeTokens = async () => {
+    setDistributingTokens(true);
+    await apiCall('/api/admin/wallets/distribute-tokens', 'POST', { tokens_per_wallet: 0 });
+    pollStatus('/api/admin/wallets/distribute-tokens/status', setDistributingTokens);
   };
 
   const totalBal = wallets.reduce((s, w) => s + (w.balance_sol || 0), 0);
@@ -560,7 +569,7 @@ function WalletSection({ wallets, h, onRefresh, apiCall, pairMode, botType, mapU
               {mainWallet && <p className="text-xs text-[#555]">Total: {(distSol * (wallets.length - 1)).toFixed(3)} SOL na {wallets.length - 1} portfeli</p>}
             </div>
             <div className="bg-black/50 p-4 rounded border border-[rgba(255,255,255,0.05)] space-y-2 flex flex-col">
-              <p className="text-sm text-[#888] flex items-center gap-2"><Download className="w-4 h-4 text-[#00FFD1]" />Zbierz do glownego</p>
+              <p className="text-sm text-[#888] flex items-center gap-2"><Download className="w-4 h-4 text-[#00FFD1]" />Zbierz / Rozdziel tokeny</p>
               {!mainWallet && <p className="text-xs text-yellow-500">Oznacz portfel jako glowny</p>}
               <div className="flex-1" />
               <div className="space-y-2">
@@ -569,6 +578,9 @@ function WalletSection({ wallets, h, onRefresh, apiCall, pairMode, botType, mapU
                 </Button>
                 <Button data-testid="collect-ftrx-btn" disabled={!mainWallet || collectingFtrx} onClick={handleCollectFtrx} className="bg-orange-600 hover:bg-orange-700 text-white h-10 w-full">
                   {collectingFtrx ? <><RefreshCw className="w-4 h-4 animate-spin mr-2" />Zbieram {tokenLabel}...</> : <><Coins className="w-4 h-4 mr-2" />Zbierz caly {tokenLabel}</>}
+                </Button>
+                <Button data-testid="distribute-tokens-btn" disabled={!mainWallet || distributingTokens} onClick={handleDistributeTokens} className="bg-teal-600 hover:bg-teal-700 text-white h-10 w-full">
+                  {distributingTokens ? <><RefreshCw className="w-4 h-4 animate-spin mr-2" />Rozdzielam {tokenLabel}...</> : <><Upload className="w-4 h-4 mr-2" />Rozdziel {tokenLabel} (z glownego)</>}
                 </Button>
               </div>
             </div>
