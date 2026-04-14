@@ -276,7 +276,7 @@ function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
         <PhantomFunding wallets={wallets} onRefresh={fetchAll} />
 
         {/* Wallets */}
-        <WalletSection wallets={wallets} h={h} onRefresh={fetchAll} apiCall={apiCall} />
+        <WalletSection wallets={wallets} h={h} onRefresh={fetchAll} apiCall={apiCall} pairMode={status?.pair_mode} botType={botType} mapUrl={mapUrl} />
 
         {/* Tx Log */}
         <TxLog transactions={status?.recent_transactions || []} />
@@ -437,7 +437,7 @@ const CostItem = ({ label, value, sub, highlight }) => (
   </div>
 );
 
-function WalletSection({ wallets, h, onRefresh, apiCall }) {
+function WalletSection({ wallets, h, onRefresh, apiCall, pairMode, botType, mapUrl: mapUrlProp }) {
   const [label, setLabel] = useState('');
   const [pk, setPk] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -506,6 +506,8 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
   const totalQuote = wallets.reduce((s, w) => s + (w.balance_quote || 0), 0);
   const mainWallet = wallets.find(w => w.is_main);
   const subWallets = wallets.filter(w => !w.is_main);
+  const tokenLabel = pairMode ? 'MAKK GL' : botType === 'volume' ? 'FTRX' : 'Token';
+  const quoteLabel = pairMode ? 'CRBR' : 'Quote';
 
   return (
     <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
@@ -513,7 +515,7 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-white text-lg flex items-center gap-2">
             <Wallet className="w-5 h-5 text-[#00FFD1]" />Portfele ({wallets.length})
-            <span className="text-sm font-normal text-[#666]">| {totalBal.toFixed(4)} SOL | {totalFtrx > 0 ? `${totalFtrx.toFixed(2)} Token` : '0 Token'}{totalQuote > 0 ? ` | ${totalQuote.toFixed(2)} Quote` : ''}</span>
+            <span className="text-sm font-normal text-[#666]">| {totalBal.toFixed(4)} SOL | {totalFtrx > 0 ? `${totalFtrx.toFixed(2)} ${tokenLabel}` : `0 ${tokenLabel}`}{totalQuote > 0 ? ` | ${totalQuote.toFixed(2)} ${quoteLabel}` : ''}</span>
           </CardTitle>
           <Button
             data-testid="refresh-ftrx-btn"
@@ -521,7 +523,7 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
             variant="ghost"
             className="text-orange-400/60 hover:text-orange-400 text-xs h-8 px-3"
           >
-            <Coins className="w-3.5 h-3.5 mr-1" />Odswiez FTRX
+            <Coins className="w-3.5 h-3.5 mr-1" />Odswiez {tokenLabel}
           </Button>
         </div>
       </CardHeader>
@@ -566,7 +568,7 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
                   {collecting ? <><RefreshCw className="w-4 h-4 animate-spin mr-2" />Zbieram SOL...</> : <><Download className="w-4 h-4 mr-2" />Zbierz caly SOL</>}
                 </Button>
                 <Button data-testid="collect-ftrx-btn" disabled={!mainWallet || collectingFtrx} onClick={handleCollectFtrx} className="bg-orange-600 hover:bg-orange-700 text-white h-10 w-full">
-                  {collectingFtrx ? <><RefreshCw className="w-4 h-4 animate-spin mr-2" />Zbieram FTRX...</> : <><Coins className="w-4 h-4 mr-2" />Zbierz caly FTRX</>}
+                  {collectingFtrx ? <><RefreshCw className="w-4 h-4 animate-spin mr-2" />Zbieram {tokenLabel}...</> : <><Coins className="w-4 h-4 mr-2" />Zbierz caly {tokenLabel}</>}
                 </Button>
               </div>
             </div>
@@ -606,15 +608,15 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
                 <div className="flex items-center gap-3 flex-shrink-0 ml-3">
                   <div className="text-right">
                     <span className="text-sm font-semibold text-[#00FFD1] block">{(w.balance_sol || 0).toFixed(4)} <span className="text-[10px] text-[#666]">SOL</span></span>
-                    {(w.balance_ftrx || 0) > 0 && <span className="text-xs font-medium text-orange-400 block">{(w.balance_ftrx).toFixed(2)} <span className="text-[10px] text-[#666]">Base</span></span>}
-                    {(w.balance_quote || 0) > 0 && <span className="text-xs font-medium text-blue-400 block">{(w.balance_quote).toFixed(2)} <span className="text-[10px] text-[#666]">Quote</span></span>}
+                    {(w.balance_ftrx || 0) > 0 && <span className="text-xs font-medium text-orange-400 block">{(w.balance_ftrx).toFixed(2)} <span className="text-[10px] text-[#666]">{tokenLabel}</span></span>}
+                    {(w.balance_quote || 0) > 0 && <span className="text-xs font-medium text-blue-400 block">{(w.balance_quote).toFixed(2)} <span className="text-[10px] text-[#666]">{quoteLabel}</span></span>}
                   </div>
                   {!w.is_main && (
-                    <button onClick={() => { fetch(`${API}${mapUrl(`/api/admin/wallets/${w.public_key}/main`)}`, { method: 'POST', headers: h }).then(() => { toast.success('Glowny portfel ustawiony'); onRefresh(); }); }} title="Ustaw jako glowny" className="text-yellow-500/50 hover:text-yellow-400 transition-colors">
+                    <button onClick={() => { fetch(`${API}${mapUrlProp(`/api/admin/wallets/${w.public_key}/main`)}`, { method: 'POST', headers: h }).then(() => { toast.success('Glowny portfel ustawiony'); onRefresh(); }); }} title="Ustaw jako glowny" className="text-yellow-500/50 hover:text-yellow-400 transition-colors">
                       <Star className="w-4 h-4" />
                     </button>
                   )}
-                  <button onClick={async () => { await fetch(`${API}${mapUrl(`/api/admin/wallets/${w.public_key}`)}`, { method: 'DELETE', headers: h }); toast.success('Usuniety'); onRefresh(); }} className="text-red-400/50 hover:text-red-400 transition-colors">
+                  <button onClick={async () => { await fetch(`${API}${mapUrlProp(`/api/admin/wallets/${w.public_key}`)}`, { method: 'DELETE', headers: h }); toast.success('Usuniety'); onRefresh(); }} className="text-red-400/50 hover:text-red-400 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
