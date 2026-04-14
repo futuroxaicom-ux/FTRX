@@ -199,7 +199,7 @@ class VolumeBot:
             logger.error(f"Pre-scan error: {e}")
 
     async def _refresh_pair_token_balances(self, wallets):
-        """Refresh both token balances in pair mode"""
+        """Refresh both token balances in pair mode - uses SINGLE RPC calls (batch is 403/429 blocked)"""
         now = time.time()
         if now - self._base_token_cache_time < 30:
             return
@@ -208,44 +208,37 @@ class VolumeBot:
         if not token_mint or not output_mint:
             return
 
-        for mint_str, cache in [(token_mint, self._base_token_cache), (output_mint, self._quote_token_cache)]:
-            mint_pub = Pubkey.from_string(mint_str)
-            ata_map = []
-            for w in wallets:
-                try:
-                    wallet_pub = Pubkey.from_string(w["public_key"])
-                    ata = get_ata(wallet_pub, mint_pub)
-                    ata_map.append((w["public_key"], str(ata)))
-                except Exception:
-                    pass
+        # mainnet-beta for single token queries (Helius key may be expired, publicnode blocks batch)
+        RPC = "https://api.mainnet-beta.solana.com"
 
-            BATCH = 5
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                for i in range(0, len(ata_map), BATCH):
-                    batch_items = ata_map[i:i + BATCH]
-                    rpc_batch = [
-                        {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountBalance", "params": [ata_addr]}
-                        for idx, (_, ata_addr) in enumerate(batch_items)
-                    ]
-                    for rpc in [SOLANA_RPC, "https://api.mainnet-beta.solana.com"]:
-                        try:
-                            resp = await client.post(rpc, json=rpc_batch)
-                            if resp.status_code == 429:
-                                await asyncio.sleep(2)
-                                continue
-                            results = resp.json()
-                            if isinstance(results, list):
-                                for r in results:
-                                    rid = r.get("id", 0)
-                                    if 0 <= rid < len(batch_items):
-                                        val = r.get("result", {}).get("value", {})
-                                        raw_amount = int(val.get("amount", "0"))
-                                        if raw_amount > 0:
-                                            cache[batch_items[rid][0]] = raw_amount
-                            break
-                        except Exception:
-                            continue
-                    await asyncio.sleep(0.5)
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            for mint_str, cache in [(token_mint, self._base_token_cache), (output_mint, self._quote_token_cache)]:
+                for w in wallets:
+                    pub = w["public_key"]
+                    try:
+                        resp = await client.post(RPC, json={
+                            "jsonrpc": "2.0", "id": 1,
+                            "method": "getTokenAccountsByOwner",
+                            "params": [pub, {"mint": mint_str}, {"encoding": "jsonParsed"}],
+                        })
+                        if resp.status_code == 429:
+                            logger.warning("mainnet-beta 429 rate limit, waiting 3s...")
+                            await asyncio.sleep(3)
+                            # Retry once
+                            resp = await client.post(RPC, json={
+                                "jsonrpc": "2.0", "id": 1,
+                                "method": "getTokenAccountsByOwner",
+                                "params": [pub, {"mint": mint_str}, {"encoding": "jsonParsed"}],
+                            })
+                        data = resp.json()
+                        accounts = data.get("result", {}).get("value", [])
+                        if accounts:
+                            raw = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"])
+                            if raw > 0:
+                                cache[pub] = raw
+                    except Exception as e:
+                        logger.error(f"Token balance fetch error for {pub[:12]}: {e}")
+                    await asyncio.sleep(0.5)  # 500ms between calls to avoid 429
 
         self._base_token_cache_time = now
         base_holders = sum(1 for v in self._base_token_cache.values() if v > 0)
