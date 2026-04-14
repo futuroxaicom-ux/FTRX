@@ -311,6 +311,23 @@ async def refresh_ftrx(x_admin_password: str = Header(None)):
     asyncio.create_task(run_refresh())
     return {"success": True, "message": "Refreshing FTRX balances..."}
 
+
+@api_router.post("/admin/wallets/send-sol")
+async def send_sol_to_wallet(body: dict, x_admin_password: str = Header(None)):
+    """Send SOL from main wallet to a specific sub wallet"""
+    verify_admin(x_admin_password)
+    target_pk = body.get("public_key", "")
+    amount = body.get("amount", 0)
+    if not target_pk or amount <= 0:
+        raise HTTPException(status_code=400, detail="public_key and amount required")
+    main = await db[volume_bot.wallets_collection].find_one({"is_main": True}, {"_id": 0})
+    if not main:
+        return {"error": "No main wallet"}
+    from bot_utils import distribute_sol_from_wallet
+    kp = Keypair.from_bytes(base58.b58decode(main["private_key"]))
+    result = await distribute_sol_from_wallet(kp, [target_pk], amount)
+    return {"success": result.get("success", 0) > 0, "result": result}
+
 _token_collect_status = {"running": False, "result": None}
 _token_distribute_status = {"running": False, "result": None}
 
