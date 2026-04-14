@@ -147,17 +147,28 @@ class VolumeBot:
             if sub_wallets:
                 await self._refresh_balances(sub_wallets)
                 await self._detect_existing_atas(sub_wallets)
-                # Scan for existing token holdings
+                # Scan for existing token holdings via mainnet-beta
                 token_mint = self.config.get("token_mint", "")
                 if token_mint:
-                    pubs = [w["public_key"] for w in sub_wallets]
-                    from bot_utils import batch_get_token_balances
-                    token_bals = await batch_get_token_balances(pubs, token_mint)
-                    for pub, bal in token_bals.items():
-                        if bal > 0:
-                            self._token_holders[pub] = {"amount": int(bal * 1e6), "time": time.time()}
-                            self._has_ata.add(pub)
-                logger.info(f"Pre-scan complete: {len(self._has_ata)} ATAs, {len(self._token_holders)} token holders")
+                    RPC = "https://api.mainnet-beta.solana.com"
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        for w in sub_wallets:
+                            try:
+                                resp = await client.post(RPC, json={
+                                    "jsonrpc": "2.0", "id": 1,
+                                    "method": "getTokenAccountsByOwner",
+                                    "params": [w["public_key"], {"mint": token_mint}, {"encoding": "jsonParsed"}],
+                                })
+                                accounts = resp.json().get("result", {}).get("value", [])
+                                if accounts:
+                                    raw = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"])
+                                    if raw > 0:
+                                        self._token_holders[w["public_key"]] = {"amount": raw, "time": time.time()}
+                                        self._has_ata.add(w["public_key"])
+                            except Exception:
+                                pass
+                            await asyncio.sleep(0.3)
+                logger.info(f"Pre-scan: {len(self._has_ata)} ATAs, {len(self._token_holders)} token holders")
         except Exception as e:
             logger.error(f"Pre-scan error: {e}")
 
