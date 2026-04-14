@@ -19,7 +19,7 @@ const API = process.env.REACT_APP_BACKEND_URL || '';
 
 const OTHER_BOTS = [
   { id: 'volume2', name: 'Volume Bot #2', icon: BarChart3, color: '#00FFD1', desc: 'Volume dla drugiego tokena' },
-  { id: 'volume3', name: 'Volume Bot #3', icon: BarChart3, color: '#00FFD1', desc: 'Volume dla trzeciego tokena' },
+  { id: 'volume3', name: 'Bot Makk GL', icon: BarChart3, color: '#FF6B35', desc: 'Volume MAKK GL / CRBR' },
   { id: 'spread', name: 'Spread Bot', icon: TrendingUp, color: '#FFD700', desc: 'Market making' },
   { id: 'sniper', name: 'Sniper Bot', icon: Crosshair, color: '#FF4444', desc: 'Snipuj nowe pule' },
   { id: 'trade', name: 'Trade Bot', icon: Target, color: '#4488FF', desc: 'Auto-trading' },
@@ -171,7 +171,7 @@ function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
           <div className="flex items-center gap-3">
             <a href="/" className="text-[#666] hover:text-white transition-colors"><ArrowLeft className="w-5 h-5" /></a>
             <div className="w-8 h-8 bg-[#00FFD1] flex items-center justify-center font-bold text-black text-[10px]">FTRX</div>
-            <span className="text-lg font-bold">{botType === 'volume' ? 'Volume Bot' : botType === 'volume2' ? 'Volume Bot #2' : 'Volume Bot #3'}</span>
+            <span className="text-lg font-bold">{botType === 'volume' ? 'Volume Bot' : botType === 'volume2' ? 'Volume Bot #2' : 'Bot Makk GL'}</span>
             {running && <span data-testid="bot-running-badge" className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded animate-pulse">AKTYWNY</span>}
           </div>
           <div className="flex items-center gap-3">
@@ -217,8 +217,15 @@ function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
         {running && (
           <div className="space-y-2">
             <div className="bg-[rgba(0,255,209,0.03)] border border-[rgba(0,255,209,0.12)] rounded p-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-              <span className="text-[#00FFD1] font-semibold flex items-center gap-1.5"><Zap className="w-4 h-4" />Tryb Organiczny</span>
-              <span className="text-[#666]">Holdery: <span className="text-white font-medium">{status?.token_holders || 0}</span></span>
+              <span className="text-[#00FFD1] font-semibold flex items-center gap-1.5"><Zap className="w-4 h-4" />{status?.pair_mode ? 'Tryb Pair (Token-Token)' : 'Tryb Organiczny'}</span>
+              {status?.pair_mode ? (
+                <>
+                  <span className="text-[#666]">Base holders: <span className="text-orange-400 font-medium">{status?.base_holders || 0}</span></span>
+                  <span className="text-[#666]">Quote holders: <span className="text-blue-400 font-medium">{status?.quote_holders || 0}</span></span>
+                </>
+              ) : (
+                <span className="text-[#666]">Holdery: <span className="text-white font-medium">{status?.token_holders || 0}</span></span>
+              )}
               <span className="text-[#666]">BUY od sprzedazy: <span className="text-white font-medium">{status?.buys_since_sell || 0}</span></span>
               <span className="text-[#666]">Ostatnia akcja: <span className={`font-medium ${status?.last_action === 'BUY' ? 'text-green-400' : status?.last_action === 'SELL' ? 'text-blue-400' : status?.last_action === 'TRANSFER' ? 'text-yellow-400' : 'text-white'}`}>{status?.last_action || '-'}</span></span>
             </div>
@@ -352,9 +359,15 @@ function ConfigPanel({ config, onSave }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
-          <label className="text-xs text-[#666] mb-1 block">Token Mint Address</label>
+          <label className="text-xs text-[#666] mb-1 block">{f.output_mint !== undefined ? 'Token Bazowy (MAKK GL)' : 'Token Mint Address'}</label>
           <Input value={f.token_mint || ''} onChange={e => set('token_mint', e.target.value)} className="bg-black border-[rgba(255,255,255,0.15)] text-white h-10 font-mono text-xs" placeholder="Token address..." />
         </div>
+        {f.output_mint !== undefined && (
+          <div>
+            <label className="text-xs text-[#666] mb-1 block">Token Docelowy (CRBR)</label>
+            <Input value={f.output_mint || ''} onChange={e => set('output_mint', e.target.value)} className="bg-black border-[rgba(255,255,255,0.15)] text-white h-10 font-mono text-xs" placeholder="Output token address..." />
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Target Volume (SOL/dzien)" value={f.target_volume_sol} onChange={v => set('target_volume_sol', parseFloat(v))} step="1" />
           <Field label="Target Makers (/dzien)" value={f.target_makers} onChange={v => set('target_makers', parseInt(v))} step="1" />
@@ -490,6 +503,7 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
 
   const totalBal = wallets.reduce((s, w) => s + (w.balance_sol || 0), 0);
   const totalFtrx = wallets.reduce((s, w) => s + (w.balance_ftrx || 0), 0);
+  const totalQuote = wallets.reduce((s, w) => s + (w.balance_quote || 0), 0);
   const mainWallet = wallets.find(w => w.is_main);
   const subWallets = wallets.filter(w => !w.is_main);
 
@@ -499,7 +513,7 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-white text-lg flex items-center gap-2">
             <Wallet className="w-5 h-5 text-[#00FFD1]" />Portfele ({wallets.length})
-            <span className="text-sm font-normal text-[#666]">| {totalBal.toFixed(4)} SOL | {totalFtrx > 0 ? `${totalFtrx.toFixed(2)} FTRX` : '0 FTRX'}</span>
+            <span className="text-sm font-normal text-[#666]">| {totalBal.toFixed(4)} SOL | {totalFtrx > 0 ? `${totalFtrx.toFixed(2)} Token` : '0 Token'}{totalQuote > 0 ? ` | ${totalQuote.toFixed(2)} Quote` : ''}</span>
           </CardTitle>
           <Button
             data-testid="refresh-ftrx-btn"
@@ -592,7 +606,8 @@ function WalletSection({ wallets, h, onRefresh, apiCall }) {
                 <div className="flex items-center gap-3 flex-shrink-0 ml-3">
                   <div className="text-right">
                     <span className="text-sm font-semibold text-[#00FFD1] block">{(w.balance_sol || 0).toFixed(4)} <span className="text-[10px] text-[#666]">SOL</span></span>
-                    {(w.balance_ftrx || 0) > 0 && <span className="text-xs font-medium text-orange-400">{(w.balance_ftrx).toFixed(2)} <span className="text-[10px] text-[#666]">FTRX</span></span>}
+                    {(w.balance_ftrx || 0) > 0 && <span className="text-xs font-medium text-orange-400 block">{(w.balance_ftrx).toFixed(2)} <span className="text-[10px] text-[#666]">Base</span></span>}
+                    {(w.balance_quote || 0) > 0 && <span className="text-xs font-medium text-blue-400 block">{(w.balance_quote).toFixed(2)} <span className="text-[10px] text-[#666]">Quote</span></span>}
                   </div>
                   {!w.is_main && (
                     <button onClick={() => { fetch(`${API}${mapUrl(`/api/admin/wallets/${w.public_key}/main`)}`, { method: 'POST', headers: h }).then(() => { toast.success('Glowny portfel ustawiony'); onRefresh(); }); }} title="Ustaw jako glowny" className="text-yellow-500/50 hover:text-yellow-400 transition-colors">
@@ -985,13 +1000,14 @@ const BOT_CONFIG_FIELDS = {
     { key: 'min_wallet_balance', label: 'Min saldo portfela (SOL)', type: 'number', step: 0.001 },
   ],
   volume3: [
-    { key: 'token_mint', label: 'Token Mint Address', type: 'text' },
-    { key: 'target_volume_sol', label: 'Target Volume (SOL/dzien)', type: 'number', step: 1 },
+    { key: 'token_mint', label: 'Token Bazowy (MAKK GL)', type: 'text' },
+    { key: 'output_mint', label: 'Token Docelowy (CRBR)', type: 'text' },
+    { key: 'target_volume_sol', label: 'Target trades / dzien', type: 'number', step: 1 },
     { key: 'target_makers', label: 'Target Makers (/dzien)', type: 'number' },
     { key: 'trade_interval_min', label: 'Przerwa min (sekundy)', type: 'number' },
     { key: 'trade_interval_max', label: 'Przerwa max (sekundy)', type: 'number' },
-    { key: 'min_sol_per_trade', label: 'Min SOL / trade', type: 'number', step: 0.001 },
-    { key: 'max_sol_per_trade', label: 'Max SOL / trade', type: 'number', step: 0.001 },
+    { key: 'min_sol_per_trade', label: 'Min SOL / trade (gas)', type: 'number', step: 0.001 },
+    { key: 'max_sol_per_trade', label: 'Max SOL / trade (gas)', type: 'number', step: 0.001 },
     { key: 'slippage_bps', label: 'Slippage (bps)', type: 'number' },
     { key: 'min_wallet_balance', label: 'Min saldo portfela (SOL)', type: 'number', step: 0.001 },
   ],

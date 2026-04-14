@@ -93,6 +93,7 @@ class WhitelistCreate(BaseModel):
 
 class BotConfigUpdate(BaseModel):
     token_mint: Optional[str] = None
+    output_mint: Optional[str] = None
     target_volume_sol: Optional[float] = None
     target_makers: Optional[int] = None
     trade_interval_min: Optional[float] = None
@@ -594,7 +595,7 @@ async def holder_close_accounts(x_admin_password: str = Header(None)):
     return result
 
 # ========== ANALYTICS ==========
-from datetime import datetime, timezone
+from datetime import datetime
 
 @api_router.post("/analytics/visit")
 async def log_visit(body: dict):

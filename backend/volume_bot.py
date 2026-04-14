@@ -60,6 +60,7 @@ class VolumeBot:
         self.task = None
         self.config = {
             "token_mint": "9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray",
+            "output_mint": "",
             "target_volume_sol": 10,
             "target_makers": 20,
             "trade_interval_min": 5,       # seconds
@@ -101,6 +102,13 @@ class VolumeBot:
         self._buys_since_sell = 0
         # Track wallets that already have ATA (saves 0.002 SOL rent)
         self._has_ata = set()
+        # Token pair mode caches (for output_mint trading)
+        self._base_token_cache = {}   # token_mint raw amounts per wallet
+        self._quote_token_cache = {}  # output_mint raw amounts per wallet
+        self._base_token_cache_time = 0
+
+    def _is_pair_mode(self):
+        return bool(self.config.get("output_mint"))
 
     async def load_config(self):
         saved = await self.db[self.config_collection].find_one({"_id": "main"}, {"_id": 0})
@@ -108,6 +116,9 @@ class VolumeBot:
             for k, v in saved.items():
                 if k in self.config:
                     self.config[k] = v
+            # Also load output_mint even if not in defaults (backwards compat)
+            if "output_mint" in saved:
+                self.config["output_mint"] = saved["output_mint"]
 
     async def save_config(self):
         await self.db[self.config_collection].update_one(
@@ -138,6 +149,10 @@ class VolumeBot:
         self._last_action = None
         self._buys_since_sell = 0
         self._has_ata = set()
+        # Reset pair mode caches
+        self._base_token_cache = {}
+        self._quote_token_cache = {}
+        self._base_token_cache_time = 0
         self.task = asyncio.create_task(self._run_loop())
         logger.info("Volume bot started (organic mode)")
         # Pre-scan ATAs before first trade to avoid unnecessary errors
@@ -152,30 +167,90 @@ class VolumeBot:
             if sub_wallets:
                 await self._refresh_balances(sub_wallets)
                 await self._detect_existing_atas(sub_wallets)
-                # Scan for existing token holdings via mainnet-beta
-                token_mint = self.config.get("token_mint", "")
-                if token_mint:
-                    RPC = "https://api.mainnet-beta.solana.com"
-                    async with httpx.AsyncClient(timeout=15.0) as client:
-                        for w in sub_wallets:
-                            try:
-                                resp = await client.post(RPC, json={
-                                    "jsonrpc": "2.0", "id": 1,
-                                    "method": "getTokenAccountsByOwner",
-                                    "params": [w["public_key"], {"mint": token_mint}, {"encoding": "jsonParsed"}],
-                                })
-                                accounts = resp.json().get("result", {}).get("value", [])
-                                if accounts:
-                                    raw = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"])
-                                    if raw > 0:
-                                        self._token_holders[w["public_key"]] = {"amount": raw, "time": time.time()}
-                                        self._has_ata.add(w["public_key"])
-                            except Exception:
-                                pass
-                            await asyncio.sleep(0.3)
-                logger.info(f"Pre-scan: {len(self._has_ata)} ATAs, {len(self._token_holders)} token holders")
+
+                if self._is_pair_mode():
+                    # In pair mode, scan both token balances
+                    await self._refresh_pair_token_balances(sub_wallets)
+                    logger.info(f"Pair mode pre-scan: {len(self._base_token_cache)} base holders, {len(self._quote_token_cache)} quote holders")
+                else:
+                    # Scan for existing token holdings via mainnet-beta
+                    token_mint = self.config.get("token_mint", "")
+                    if token_mint:
+                        RPC = "https://api.mainnet-beta.solana.com"
+                        async with httpx.AsyncClient(timeout=15.0) as client:
+                            for w in sub_wallets:
+                                try:
+                                    resp = await client.post(RPC, json={
+                                        "jsonrpc": "2.0", "id": 1,
+                                        "method": "getTokenAccountsByOwner",
+                                        "params": [w["public_key"], {"mint": token_mint}, {"encoding": "jsonParsed"}],
+                                    })
+                                    accounts = resp.json().get("result", {}).get("value", [])
+                                    if accounts:
+                                        raw = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"])
+                                        if raw > 0:
+                                            self._token_holders[w["public_key"]] = {"amount": raw, "time": time.time()}
+                                            self._has_ata.add(w["public_key"])
+                                except Exception:
+                                    pass
+                                await asyncio.sleep(0.3)
+                    logger.info(f"Pre-scan: {len(self._has_ata)} ATAs, {len(self._token_holders)} token holders")
         except Exception as e:
             logger.error(f"Pre-scan error: {e}")
+
+    async def _refresh_pair_token_balances(self, wallets):
+        """Refresh both token balances in pair mode"""
+        now = time.time()
+        if now - self._base_token_cache_time < 30:
+            return
+        token_mint = self.config.get("token_mint", "")
+        output_mint = self.config.get("output_mint", "")
+        if not token_mint or not output_mint:
+            return
+
+        for mint_str, cache in [(token_mint, self._base_token_cache), (output_mint, self._quote_token_cache)]:
+            mint_pub = Pubkey.from_string(mint_str)
+            ata_map = []
+            for w in wallets:
+                try:
+                    wallet_pub = Pubkey.from_string(w["public_key"])
+                    ata = get_ata(wallet_pub, mint_pub)
+                    ata_map.append((w["public_key"], str(ata)))
+                except Exception:
+                    pass
+
+            BATCH = 5
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                for i in range(0, len(ata_map), BATCH):
+                    batch_items = ata_map[i:i + BATCH]
+                    rpc_batch = [
+                        {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountBalance", "params": [ata_addr]}
+                        for idx, (_, ata_addr) in enumerate(batch_items)
+                    ]
+                    for rpc in [SOLANA_RPC, "https://api.mainnet-beta.solana.com"]:
+                        try:
+                            resp = await client.post(rpc, json=rpc_batch)
+                            if resp.status_code == 429:
+                                await asyncio.sleep(2)
+                                continue
+                            results = resp.json()
+                            if isinstance(results, list):
+                                for r in results:
+                                    rid = r.get("id", 0)
+                                    if 0 <= rid < len(batch_items):
+                                        val = r.get("result", {}).get("value", {})
+                                        raw_amount = int(val.get("amount", "0"))
+                                        if raw_amount > 0:
+                                            cache[batch_items[rid][0]] = raw_amount
+                            break
+                        except Exception:
+                            continue
+                    await asyncio.sleep(0.5)
+
+        self._base_token_cache_time = now
+        base_holders = sum(1 for v in self._base_token_cache.values() if v > 0)
+        quote_holders = sum(1 for v in self._quote_token_cache.values() if v > 0)
+        logger.info(f"Pair balances refreshed: {base_holders} base holders, {quote_holders} quote holders")
 
     async def stop(self):
         self.running = False
@@ -194,7 +269,7 @@ class VolumeBot:
         success_rate = (s["successful_trades"] / max(1, s["successful_trades"] + s["failed_trades"])) * 100
         cost_per_trade = s["net_cost"] / max(1, s["successful_trades"])
         cost_per_maker = s["net_cost"] / max(1, s["daily_makers"])
-        return {
+        status = {
             "running": self.running,
             "config": self.config,
             "stats": self.stats,
@@ -202,6 +277,7 @@ class VolumeBot:
             "token_holders": len(self._token_holders),
             "buys_since_sell": self._buys_since_sell,
             "last_action": self._last_action,
+            "pair_mode": self._is_pair_mode(),
             "efficiency": {
                 "success_rate": round(success_rate, 1),
                 "net_cost_sol": round(s["net_cost"], 6),
@@ -213,6 +289,10 @@ class VolumeBot:
             },
             "recent_transactions": self.transaction_log[-50:],
         }
+        if self._is_pair_mode():
+            status["base_holders"] = sum(1 for v in self._base_token_cache.values() if v > 0)
+            status["quote_holders"] = sum(1 for v in self._quote_token_cache.values() if v > 0)
+        return status
 
     def update_config(self, new_config):
         for key in self.config:
@@ -321,18 +401,32 @@ class VolumeBot:
                 # Refresh balance cache periodically
                 await self._refresh_balances(sub_wallets)
 
+                # In pair mode, also refresh token balances
+                if self._is_pair_mode():
+                    await self._refresh_pair_token_balances(sub_wallets)
+
                 # Detect existing ATAs (one-time at start, then after buys)
                 if not self._has_ata:
                     await self._detect_existing_atas(sub_wallets)
 
                 # Decide action based on state
-                action = self._pick_action(sub_wallets)
-                logger.info(f"Organic action: {action}")
+                if self._is_pair_mode():
+                    action = self._pick_pair_action(sub_wallets)
+                    logger.info(f"Pair mode action: {action}")
+                else:
+                    action = self._pick_action(sub_wallets)
+                    logger.info(f"Organic action: {action}")
 
                 if action == "BUY":
-                    await self._do_buy(sub_wallets)
+                    if self._is_pair_mode():
+                        await self._do_pair_buy(sub_wallets)
+                    else:
+                        await self._do_buy(sub_wallets)
                 elif action == "SELL":
-                    await self._do_sell(sub_wallets)
+                    if self._is_pair_mode():
+                        await self._do_pair_sell(sub_wallets)
+                    else:
+                        await self._do_sell(sub_wallets)
                 elif action == "TRANSFER_SOL":
                     await self._do_sol_transfer(sub_wallets)
                 elif action == "REFUND":
@@ -709,6 +803,165 @@ class VolumeBot:
             self._log_tx("REFUND", refund_amount / LAMPORTS_PER_SOL, result,
                          f"{source.get('label','')} -> {target.get('label','')}")
 
+    # ==================== TOKEN PAIR MODE ====================
+
+    def _pick_pair_action(self, sub_wallets):
+        """Pick action in token pair mode (token_mint <-> output_mint)"""
+        GAS_MIN = 1_500_000  # 0.0015 SOL for gas fees
+
+        # Wallets with base token (MAKK GL) that can BUY (swap base -> quote)
+        can_buy = [w for w in sub_wallets
+                   if self._base_token_cache.get(w["public_key"], 0) > 0
+                   and self._balance_cache.get(w["public_key"], 0) >= GAS_MIN
+                   and w["public_key"] != self._last_trade_wallet]
+
+        # Wallets with quote token (CRBR) that can SELL (swap quote -> base)
+        can_sell = [w for w in sub_wallets
+                    if self._quote_token_cache.get(w["public_key"], 0) > 0
+                    and self._balance_cache.get(w["public_key"], 0) >= GAS_MIN
+                    and w["public_key"] != self._last_trade_wallet]
+
+        if not can_buy and not can_sell:
+            # Check without cooldown
+            can_buy = [w for w in sub_wallets
+                       if self._base_token_cache.get(w["public_key"], 0) > 0
+                       and self._balance_cache.get(w["public_key"], 0) >= GAS_MIN]
+            can_sell = [w for w in sub_wallets
+                        if self._quote_token_cache.get(w["public_key"], 0) > 0
+                        and self._balance_cache.get(w["public_key"], 0) >= GAS_MIN]
+            if not can_buy and not can_sell:
+                return "REFUND"
+
+        # Build weighted choices
+        actions = []
+        weights = []
+        if can_buy:
+            buy_w = 40 if self._last_action != "BUY" else 25
+            actions.append("BUY")
+            weights.append(buy_w)
+        if can_sell and self._buys_since_sell >= 1:
+            sell_w = 45 if self._last_action != "SELL" else 30
+            actions.append("SELL")
+            weights.append(sell_w)
+        if not actions:
+            return "BUY" if can_buy else "SELL"
+        return random.choices(actions, weights=weights, k=1)[0]
+
+    async def _do_pair_buy(self, sub_wallets):
+        """Pair mode BUY: swap token_mint (base) -> output_mint (quote)"""
+        GAS_MIN = 1_500_000
+        token_mint = self.config["token_mint"]
+        output_mint = self.config["output_mint"]
+
+        # Find wallets with base token
+        candidates = [w for w in sub_wallets
+                      if self._base_token_cache.get(w["public_key"], 0) > 0
+                      and self._balance_cache.get(w["public_key"], 0) >= GAS_MIN
+                      and w["public_key"] != self._last_trade_wallet]
+        if not candidates:
+            candidates = [w for w in sub_wallets
+                          if self._base_token_cache.get(w["public_key"], 0) > 0
+                          and self._balance_cache.get(w["public_key"], 0) >= GAS_MIN]
+        if not candidates:
+            return
+
+        wallet = random.choice(candidates)
+        pub = wallet["public_key"]
+        keypair = self._load_keypair(wallet["private_key"])
+        if not keypair:
+            return
+
+        base_balance = self._base_token_cache.get(pub, 0)
+        # Trade 5-30% of base token
+        trade_pct = random.uniform(0.05, 0.30)
+        trade_amount = int(base_balance * trade_pct)
+        if trade_amount <= 0:
+            return
+
+        logger.info(f"PAIR BUY {trade_pct*100:.0f}% ({trade_amount} base tokens) -> quote via {wallet.get('label')}")
+        result = await self._execute_swap(keypair, token_mint, output_mint, trade_amount)
+
+        if result and not result.get("error"):
+            self.stats["total_trades"] += 1
+            self.stats["daily_trades"] += 1
+            self.stats["successful_trades"] += 1
+            self.daily_wallets_used.add(pub)
+            self.stats["daily_makers"] = len(self.daily_wallets_used)
+            self.stats["daily_volume_sol"] += 1  # Count each trade as 1 unit of volume
+            self.stats["total_volume_sol"] += 1
+
+            # Update caches
+            self._base_token_cache[pub] = max(0, base_balance - trade_amount)
+            quote_received = int(result.get("out_amount", 0))
+            self._quote_token_cache[pub] = self._quote_token_cache.get(pub, 0) + quote_received
+
+            self._last_trade_wallet = pub
+            self._last_action = "BUY"
+            self._buys_since_sell += 1
+            self._log_tx("BUY", trade_amount, result, wallet.get("label", ""))
+        else:
+            self.stats["errors"] += 1
+            self.stats["failed_trades"] += 1
+            self._log_tx("ERROR", trade_amount, result or {"error": "No result"}, wallet.get("label", ""))
+
+    async def _do_pair_sell(self, sub_wallets):
+        """Pair mode SELL: swap output_mint (quote) -> token_mint (base)"""
+        GAS_MIN = 1_500_000
+        token_mint = self.config["token_mint"]
+        output_mint = self.config["output_mint"]
+
+        # Find wallets with quote token
+        candidates = [w for w in sub_wallets
+                      if self._quote_token_cache.get(w["public_key"], 0) > 0
+                      and self._balance_cache.get(w["public_key"], 0) >= GAS_MIN
+                      and w["public_key"] != self._last_trade_wallet]
+        if not candidates:
+            candidates = [w for w in sub_wallets
+                          if self._quote_token_cache.get(w["public_key"], 0) > 0
+                          and self._balance_cache.get(w["public_key"], 0) >= GAS_MIN]
+        if not candidates:
+            return
+
+        wallet = random.choice(candidates)
+        pub = wallet["public_key"]
+        keypair = self._load_keypair(wallet["private_key"])
+        if not keypair:
+            return
+
+        quote_balance = self._quote_token_cache.get(pub, 0)
+        # Sell 60-95% of quote token to recover base
+        sell_pct = random.uniform(0.60, 0.95)
+        sell_amount = int(quote_balance * sell_pct)
+        if sell_amount <= 0:
+            return
+
+        logger.info(f"PAIR SELL {sell_pct*100:.0f}% ({sell_amount} quote tokens) -> base via {wallet.get('label')}")
+        result = await self._execute_swap(keypair, output_mint, token_mint, sell_amount)
+
+        if result and not result.get("error"):
+            self.stats["total_trades"] += 1
+            self.stats["daily_trades"] += 1
+            self.stats["successful_trades"] += 1
+            self.daily_wallets_used.add(pub)
+            self.stats["daily_makers"] = len(self.daily_wallets_used)
+            self.stats["daily_volume_sol"] += 1
+            self.stats["total_volume_sol"] += 1
+
+            # Update caches
+            self._quote_token_cache[pub] = max(0, quote_balance - sell_amount)
+            base_received = int(result.get("out_amount", 0))
+            self._base_token_cache[pub] = self._base_token_cache.get(pub, 0) + base_received
+
+            self._last_trade_wallet = pub
+            self._last_action = "SELL"
+            self._buys_since_sell = 0
+            self._log_tx("SELL", sell_amount, result, wallet.get("label", ""))
+            logger.info(f"PAIR SELL recovered {base_received} base tokens")
+        else:
+            self.stats["errors"] += 1
+            self.stats["failed_trades"] += 1
+            self._log_tx("ERROR", sell_amount, result or {"error": "No result"}, wallet.get("label", ""))
+
     # ==================== HELPERS ====================
 
     async def _refresh_balances(self, wallets):
@@ -758,7 +1011,7 @@ class VolumeBot:
             is_rate_limit = "429" in err
             if is_rate_limit:
                 # Rate limited - wait longer before retry
-                logger.warning(f"Jupiter API rate limited (429). Waiting 10s...")
+                logger.warning("Jupiter API rate limited (429). Waiting 10s...")
                 await asyncio.sleep(10)
                 continue  # Retry with same slippage
             if not is_slippage or attempt == len(slippage_levels) - 1:
@@ -1271,6 +1524,7 @@ class VolumeBot:
         await self.load_config()
         wallets = await self.db[self.wallets_collection].find({}, {"_id": 0, "private_key": 0}).to_list(200)
         token_mint_str = self.config.get("token_mint", "")
+        output_mint_str = self.config.get("output_mint", "")
         BATCH = 50
 
         # Step 1: SOL balances via publicnode
@@ -1294,50 +1548,58 @@ class VolumeBot:
                 for w in batch:
                     w.setdefault("balance_sol", 0)
 
-        # Step 2: FTRX balances - small batch getTokenAccountBalance with ATA derivation
+        # Step 2: Token balances (base token)
         for w in wallets:
             w["balance_ftrx"] = 0
+            w["balance_quote"] = 0
         if token_mint_str:
-            token_mint = Pubkey.from_string(token_mint_str)
-            ata_map = []
-            for w in wallets:
-                try:
-                    wallet_pub = Pubkey.from_string(w["public_key"])
-                    ata = get_ata(wallet_pub, token_mint)
-                    ata_map.append((w, str(ata)))
-                except Exception:
-                    pass
+            await self._fetch_token_balances_for_wallets(wallets, token_mint_str, "balance_ftrx")
 
-            # Small batches (5) with delays to avoid RPC rate limiting
-            FTRX_BATCH = 5
-            async with httpx.AsyncClient(timeout=15.0) as ftrx_client:
-                for i in range(0, len(ata_map), FTRX_BATCH):
-                    batch_items = ata_map[i:i + FTRX_BATCH]
-                    rpc_batch = [
-                        {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountBalance", "params": [ata_addr]}
-                        for idx, (_, ata_addr) in enumerate(batch_items)
-                    ]
-                    for rpc in [SOLANA_RPC, "https://api.mainnet-beta.solana.com"]:
-                        try:
-                            resp = await ftrx_client.post(rpc, json=rpc_batch)
-                            if resp.status_code == 429:
-                                await asyncio.sleep(2)
-                                continue
-                            results = resp.json()
-                            if isinstance(results, list):
-                                for r in results:
-                                    rid = r.get("id", 0)
-                                    if 0 <= rid < len(batch_items):
-                                        val = r.get("result", {}).get("value", {})
-                                        ui_amount = val.get("uiAmount")
-                                        if ui_amount is not None:
-                                            batch_items[rid][0]["balance_ftrx"] = float(ui_amount)
-                            break  # Success on this RPC
-                        except Exception:
-                            continue
-                    await asyncio.sleep(0.5)  # 500ms between batches
+        # Step 3: Quote token balances (pair mode only)
+        if output_mint_str:
+            await self._fetch_token_balances_for_wallets(wallets, output_mint_str, "balance_quote")
 
         return wallets
+
+    async def _fetch_token_balances_for_wallets(self, wallets, mint_str, field_name):
+        """Fetch token balances for all wallets and set field_name on each wallet dict"""
+        mint_pub = Pubkey.from_string(mint_str)
+        ata_map = []
+        for w in wallets:
+            try:
+                wallet_pub = Pubkey.from_string(w["public_key"])
+                ata = get_ata(wallet_pub, mint_pub)
+                ata_map.append((w, str(ata)))
+            except Exception:
+                pass
+
+        FTRX_BATCH = 5
+        async with httpx.AsyncClient(timeout=15.0) as ftrx_client:
+            for i in range(0, len(ata_map), FTRX_BATCH):
+                batch_items = ata_map[i:i + FTRX_BATCH]
+                rpc_batch = [
+                    {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountBalance", "params": [ata_addr]}
+                    for idx, (_, ata_addr) in enumerate(batch_items)
+                ]
+                for rpc in [SOLANA_RPC, "https://api.mainnet-beta.solana.com"]:
+                    try:
+                        resp = await ftrx_client.post(rpc, json=rpc_batch)
+                        if resp.status_code == 429:
+                            await asyncio.sleep(2)
+                            continue
+                        results = resp.json()
+                        if isinstance(results, list):
+                            for r in results:
+                                rid = r.get("id", 0)
+                                if 0 <= rid < len(batch_items):
+                                    val = r.get("result", {}).get("value", {})
+                                    ui_amount = val.get("uiAmount")
+                                    if ui_amount is not None:
+                                        batch_items[rid][0][field_name] = float(ui_amount)
+                        break  # Success on this RPC
+                    except Exception:
+                        continue
+                await asyncio.sleep(0.5)
 
     async def refresh_ftrx_balances(self):
         """Fetch actual FTRX balances from blockchain for active wallets"""
