@@ -605,6 +605,117 @@ async def generic_bot_collect_tokens_status(bot_type: str, x_admin_password: str
     verify_admin(x_admin_password)
     return _bot_token_collect_status.get(f"{bot_type}_tokens", {"running": False, "result": None})
 
+@api_router.post("/admin/bot/{bot_type}/wallets/withdraw-tokens")
+async def generic_bot_withdraw_tokens(bot_type: str, body: dict, x_admin_password: str = Header(None)):
+    """Withdraw tokens from main wallet to external address"""
+    verify_admin(x_admin_password)
+    dest_address = body.get("destination", "")
+    token_mint_override = body.get("token_mint", "")
+    if not dest_address:
+        raise HTTPException(status_code=400, detail="destination address required")
+    bot = _get_bot(bot_type)
+    
+    import base58 as b58
+    from solders.keypair import Keypair as Kp
+    from solders.pubkey import Pubkey as Pk
+    from solders.transaction import Transaction as Tx
+    from solders.message import Message as Msg
+    from solders.hash import Hash as Hs
+    from solders.instruction import Instruction as Ix, AccountMeta as AM
+    
+    TP = Pk.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+    ATP = Pk.from_string("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
+    SYS = Pk.from_string("11111111111111111111111111111111")
+    
+    def derive_ata(wallet, mint):
+        ata, _ = Pk.find_program_address([bytes(wallet), bytes(TP), bytes(mint)], ATP)
+        return ata
+    
+    main_w = await db[bot.wallets_collection].find_one({"is_main": True})
+    if not main_w:
+        return {"error": "No main wallet"}
+    
+    kp = Kp.from_bytes(b58.b58decode(main_w["private_key"]))
+    main_pub = kp.pubkey()
+    
+    mint_str = token_mint_override or bot.config.get("token_mint", "")
+    if not mint_str:
+        return {"error": "No token mint"}
+    
+    mint_pub = Pk.from_string(mint_str)
+    dest_pub = Pk.from_string(dest_address)
+    source_ata = derive_ata(main_pub, mint_pub)
+    dest_ata = derive_ata(dest_pub, mint_pub)
+    
+    RPC = "https://api.mainnet-beta.solana.com"
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.post(RPC, json={
+            "jsonrpc": "2.0", "id": 1,
+            "method": "getTokenAccountBalance",
+            "params": [str(source_ata)],
+        })
+        data = resp.json()
+        if "error" in data:
+            return {"error": f"No token account: {data['error']}"}
+        raw_amount = int(data["result"]["value"]["amount"])
+        ui_amount = data["result"]["value"].get("uiAmountString", "0")
+        if raw_amount <= 0:
+            return {"error": "No tokens to withdraw"}
+        
+        create_ata_ix = Ix(
+            program_id=ATP,
+            accounts=[
+                AM(pubkey=main_pub, is_signer=True, is_writable=True),
+                AM(pubkey=dest_ata, is_signer=False, is_writable=True),
+                AM(pubkey=dest_pub, is_signer=False, is_writable=False),
+                AM(pubkey=mint_pub, is_signer=False, is_writable=False),
+                AM(pubkey=SYS, is_signer=False, is_writable=False),
+                AM(pubkey=TP, is_signer=False, is_writable=False),
+            ],
+            data=bytes([1]),
+        )
+        
+        transfer_data = bytes([3]) + raw_amount.to_bytes(8, "little")
+        transfer_ix = Ix(
+            program_id=TP,
+            accounts=[
+                AM(pubkey=source_ata, is_signer=False, is_writable=True),
+                AM(pubkey=dest_ata, is_signer=False, is_writable=True),
+                AM(pubkey=main_pub, is_signer=True, is_writable=False),
+            ],
+            data=transfer_data,
+        )
+        
+        bh_resp = await client.post(RPC, json={
+            "jsonrpc": "2.0", "id": 1, "method": "getLatestBlockhash",
+            "params": [{"commitment": "finalized"}],
+        })
+        bh = Hs.from_string(bh_resp.json()["result"]["value"]["blockhash"])
+        
+        msg = Msg.new_with_blockhash([create_ata_ix, transfer_ix], main_pub, bh)
+        tx = Tx.new_unsigned(msg)
+        tx.sign([kp], bh)
+        import base64
+        encoded = base64.b64encode(bytes(tx)).decode("utf-8")
+        
+        send_resp = await client.post(RPC, json={
+            "jsonrpc": "2.0", "id": 1, "method": "sendTransaction",
+            "params": [encoded, {"encoding": "base64", "skipPreflight": False, "preflightCommitment": "confirmed"}],
+        })
+        send_data = send_resp.json()
+        if "error" in send_data:
+            return {"error": f"TX failed: {send_data['error']}"}
+        
+        sig = send_data.get("result", "")
+        return {
+            "success": True,
+            "signature": sig,
+            "amount": ui_amount,
+            "token_mint": mint_str,
+            "destination": dest_address,
+            "solscan": f"https://solscan.io/tx/{sig}",
+        }
+
 # Sniper bot specific endpoints
 @api_router.post("/admin/bot/sniper/sell")
 async def sniper_manual_sell(body: dict, x_admin_password: str = Header(None)):
