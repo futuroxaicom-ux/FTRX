@@ -22,6 +22,8 @@ SOL_MINT = "So11111111111111111111111111111111111111112"
 JUPITER_QUOTE_URL = "https://api.jup.ag/swap/v1/quote"
 JUPITER_SWAP_URL = "https://api.jup.ag/swap/v1/swap"
 SOLANA_RPC = os.environ.get("SOLANA_RPC_URL", "https://solana.publicnode.com")
+HELIUS_KEY = os.environ.get("HELIUS_API_KEY", "")
+HELIUS_RPC = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_KEY}" if HELIUS_KEY else ""
 LAMPORTS_PER_SOL = 1_000_000_000
 TOKEN_PROGRAM_ID = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 ASSOCIATED_TOKEN_PROGRAM_ID = Pubkey.from_string("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
