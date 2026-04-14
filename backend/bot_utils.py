@@ -24,6 +24,8 @@ JUPITER_SWAP_URL = "https://api.jup.ag/swap/v1/swap"
 SOLANA_RPC = os.environ.get("SOLANA_RPC_URL", "https://solana.publicnode.com")
 HELIUS_KEY = os.environ.get("HELIUS_API_KEY", "")
 HELIUS_RPC = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_KEY}" if HELIUS_KEY else ""
+# Helius free = no batch. Use publicnode for batch operations
+BATCH_RPC = "https://solana.publicnode.com"
 LAMPORTS_PER_SOL = 1_000_000_000
 TOKEN_PROGRAM_ID = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 ASSOCIATED_TOKEN_PROGRAM_ID = Pubkey.from_string("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
@@ -79,7 +81,7 @@ async def batch_get_sol_balances(pubkeys: list) -> dict:
                 for idx, pk in enumerate(batch)
             ]
             try:
-                resp = await client.post(SOLANA_RPC, json=payload)
+                resp = await client.post(BATCH_RPC, json=payload)
                 data = resp.json()
                 if isinstance(data, list):
                     for r in data:
@@ -116,7 +118,7 @@ async def batch_get_token_balances(pubkeys: list, token_mint: str) -> dict:
                 for idx, ata in enumerate(batch)
             ]
             try:
-                resp = await client.post(SOLANA_RPC, json=payload)
+                resp = await client.post(BATCH_RPC, json=payload)
                 data = resp.json()
                 if isinstance(data, list):
                     for r in data:
