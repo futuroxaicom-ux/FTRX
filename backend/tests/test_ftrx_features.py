@@ -9,7 +9,7 @@ import requests
 import os
 import time
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://solana-bot-4.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://ftrx-trading.preview.emergentagent.com').rstrip('/')
 ADMIN_PASSWORD = "futurox2026"
 HEADERS = {
     "Content-Type": "application/json",
