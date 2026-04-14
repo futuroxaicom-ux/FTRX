@@ -6,41 +6,41 @@ Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Vol
 ## Tech Stack
 - **Frontend**: React, Tailwind CSS, shadcn/ui, React Router, Solana Wallet Adapter, Recharts, i18next
 - **Backend**: FastAPI, MongoDB (Motor), httpx, solders, base58
-- **APIs**: CoinGecko (SOL), DexScreener (FTRX/tokens), Jupiter V1 Swap API, Solana RPC
+- **APIs**: CoinGecko (SOL), DexScreener (FTRX/tokens), Jupiter V1 Swap API, Solana RPC, Helius RPC
 
 ## Completed Work
 - [x] Landing page with i18n (EN/ES/PL), countdown, tokenomics, roadmap
 - [x] Solana wallet connection (Phantom, Solflare)
-- [x] Volume Bot with Organic Mode v2 (SOL concentration, auto ATA prescan)
-- [x] Multi-Bot Panel: Volume, Spread, Sniper, Trade, Arbitrage, Copy Trade
-- [x] Full Volume Bot dashboard preserved (all original features)
-- [x] Bot navigation bar in header
-- [x] Generic bot dashboards with Phantom wallet funding
-- [x] Sniper Bot: TRUE auto-discovery of new Raydium pools + auto buy/sell
-- [x] Volume Bot: 429 rate limit handling (10s backoff), min 10s between trades
-- [x] Volume Bot: load_config() before FTRX fetch to ensure token_mint loaded
-- [x] Volume Bot: FTRX balance error logging for debugging
+- [x] Volume Bot 1 (FTRX/SOL) with Organic Mode v2
+- [x] Volume Bot 2 (MMAC)
+- [x] Volume Bot 3 "Bot Makk GL" - Token Pair Mode (MAKK GL <-> CRBR via DexLab)
+- [x] Multi-Bot Panel: Volume, Spread, Sniper, Trade, Arbitrage, Copy Trade, Holder
+- [x] Sniper Bot: Helius WebSocket real-time token sniping with TP/SL and MongoDB history
+- [x] Holder Bot: Auto-generate 50-750 holders
+- [x] Analytics tracking dashboard for page visits and chatbot Q&A
+- [x] Direct SPL Token collection endpoint (collect-tokens)
+- [x] Volume Bot Custom:1 error fix (wrapAndUnwrapSol: True, static priority fees)
 
-## Volume Bot Fixes (Latest)
-- 429 rate limit: waits 10s and retries (instead of giving up)
-- Minimum 10s between trades (prevents Jupiter rate limiting)
-- Slippage starts from configured value, retries +300, +600
-- load_config() called before FTRX balance fetch
-- Error logging for FTRX fetch failures
-
-## Sniper Bot (Auto-Discovery Mode)
-- Scans DexScreener for new Raydium pools on Solana
-- Filters by: liquidity (min/max USD), pool age (max seconds)
-- Auto-buys tokens from fresh pools
-- Monitors positions for take-profit / stop-loss
-- Max concurrent positions configurable
-- Blacklists failed tokens to avoid retrying
+## Bot Makk GL (Volume Bot 3) - Token Pair Mode
+- Trades MAKK GL (4VdntG75wH1TUZMUaVL3bgbTGesLk18RbhJ7T35cmakK) <-> CRBR (BrXYiFB8zkwdp75RQvJjeXVfnhHC9Bkny3Q9N2pCrbr)
+- Jupiter routing confirmed via DexLab pool
+- Uses output_mint config field for pair mode activation
+- BUY = swap 5-30% of MAKK GL -> CRBR
+- SELL = swap 60-95% of CRBR -> MAKK GL
+- Tracks both base and quote token balances per wallet
+- Dashboard shows "Token Bazowy (MAKK GL)" and "Token Docelowy (CRBR)"
 
 ## Backlog
 ### P1
 - [ ] Szyfrowanie kluczy prywatnych w MongoDB (AES)
 - [ ] Rate limiting na endpointach admina
+- [ ] Przycisk "Wyslij SOL" do konkretnego sub-walleta
 
 ### P2
-- [ ] Persystentne logi transakcji w MongoDB
-- [ ] Telegram/Discord notyfikacje
+- [ ] Refactoring Admin.jsx (>1500 linii -> osobne komponenty)
+- [ ] Persystentne logi transakcji Volume Bot w MongoDB
+- [ ] Telegram/Discord webhook notyfikacje
+- [ ] Fix ostrzezen kompilacji React (useCallback, Webpack)
+
+### P3
+- [ ] Encrypt private keys in MongoDB (AES) for all bot wallets
