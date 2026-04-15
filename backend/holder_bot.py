@@ -521,15 +521,41 @@ class HolderBot:
 
         self.stats["phase"] = "distributing_tokens"
         self.stats["progress"] = 0
-        self.stats["progress_total"] = len(subs)
         distributed = 0
         errors = 0
+        skipped = 0
 
         from solders.instruction import Instruction, AccountMeta
 
+        # First: check which wallets already hold this token (skip them)
+        existing_holders = set()
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            for w in subs:
+                try:
+                    resp = await client.post(RPCS[0], json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "getTokenAccountsByOwner",
+                        "params": [w["public_key"], {"mint": token_mint_str}, {"encoding": "jsonParsed"}],
+                    })
+                    if resp.status_code == 429:
+                        await asyncio.sleep(2)
+                        continue
+                    accounts = resp.json().get("result", {}).get("value", [])
+                    if accounts:
+                        raw = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"])
+                        if raw > 0:
+                            existing_holders.add(w["public_key"])
+                except Exception:
+                    pass
+                await asyncio.sleep(0.3)
+
+        need_tokens = [w for w in subs if w["public_key"] not in existing_holders]
+        self.stats["progress_total"] = len(need_tokens)
+        logger.info(f"Token distribute: {len(existing_holders)} already hold, {len(need_tokens)} need tokens")
+
         async with httpx.AsyncClient(timeout=15.0) as client:
             bh = None
-            for i, w in enumerate(subs):
+            for i, w in enumerate(need_tokens):
                 self.stats["progress"] = i + 1
                 remaining = main_raw - (raw_per_wallet * distributed)
                 if remaining < raw_per_wallet:
