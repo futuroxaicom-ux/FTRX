@@ -187,20 +187,29 @@ export const AIServices = () => {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             {packages.map((pkg) => (
               <Card key={pkg.id} data-testid={`ai-package-${pkg.id}`}
-                className={`relative bg-black border transition-all duration-500 overflow-hidden group ${pkg.popular ? 'scale-[1.02] shadow-[0_0_30px_rgba(123,97,255,0.15)]' : ''}`}
+                className={`relative bg-black border transition-all duration-500 overflow-hidden group ${pkg.popular ? 'scale-[1.03] z-10' : 'hover:scale-[1.02]'}`}
                 style={{ borderColor: `${pkg.color}25` }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = `${pkg.color}60`}
                 onMouseLeave={e => e.currentTarget.style.borderColor = `${pkg.color}25`}>
-                {pkg.popular && (
-                  <div className="absolute top-0 left-0 right-0 h-1" style={{ background: `linear-gradient(90deg, ${pkg.color}, ${pkg.color}50)` }}></div>
+                {/* Animated glow border */}
+                <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-700" style={{ boxShadow: `inset 0 0 30px ${pkg.color}15, 0 0 40px ${pkg.color}10` }}></div>
+                {/* Moving shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
+                {/* Top glow bar */}
+                {pkg.popular ? (
+                  <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: `linear-gradient(90deg, transparent, ${pkg.color}, transparent)`, boxShadow: `0 0 20px ${pkg.color}60, 0 0 40px ${pkg.color}30` }}></div>
+                ) : (
+                  <div className="absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `linear-gradient(90deg, transparent, ${pkg.color}80, transparent)`, boxShadow: `0 0 15px ${pkg.color}40` }}></div>
                 )}
+                {/* Background orb glow */}
+                <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-[60px]" style={{ background: pkg.color }}></div>
                 <CardContent className="p-5 sm:p-6 space-y-4 relative z-10">
                   <div>
                     <h4 className="text-lg font-bold text-white">{pkg.name}</h4>
                     <p className="text-xs text-[#666] mt-0.5">{pkg.target}</p>
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black" style={{ color: pkg.color }}>{pkg.price}</span>
+                    <span className="text-3xl font-black transition-all duration-500 group-hover:drop-shadow-[0_0_12px_var(--glow)]" style={{ color: pkg.color, '--glow': `${pkg.color}80` }}>{pkg.price}</span>
                     <span className="text-xs text-[#666]">{pkg.period}</span>
                   </div>
                   <ul className="space-y-2.5">
@@ -211,7 +220,10 @@ export const AIServices = () => {
                       </li>
                     ))}
                   </ul>
-                  <Button className="w-full h-10 font-bold text-sm" style={{ background: `${pkg.color}15`, color: pkg.color, border: `1px solid ${pkg.color}30` }}>
+                  <Button className="w-full h-11 font-bold text-sm transition-all duration-300 group-hover:shadow-lg"
+                    style={{ background: `${pkg.color}15`, color: pkg.color, border: `1px solid ${pkg.color}30`, boxShadow: 'none' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = `${pkg.color}25`; e.currentTarget.style.boxShadow = `0 0 25px ${pkg.color}30`; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = `${pkg.color}15`; e.currentTarget.style.boxShadow = 'none'; }}>
                     {t('aiOffer.buyFtrx')} <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
                 </CardContent>

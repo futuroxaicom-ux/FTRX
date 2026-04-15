@@ -426,5 +426,20 @@
     "companyF4": "AI przetwarza zamowienia, faktury i platnosci",
     "companyF5": "Przychody trafiaja bezposrednio na Twoj portfel (non-custodial)",
     "contactTitle": "Oferta indywidualna? Skontaktuj sie"
+  },
+  "wowBanner": {
+    "live": "LIVE TRADING ECOSYSTEM",
+    "line1": "Twoje pieniadze.",
+    "line2": "Precyzja AI.",
+    "line3": "Zyski 24/7.",
+    "stat1": "Botow AI Trading",
+    "stat2": "Non-Stop Trading",
+    "stat3": "Sredni ROI",
+    "bizTitle1": "Po co zatrudniac 10 osob",
+    "bizTitle2": "skoro AI zrobi to za Ciebie?",
+    "bizDesc": "FuturoX AI zastepuje cale dzialy. Obsluga klienta, marketing, ksiegowosc, sprzedaz - w pelni zautomatyzowane, zero pensji, zero kosztow.",
+    "save1": "Oszczednosc na supportcie/mies.",
+    "save2": "Oszczednosc na sprzedazy/mies.",
+    "save3": "Oszczednosc na marketingu/mies."
   }
 }

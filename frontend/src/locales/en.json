@@ -426,5 +426,20 @@
     "companyF4": "AI processes orders, invoices & payments",
     "companyF5": "Revenue goes directly to your wallet (non-custodial)",
     "contactTitle": "Individual offer? Contact us"
+  },
+  "wowBanner": {
+    "live": "LIVE TRADING ECOSYSTEM",
+    "line1": "Your money.",
+    "line2": "AI's precision.",
+    "line3": "24/7 profits.",
+    "stat1": "AI Trading Bots",
+    "stat2": "Non-Stop Trading",
+    "stat3": "ROI Average",
+    "bizTitle1": "Why hire 10 people",
+    "bizTitle2": "when AI does it all?",
+    "bizDesc": "FuturoX AI replaces entire departments. Customer service, marketing, accounting, sales - fully automated, zero salaries, zero overhead.",
+    "save1": "Support savings/mo",
+    "save2": "Sales savings/mo",
+    "save3": "Marketing savings/mo"
   }
 }

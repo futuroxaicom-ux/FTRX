@@ -426,5 +426,20 @@
     "companyF4": "AI procesa pedidos, facturas y pagos",
     "companyF5": "Los ingresos van directamente a tu billetera (non-custodial)",
     "contactTitle": "Oferta individual? Contáctanos"
+  },
+  "wowBanner": {
+    "live": "ECOSISTEMA TRADING EN VIVO",
+    "line1": "Tu dinero.",
+    "line2": "Precisión de AI.",
+    "line3": "Ganancias 24/7.",
+    "stat1": "Bots AI Trading",
+    "stat2": "Trading Non-Stop",
+    "stat3": "ROI Promedio",
+    "bizTitle1": "¿Para qué contratar 10 personas",
+    "bizTitle2": "si AI lo hace todo?",
+    "bizDesc": "FuturoX AI reemplaza departamentos enteros. Atención al cliente, marketing, contabilidad, ventas - totalmente automatizado, cero salarios.",
+    "save1": "Ahorro en soporte/mes",
+    "save2": "Ahorro en ventas/mes",
+    "save3": "Ahorro en marketing/mes"
   }
 }
