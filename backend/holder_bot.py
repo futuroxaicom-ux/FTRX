@@ -478,22 +478,37 @@ class HolderBot:
         SYSTEM_PROGRAM = Pubkey.from_string("11111111111111111111111111111111")
 
         RPC = "https://api.mainnet-beta.solana.com"
+        RPCS = ["https://api.mainnet-beta.solana.com", "https://solana.publicnode.com"]
 
-        # Get main token balance
+        # Get main token balance (with retry on multiple RPCs)
+        main_raw = 0
+        decimals = 6
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(RPC, json={
-                "jsonrpc": "2.0", "id": 1,
-                "method": "getTokenAccountsByOwner",
-                "params": [str(main_pub), {"mint": token_mint_str}, {"encoding": "jsonParsed"}],
-            })
-            accounts = resp.json().get("result", {}).get("value", [])
-            if not accounts:
-                return {"error": "Main wallet has no token account"}
-            main_raw = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"])
-            decimals = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["decimals"])
+            for rpc in RPCS:
+                for attempt in range(3):
+                    try:
+                        resp = await client.post(rpc, json={
+                            "jsonrpc": "2.0", "id": 1,
+                            "method": "getTokenAccountsByOwner",
+                            "params": [str(main_pub), {"mint": token_mint_str}, {"encoding": "jsonParsed"}],
+                        })
+                        if resp.status_code == 429:
+                            logger.warning(f"RPC 429 on {rpc}, retrying in 3s...")
+                            await asyncio.sleep(3)
+                            continue
+                        accounts = resp.json().get("result", {}).get("value", [])
+                        if accounts:
+                            main_raw = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"])
+                            decimals = int(accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"]["decimals"])
+                            break
+                    except Exception as e:
+                        logger.error(f"RPC error on {rpc}: {e}")
+                        await asyncio.sleep(2)
+                if main_raw > 0:
+                    break
 
-        if main_raw <= 0:
-            return {"error": "Main wallet has 0 tokens"}
+            if main_raw <= 0:
+                return {"error": f"Main wallet has no tokens (checked {len(RPCS)} RPCs)"}
 
         # Calculate per-wallet amount
         if tokens_per_wallet > 0:
