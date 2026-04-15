@@ -335,7 +335,8 @@
     "exclusiveF4": "Dedicated account manager",
     "exclusiveContact": "Contact us",
     "exclusiveEmail": "support@futuroxai.com",
-    "mostPopular": "MOST POPULAR"
+    "mostPopular": "MOST POPULAR",
+    "disclaimer": "* The estimated profits presented above are approximate and depend on the amount of cryptocurrency capital used in the operation of AI bots, current market conditions, volatility and liquidity of trading pairs. Past performance does not guarantee future results. This information is for illustrative purposes only and should not be treated as a binding financial commitment or investment advice. Cryptocurrency trading involves significant risk, including the possibility of loss of invested capital. FuturoX AI does not guarantee any specific level of return."
   },
   "aiOffer": {
     "badge": "AI FOR BUSINESS & INDIVIDUALS",

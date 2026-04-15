@@ -335,7 +335,8 @@
     "exclusiveF4": "Gerente de cuenta dedicado",
     "exclusiveContact": "Contáctanos",
     "exclusiveEmail": "support@futuroxai.com",
-    "mostPopular": "MÁS POPULAR"
+    "mostPopular": "MÁS POPULAR",
+    "disclaimer": "* Las ganancias estimadas presentadas son aproximadas y dependen del capital en criptomonedas utilizado en la operación de los bots AI, las condiciones actuales del mercado, la volatilidad y la liquidez de los pares de trading. El rendimiento pasado no garantiza resultados futuros. Esta información es solo ilustrativa y no debe tratarse como un compromiso financiero vinculante ni como asesoramiento de inversión. El trading de criptomonedas conlleva un riesgo significativo, incluida la posibilidad de pérdida del capital invertido. FuturoX AI no garantiza ningún nivel específico de retorno."
   },
   "aiOffer": {
     "badge": "AI PARA EMPRESAS E INDIVIDUOS",

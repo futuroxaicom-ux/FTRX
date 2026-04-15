@@ -175,6 +175,13 @@ export const BotOffer = () => {
           ))}
         </div>
 
+        {/* Disclaimer */}
+        <div className="mb-8 sm:mb-12 mt-6 px-4 sm:px-8 py-4 border border-[rgba(255,255,255,0.04)] rounded-lg bg-[rgba(255,255,255,0.01)]">
+          <p className="text-[10px] sm:text-xs text-[#555] leading-relaxed text-center italic">
+            {t('botOffer.disclaimer')}
+          </p>
+        </div>
+
         {/* Bottom: Panel + Exclusive */}
         <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
           <div className="p-6 sm:p-8 bg-[#0a0a0a] border border-[rgba(0,255,209,0.15)] rounded-xl relative overflow-hidden group hover:border-[#00FFD1]/40 transition-all duration-500">
