@@ -739,6 +739,32 @@ async def sniper_history(x_admin_password: str = Header(None)):
     return {"history": history}
 
 # Holder Bot specific endpoints
+_holder_distribute_tokens_status = {"running": False, "result": None}
+
+@api_router.post("/admin/bot/holder/distribute-tokens")
+async def holder_distribute_tokens(body: dict, x_admin_password: str = Header(None)):
+    """Distribute tokens from main wallet to all sub-wallets (creates holders)"""
+    verify_admin(x_admin_password)
+    if _holder_distribute_tokens_status["running"]:
+        return {"error": "Already running"}
+    tokens_per_wallet = body.get("tokens_per_wallet", 0)
+    async def run():
+        _holder_distribute_tokens_status["running"] = True
+        _holder_distribute_tokens_status["result"] = None
+        try:
+            result = await holder_bot.distribute_tokens_to_holders(tokens_per_wallet)
+            _holder_distribute_tokens_status["result"] = result
+        except Exception as e:
+            _holder_distribute_tokens_status["result"] = {"error": str(e)}
+        _holder_distribute_tokens_status["running"] = False
+    asyncio.create_task(run())
+    return {"success": True, "message": "Distributing tokens to holders..."}
+
+@api_router.get("/admin/bot/holder/distribute-tokens/status")
+async def holder_distribute_tokens_status(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    return _holder_distribute_tokens_status
+
 @api_router.post("/admin/bot/holder/collect-tokens")
 async def holder_collect_tokens(x_admin_password: str = Header(None)):
     verify_admin(x_admin_password)

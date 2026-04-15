@@ -13,34 +13,37 @@ Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Vol
 - [x] Solana wallet connection (Phantom, Solflare)
 - [x] Volume Bot 1 (FTRX/SOL) with Organic Mode v2
 - [x] Volume Bot 2 (MMAC)
-- [x] Volume Bot 3 "Bot Makk GL" - Token Pair Mode (MAKK GL <-> CRBR via DexLab)
+- [x] Volume Bot 3 "Bot Makk GL" - Token Pair Mode (MAKK GL <-> CRBR via DexLab/Orca)
 - [x] Multi-Bot Panel: Volume, Spread, Sniper, Trade, Arbitrage, Copy Trade, Holder
 - [x] Sniper Bot: Helius WebSocket real-time token sniping with TP/SL and MongoDB history
-- [x] Holder Bot: Auto-generate 50-750 holders
-- [x] Analytics tracking dashboard for page visits and chatbot Q&A
-- [x] Direct SPL Token collection endpoint (collect-tokens)
-- [x] Volume Bot Custom:1 error fix (wrapAndUnwrapSol: True, static priority fees)
+- [x] Holder Bot: Token-Only mode (distribute tokens to create holders) + Classic SOL mode
+- [x] Holder Bot presets: 100, 250, 500, 1000, 5000 holders
+- [x] Analytics tracking dashboard
+- [x] Direct SPL Token collection, distribution, withdrawal endpoints
+- [x] Withdraw tokens to external address endpoint
+- [x] Fix: RPC batch 403/429 for token balances → single calls with mainnet-beta
+- [x] Fix: Dynamic token labels (FTRX/MAKK GL/Token) per bot type
 
-## Bot Makk GL (Volume Bot 3) - Token Pair Mode
-- Trades MAKK GL (4VdntG75wH1TUZMUaVL3bgbTGesLk18RbhJ7T35cmakK) <-> CRBR (BrXYiFB8zkwdp75RQvJjeXVfnhHC9Bkny3Q9N2pCrbr)
-- Jupiter routing confirmed via DexLab pool
-- Uses output_mint config field for pair mode activation
-- BUY = swap 5-30% of MAKK GL -> CRBR
-- SELL = swap 60-95% of CRBR -> MAKK GL
-- Tracks both base and quote token balances per wallet
-- Dashboard shows "Token Bazowy (MAKK GL)" and "Token Docelowy (CRBR)"
+## Bot Makk GL - Token Pair Mode
+- New MAKK GL: qs1KKaWkjgKw2N2uEGfB5Ws1p2Hi3RRj5binQM5MAKK
+- New CRBR: 5QevNRQzaYs7QuDCRcfEg8vA75ApZqmYg3TqL7vUcRbr
+- DexLab pool: AbJmT451fTE2EYQUZDtMCMfiueYumaP36cvtGi3MYCxH
+- Jupiter routing: MAKK→CRBR via DexLab, CRBR→MAKK via DexLab
+- BUY = 5-30% of MAKK GL → CRBR, SELL = 60-95% CRBR → MAKK GL
+
+## Holder Bot - Token-Only Mode
+- Distribute tokens from main wallet to sub-wallets (SPL transfer)
+- Creates ATA + transfers in single TX per wallet
+- Cost: ~0.002 SOL per holder (ATA rent)
+- Presets: 100, 250, 500, 1000, 5000
 
 ## Backlog
 ### P1
 - [ ] Szyfrowanie kluczy prywatnych w MongoDB (AES)
 - [ ] Rate limiting na endpointach admina
-- [ ] Przycisk "Wyslij SOL" do konkretnego sub-walleta
 
 ### P2
-- [ ] Refactoring Admin.jsx (>1500 linii -> osobne komponenty)
+- [ ] Refactoring Admin.jsx (>1600 linii → osobne komponenty)
 - [ ] Persystentne logi transakcji Volume Bot w MongoDB
 - [ ] Telegram/Discord webhook notyfikacje
 - [ ] Fix ostrzezen kompilacji React (useCallback, Webpack)
-
-### P3
-- [ ] Encrypt private keys in MongoDB (AES) for all bot wallets

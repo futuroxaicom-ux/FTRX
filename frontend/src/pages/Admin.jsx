@@ -1287,48 +1287,84 @@ function GenericBotDashboard({ botType, pw, onBack }) {
         )}
 
 
-        {/* Holder Bot - Preset buttons + Collect/Close */}
+        {/* Holder Bot - Preset buttons + Token Distribution + Collect/Close */}
         {botType === 'holder' && (
           <Card className="bg-[#0a0a0a] border-[#00CCFF]/20">
             <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><UserPlus className="w-4 h-4 text-[#00CCFF]" /> Utwórz Holderów</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-xs text-[#888] mb-3">Wybierz ile holderów chcesz stworzyć (generuje portfele, rozdziela SOL, kupuje tokeny):</p>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {[50, 100, 200, 250, 500, 750].map(n => (
-                  <Button key={n} onClick={async () => {
-                    if (!config.token_mint) { toast.error('Najpierw ustaw Token Mint!'); return; }
-                    const existing = wallets.filter(w => !w.is_main).length;
-                    const toGen = Math.max(0, n - existing);
-                    if (toGen > 0) {
-                      toast.info(`Generowanie ${toGen} portfeli...`);
-                      await fetch(`${API}/api/admin/bot/holder/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: toGen, prefix: 'Holder' }) });
-                    }
-                    toast.info(`Uruchamianie zakupów dla ${n} holderów...`);
-                    await fetch(`${API}/api/admin/bot/holder/start`, { method: 'POST', headers });
-                    fetchData();
-                  }} className="px-4 py-2 text-sm font-bold" style={{ background: '#00CCFF22', color: '#00CCFF', border: '1px solid #00CCFF33' }}>
-                    {n} holderów
-                  </Button>
-                ))}
+            <CardContent className="space-y-4">
+              {/* Token-Only Mode: Distribute tokens from main wallet */}
+              <div className="p-3 bg-[rgba(0,204,255,0.05)] border border-[rgba(0,204,255,0.2)] rounded space-y-3">
+                <p className="text-sm font-bold text-[#00CCFF] flex items-center gap-2"><Upload className="w-4 h-4" /> Rozdziel tokeny (Token-Only Holders)</p>
+                <p className="text-xs text-[#888]">Wyslij tokeny na portfel glowny → wygeneruj portfele → kliknij rozdziel. Kazdy portfel = 1 holder.</p>
+                <div className="flex flex-wrap gap-2">
+                  {[100, 250, 500, 1000, 5000].map(n => (
+                    <Button key={n} data-testid={`holder-token-${n}-btn`} onClick={async () => {
+                      if (!config.token_mint) { toast.error('Najpierw ustaw Token Mint!'); return; }
+                      const existing = wallets.filter(w => !w.is_main).length;
+                      const toGen = Math.max(0, n - existing);
+                      if (toGen > 0) {
+                        toast.info(`Generowanie ${toGen} portfeli...`);
+                        await fetch(`${API}/api/admin/bot/holder/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: Math.min(toGen, 50), prefix: 'Holder' }) });
+                        if (toGen > 50) {
+                          for (let batch = 50; batch < toGen; batch += 50) {
+                            await fetch(`${API}/api/admin/bot/holder/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: Math.min(50, toGen - batch), prefix: 'Holder' }) });
+                          }
+                        }
+                        toast.success(`Wygenerowano ${toGen} portfeli`);
+                      }
+                      toast.info(`Rozdzielanie tokenow na ${n} portfeli...`);
+                      await fetch(`${API}/api/admin/bot/holder/distribute-tokens`, { method: 'POST', headers, body: JSON.stringify({ tokens_per_wallet: 0 }) });
+                      fetchData();
+                    }} className="px-4 py-2 text-sm font-bold" style={{ background: '#00CCFF22', color: '#00CCFF', border: '1px solid #00CCFF33' }}>
+                      {n} holderów
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#555]">Koszt: ~0.002 SOL per holder (ATA rent). Dla 1000 holderow = ~2 SOL na portfelu glownym.</p>
               </div>
+
+              {/* Classic SOL Mode: SOL + Jupiter buy */}
+              <div className="p-3 bg-black/30 border border-[rgba(255,255,255,0.08)] rounded space-y-3">
+                <p className="text-sm font-bold text-[#888] flex items-center gap-2"><Coins className="w-4 h-4" /> Tryb klasyczny (SOL → kupno tokena)</p>
+                <p className="text-xs text-[#666]">Rozdziela SOL i kupuje token przez Jupiter na kazdym portfelu:</p>
+                <div className="flex flex-wrap gap-2">
+                  {[50, 100, 200, 500].map(n => (
+                    <Button key={n} onClick={async () => {
+                      if (!config.token_mint) { toast.error('Najpierw ustaw Token Mint!'); return; }
+                      const existing = wallets.filter(w => !w.is_main).length;
+                      const toGen = Math.max(0, n - existing);
+                      if (toGen > 0) {
+                        toast.info(`Generowanie ${toGen} portfeli...`);
+                        await fetch(`${API}/api/admin/bot/holder/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: toGen, prefix: 'Holder' }) });
+                      }
+                      toast.info(`Uruchamianie zakupow dla ${n} holderow...`);
+                      await fetch(`${API}/api/admin/bot/holder/start`, { method: 'POST', headers });
+                      fetchData();
+                    }} className="px-3 py-1.5 text-xs" style={{ background: '#ffffff08', color: '#888', border: '1px solid #ffffff15' }}>
+                      {n} (SOL)
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
               {/* Progress */}
               {stats.phase && stats.phase !== 'idle' && (
-                <div className="mb-3 p-3 bg-black/50 rounded border border-[rgba(255,255,255,0.1)]">
+                <div className="p-3 bg-black/50 rounded border border-[rgba(255,255,255,0.1)]">
                   <p className="text-xs text-[#00CCFF] font-bold mb-1">Faza: {stats.phase}</p>
                   <div className="w-full bg-gray-800 rounded h-2">
                     <div className="bg-[#00CCFF] h-2 rounded transition-all" style={{ width: `${stats.progress_total ? (stats.progress / stats.progress_total * 100) : 0}%` }}></div>
                   </div>
-                  <p className="text-xs text-[#888] mt-1">{stats.progress}/{stats.progress_total} | Kupiono: {stats.wallets_bought} | Błędy: {stats.errors}</p>
+                  <p className="text-xs text-[#888] mt-1">{stats.progress}/{stats.progress_total} | Holders: {stats.total_holders || stats.wallets_bought || 0} | Bledy: {stats.errors}</p>
                 </div>
               )}
               {/* Collect + Close actions */}
               <div className="flex gap-2">
                 <Button onClick={async () => {
-                  toast.info('Zbieranie tokenów i SOL...');
+                  toast.info('Zbieranie tokenow i SOL...');
                   const r = await fetch(`${API}/api/admin/bot/holder/collect-tokens`, { method: 'POST', headers });
                   const d = await r.json();
                   if (d.collected) toast.success(`Zebrano tokeny z ${d.collected} portfeli → ${d.total_sol?.toFixed(4)} SOL`);
-                  else toast.info(d.error || 'Brak tokenów do zebrania');
+                  else toast.info(d.error || 'Brak tokenow do zebrania');
                   fetchData();
                 }} className="flex-1 bg-orange-700 hover:bg-orange-600 text-sm">
                   Zbierz tokeny → SOL
@@ -1337,8 +1373,8 @@ function GenericBotDashboard({ botType, pw, onBack }) {
                   toast.info('Zamykanie kont → odzyskiwanie rent...');
                   const r = await fetch(`${API}/api/admin/bot/holder/close-accounts`, { method: 'POST', headers });
                   const d = await r.json();
-                  if (d.closed) toast.success(`Zamknięto ${d.closed} kont → odzyskano ~${d.rent_recovered_approx} SOL`);
-                  else toast.info(d.error || 'Brak kont do zamknięcia');
+                  if (d.closed) toast.success(`Zamknieto ${d.closed} kont → odzyskano ~${d.rent_recovered_approx} SOL`);
+                  else toast.info(d.error || 'Brak kont do zamkniecia');
                   fetchData();
                 }} className="flex-1 bg-purple-700 hover:bg-purple-600 text-sm">
                   Zamknij konta → odzyskaj SOL
