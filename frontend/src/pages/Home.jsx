@@ -216,14 +216,71 @@ const Home = () => {
       {/* AI Banner 2: Automation - After AI Services */}
       <AIBannerAutomation />
 
+      {/* Roadmap Section */}
+      <Roadmap />
+
+      {/* WOW Banner: Trading Revolution */}
+      <section className="relative overflow-hidden py-16 sm:py-20 bg-black">
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-[linear-gradient(45deg,#00FFD1_0%,#00CCFF_25%,#7B61FF_50%,#FF3366_75%,#FFB800_100%)] opacity-[0.06]"></div>
+          <div className="absolute inset-0 bg-black/80"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#00FFD1] opacity-[0.04] blur-[200px] rounded-full animate-pulse"></div>
+        </div>
+        <div className="relative z-10 max-w-[1200px] mx-auto px-4 text-center space-y-6">
+          <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-[rgba(0,255,209,0.05)] border border-[rgba(0,255,209,0.15)] rounded-full">
+            <span className="w-2 h-2 bg-[#00FFD1] rounded-full animate-ping"></span>
+            <span className="text-sm font-medium text-[#00FFD1] tracking-wide">LIVE TRADING ECOSYSTEM</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black text-white leading-[1.1]">
+            <span className="block">Your money.</span>
+            <span className="block bg-gradient-to-r from-[#00FFD1] via-[#00CCFF] to-[#7B61FF] bg-clip-text text-transparent">AI's precision.</span>
+            <span className="block text-[rgba(255,255,255,0.4)]">24/7 profits.</span>
+          </h2>
+          <div className="flex justify-center gap-8 sm:gap-16 pt-4">
+            <div className="text-center"><p className="text-2xl sm:text-4xl font-black text-[#00FFD1]">6</p><p className="text-xs text-[#666] mt-1">AI Trading Bots</p></div>
+            <div className="w-px h-12 bg-[rgba(255,255,255,0.08)]"></div>
+            <div className="text-center"><p className="text-2xl sm:text-4xl font-black text-[#00CCFF]">24/7</p><p className="text-xs text-[#666] mt-1">Non-Stop Trading</p></div>
+            <div className="w-px h-12 bg-[rgba(255,255,255,0.08)]"></div>
+            <div className="text-center"><p className="text-2xl sm:text-4xl font-black text-[#7B61FF]">80%</p><p className="text-xs text-[#666] mt-1">ROI Average</p></div>
+          </div>
+        </div>
+      </section>
+
       {/* Trading Bots Offer Section */}
       <BotOffer />
 
+      {/* WOW Banner: AI Business Revolution */}
+      <section className="relative overflow-hidden py-14 sm:py-18 bg-[#050505]">
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage: 'repeating-linear-gradient(90deg, #7B61FF 0px, transparent 1px, transparent 60px), repeating-linear-gradient(0deg, #7B61FF 0px, transparent 1px, transparent 60px)'}}></div>
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#7B61FF] opacity-[0.04] blur-[180px] rounded-full"></div>
+        </div>
+        <div className="relative z-10 max-w-[1200px] mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16">
+            <div className="flex-1 space-y-4 text-center md:text-left">
+              <h3 className="text-2xl sm:text-4xl font-black text-white leading-tight">
+                Why hire 10 people<br /><span className="text-[#7B61FF]">when AI does it all?</span>
+              </h3>
+              <p className="text-sm text-[#888] max-w-lg">FuturoX AI replaces entire departments. Customer service, marketing, accounting, sales - fully automated, zero salaries, zero overhead.</p>
+            </div>
+            <div className="flex gap-4 sm:gap-6">
+              {[
+                {val: '$3K-8K', label: 'Support savings/mo', color: '#00FFD1'},
+                {val: '$4K-10K', label: 'Sales savings/mo', color: '#7B61FF'},
+                {val: '$2K-5K', label: 'Marketing savings/mo', color: '#FF3366'},
+              ].map((s,i) => (
+                <div key={i} className="text-center p-4 bg-black/50 border border-[rgba(255,255,255,0.05)] rounded-xl">
+                  <p className="text-xl sm:text-2xl font-black" style={{color: s.color}}>{s.val}</p>
+                  <p className="text-[10px] text-[#666] mt-1 whitespace-nowrap">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* AI Services for Business & Individuals */}
       <AIServices />
-
-      {/* Roadmap Section */}
-      <Roadmap />
 
       {/* AI Banner 3: Analytics - Before Pre-order */}
       <AIBannerAnalytics />
