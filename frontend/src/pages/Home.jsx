@@ -19,6 +19,7 @@ import { Tokenomics } from '../components/Tokenomics';
 import { Whitelist } from '../components/Whitelist';
 import { Roadmap } from '../components/Roadmap';
 import { BotOffer } from '../components/BotOffer';
+import { AIServices } from '../components/AIServicesOffer';
 
 const Home = () => {
   const { t } = useTranslation();
@@ -217,6 +218,9 @@ const Home = () => {
 
       {/* Trading Bots Offer Section */}
       <BotOffer />
+
+      {/* AI Services for Business & Individuals */}
+      <AIServices />
 
       {/* Roadmap Section */}
       <Roadmap />
