@@ -18,6 +18,7 @@ import { AIBannerBrain, AIBannerAutomation, AIBannerAnalytics } from '../compone
 import { Tokenomics } from '../components/Tokenomics';
 import { Whitelist } from '../components/Whitelist';
 import { Roadmap } from '../components/Roadmap';
+import { BotOffer } from '../components/BotOffer';
 
 const Home = () => {
   const { t } = useTranslation();
@@ -94,6 +95,7 @@ const Home = () => {
           
           <nav className="dark-nav hidden md:flex">
             <a href="#ai" className="dark-nav-link">{t('nav.aiServices')}</a>
+            <a href="#bots" className="dark-nav-link">Trading Bots</a>
             <a href="#tokenomics" className="dark-nav-link">{t('nav.tokenomics')}</a>
             <a href="#whitelist" className="dark-nav-link">{t('nav.whitelist')}</a>
             <a href="#roadmap" className="dark-nav-link">{t('nav.roadmap')}</a>
@@ -212,6 +214,9 @@ const Home = () => {
 
       {/* AI Banner 2: Automation - After AI Services */}
       <AIBannerAutomation />
+
+      {/* Trading Bots Offer Section */}
+      <BotOffer />
 
       {/* Roadmap Section */}
       <Roadmap />

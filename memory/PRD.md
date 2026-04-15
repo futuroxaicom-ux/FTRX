@@ -1,7 +1,7 @@
 # FuturoX AI - Product Requirements Document
 
 ## Original Problem Statement
-Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Volume Bot + Multi-Bot Platform.
+Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Volume Bot + Multi-Bot Platform + Bot Trading Offer.
 
 ## Tech Stack
 - **Frontend**: React, Tailwind CSS, shadcn/ui, React Router, Solana Wallet Adapter, Recharts, i18next
@@ -16,34 +16,35 @@ Strona kryptowalutowa "FuturoX AI" z tickerem "FTRX" na ekosystemie Solana + Vol
 - [x] Volume Bot 3 "Bot Makk GL" - Token Pair Mode (MAKK GL <-> CRBR via DexLab/Orca)
 - [x] Multi-Bot Panel: Volume, Spread, Sniper, Trade, Arbitrage, Copy Trade, Holder
 - [x] Sniper Bot: Helius WebSocket real-time token sniping with TP/SL and MongoDB history
-- [x] Holder Bot: Token-Only mode (distribute tokens to create holders) + Classic SOL mode
+- [x] Holder Bot: Token-Only mode + Classic SOL mode + Skip existing holders fix
 - [x] Holder Bot presets: 100, 250, 500, 1000, 5000 holders
 - [x] Analytics tracking dashboard
 - [x] Direct SPL Token collection, distribution, withdrawal endpoints
 - [x] Withdraw tokens to external address endpoint
-- [x] Fix: RPC batch 403/429 for token balances → single calls with mainnet-beta
+- [x] Fix: RPC batch 403/429 for token balances → single calls with mainnet-beta + retry
 - [x] Fix: Dynamic token labels (FTRX/MAKK GL/Token) per bot type
+- [x] Fix: Holder Bot distribute skips existing holders (no duplicates)
+- [x] Bot Trading Offer landing page section with WOW effect
+- [x] 5 bot pricing cards (Spread $99, Sniper $199, Trade $199, Arbitrage $99, Copy Trade $99/$499)
+- [x] Non-custodial messaging, dedicated panel info, exclusive bot offer via support@futuroxai.com
 
-## Bot Makk GL - Token Pair Mode
-- New MAKK GL: qs1KKaWkjgKw2N2uEGfB5Ws1p2Hi3RRj5binQM5MAKK
-- New CRBR: 5QevNRQzaYs7QuDCRcfEg8vA75ApZqmYg3TqL7vUcRbr
-- DexLab pool: AbJmT451fTE2EYQUZDtMCMfiueYumaP36cvtGi3MYCxH
-- Jupiter routing: MAKK→CRBR via DexLab, CRBR→MAKK via DexLab
-- BUY = 5-30% of MAKK GL → CRBR, SELL = 60-95% CRBR → MAKK GL
-
-## Holder Bot - Token-Only Mode
-- Distribute tokens from main wallet to sub-wallets (SPL transfer)
-- Creates ATA + transfers in single TX per wallet
-- Cost: ~0.002 SOL per holder (ATA rent)
-- Presets: 100, 250, 500, 1000, 5000
+## Bot Trading Offer (Landing Page)
+- Spread Bot: $99/month FTRX - ROI 15-30%
+- Sniper Bot: $199/month FTRX - up to $10,000 profit
+- Trade Bot: $199/month FTRX - up to $10,000 profit  
+- Arbitrage Bot: $99/month FTRX - up to $10,000 profit
+- Copy Trade: $99/month FTRX or $499 Premium (team portfolios, up to $50,000)
+- Dedicated panel, non-custodial, auto-payout
+- Exclusive bot option: support@futuroxai.com
 
 ## Backlog
 ### P1
 - [ ] Szyfrowanie kluczy prywatnych w MongoDB (AES)
 - [ ] Rate limiting na endpointach admina
+- [ ] Holder Bot: redeploy needed for skip-existing-holders fix
 
 ### P2
 - [ ] Refactoring Admin.jsx (>1600 linii → osobne komponenty)
-- [ ] Persystentne logi transakcji Volume Bot w MongoDB
+- [ ] Persistentne logi transakcji Volume Bot w MongoDB
 - [ ] Telegram/Discord webhook notyfikacje
 - [ ] Fix ostrzezen kompilacji React (useCallback, Webpack)
