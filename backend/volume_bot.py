@@ -444,11 +444,8 @@ class VolumeBot:
                 await asyncio.sleep(5)
 
     def _pick_action(self, sub_wallets):
-        """Pick organic action - accumulate buys before selling, vary sequences"""
+        """Pick organic action - balanced 50/50 BUY/SELL for SOL recycling"""
         min_trade = self.config["min_sol_per_trade"]
-        # ATA rent = 0.00204 SOL, tx fee = 0.000005 SOL, extra buffer = 0.001
-        # Without ATA: need trade + 0.004 SOL (rent + fees + buffer)
-        # With ATA: need trade + 0.001 SOL (fees + buffer only)
         funded_buy = []
         for w in sub_wallets:
             bal = self._balance_cache.get(w["public_key"], 0) / LAMPORTS_PER_SOL
@@ -456,43 +453,35 @@ class VolumeBot:
             if bal >= min_trade + reserve:
                 funded_buy.append(w)
         funded_sell = [w for w in sub_wallets
-                       if self._balance_cache.get(w["public_key"], 0) >= 1_500_000]  # 0.0015 SOL for sell fees
+                       if self._balance_cache.get(w["public_key"], 0) >= 1_500_000]
         holders = [w for w in sub_wallets if w["public_key"] in self._token_holders]
 
-        # If holders exist but no wallet can BUY, try to SELL to recycle SOL
+        # If holders exist but no wallet can BUY, SELL to recycle SOL
         if not funded_buy and holders:
             eligible_sellers = [h for h in holders
-                                if h["public_key"] in [f["public_key"] for f in funded_sell]
-                                and h["public_key"] != self._last_trade_wallet]
+                                if h["public_key"] in [f["public_key"] for f in funded_sell]]
             if eligible_sellers:
-                return "SELL"
-            # Try any holder that can pay fees
-            any_seller = [h for h in holders
-                          if h["public_key"] in [f["public_key"] for f in funded_sell]]
-            if any_seller:
                 return "SELL"
             return "REFUND"
 
-        # No funded wallets at all -> nothing to do
         if not funded_buy:
             return "REFUND"
 
-        # Must buy first - need at least 2-4 holders before any selling
-        min_holders_before_sell = random.randint(2, min(4, max(2, len(funded_buy) // 2 + 1)))
-        if len(holders) < min_holders_before_sell:
+        # Need at least 1 holder before first sell
+        if len(holders) < 1:
             return "BUY"
 
-        # Accumulate buys before allowing sells (fixed threshold, not random each cycle)
-        sell_allowed = self._buys_since_sell >= 2 and len(holders) >= 2
+        # Balanced 50/50: allow sell after just 1 buy
+        sell_allowed = self._buys_since_sell >= 1 and len(holders) >= 1
 
-        # Build weighted random choices - balanced BUY/SELL for SOL recycling
         weights = []
         actions = []
 
         if funded_buy:
-            buy_weight = 40 if len(holders) < 3 else 25
+            # Equal weight for BUY - slight reduction after consecutive BUY
+            buy_weight = 35
             if self._last_action == "BUY":
-                buy_weight = max(15, buy_weight - 10)
+                buy_weight = 20  # Lower if last was BUY
             actions.append("BUY")
             weights.append(buy_weight)
 
@@ -500,21 +489,22 @@ class VolumeBot:
             eligible_sellers = [h for h in holders
                                 if h["public_key"] != self._last_trade_wallet
                                 and self._balance_cache.get(h["public_key"], 0) >= 1_500_000]
+            if not eligible_sellers:
+                eligible_sellers = [h for h in holders
+                                    if self._balance_cache.get(h["public_key"], 0) >= 1_500_000]
             if eligible_sellers:
-                # SELL more aggressively to recycle SOL
-                sell_weight = 45 if len(holders) >= 3 else 35
-                if self._last_action == "SELL":
-                    sell_weight = max(15, sell_weight - 10)
+                # Equal weight for SELL - slight boost after consecutive BUY
+                sell_weight = 40
+                if self._last_action == "BUY":
+                    sell_weight = 50  # Higher if last was BUY -> force alternation
+                elif self._last_action == "SELL":
+                    sell_weight = 25
                 actions.append("SELL")
                 weights.append(sell_weight)
 
-        if len(funded_buy) > 1:
+        if len(funded_buy) > 2:
             actions.append("TRANSFER_SOL")
-            weights.append(25)  # SOL concentration
-
-        if self.config.get("auto_refund"):
-            actions.append("REFUND")
-            weights.append(3)  # Very low priority - don't block trading
+            weights.append(10)
 
         if not actions:
             return "BUY"
@@ -1555,44 +1545,31 @@ class VolumeBot:
         return wallets
 
     async def _fetch_token_balances_for_wallets(self, wallets, mint_str, field_name):
-        """Fetch token balances for all wallets and set field_name on each wallet dict"""
-        mint_pub = Pubkey.from_string(mint_str)
-        ata_map = []
-        for w in wallets:
-            try:
-                wallet_pub = Pubkey.from_string(w["public_key"])
-                ata = get_ata(wallet_pub, mint_pub)
-                ata_map.append((w, str(ata)))
-            except Exception:
-                pass
-
-        FTRX_BATCH = 5
-        async with httpx.AsyncClient(timeout=15.0) as ftrx_client:
-            for i in range(0, len(ata_map), FTRX_BATCH):
-                batch_items = ata_map[i:i + FTRX_BATCH]
-                rpc_batch = [
-                    {"jsonrpc": "2.0", "id": idx, "method": "getTokenAccountBalance", "params": [ata_addr]}
-                    for idx, (_, ata_addr) in enumerate(batch_items)
-                ]
-                for rpc in [SOLANA_RPC, "https://api.mainnet-beta.solana.com"]:
-                    try:
-                        resp = await ftrx_client.post(rpc, json=rpc_batch)
-                        if resp.status_code == 429:
-                            await asyncio.sleep(2)
-                            continue
-                        results = resp.json()
-                        if isinstance(results, list):
-                            for r in results:
-                                rid = r.get("id", 0)
-                                if 0 <= rid < len(batch_items):
-                                    val = r.get("result", {}).get("value", {})
-                                    ui_amount = val.get("uiAmount")
-                                    if ui_amount is not None:
-                                        batch_items[rid][0][field_name] = float(ui_amount)
-                        break  # Success on this RPC
-                    except Exception:
-                        continue
-                await asyncio.sleep(0.5)
+        """Fetch token balances for all wallets using SINGLE RPC calls (batch gets 403/429)"""
+        RPC = "https://api.mainnet-beta.solana.com"
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            for w in wallets:
+                try:
+                    resp = await client.post(RPC, json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method": "getTokenAccountsByOwner",
+                        "params": [w["public_key"], {"mint": mint_str}, {"encoding": "jsonParsed"}],
+                    })
+                    if resp.status_code == 429:
+                        await asyncio.sleep(3)
+                        resp = await client.post(RPC, json={
+                            "jsonrpc": "2.0", "id": 1,
+                            "method": "getTokenAccountsByOwner",
+                            "params": [w["public_key"], {"mint": mint_str}, {"encoding": "jsonParsed"}],
+                        })
+                    accounts = resp.json().get("result", {}).get("value", [])
+                    if accounts:
+                        ui_amount = accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"].get("uiAmount")
+                        if ui_amount is not None:
+                            w[field_name] = float(ui_amount)
+                except Exception:
+                    pass
+                await asyncio.sleep(0.4)
 
     async def refresh_ftrx_balances(self):
         """Fetch actual FTRX balances from blockchain for active wallets"""
