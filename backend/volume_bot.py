@@ -1545,31 +1545,56 @@ class VolumeBot:
         return wallets
 
     async def _fetch_token_balances_for_wallets(self, wallets, mint_str, field_name):
-        """Fetch token balances for all wallets using SINGLE RPC calls (batch gets 403/429)"""
+        """Fetch token balances using getMultipleAccounts (single fast RPC call for all ATAs)"""
         RPC = "https://api.mainnet-beta.solana.com"
+        mint_pub = Pubkey.from_string(mint_str)
+
+        # Derive all ATA addresses
+        ata_list = []
+        ata_to_wallet = {}
+        for w in wallets:
+            try:
+                wallet_pub = Pubkey.from_string(w["public_key"])
+                ata = str(get_ata(wallet_pub, mint_pub))
+                ata_list.append(ata)
+                ata_to_wallet[ata] = w
+            except Exception:
+                pass
+
+        if not ata_list:
+            return
+
+        # Single RPC call for all accounts at once (limit 100, we have max ~25-50)
         async with httpx.AsyncClient(timeout=15.0) as client:
-            for w in wallets:
+            for attempt in range(3):
                 try:
                     resp = await client.post(RPC, json={
                         "jsonrpc": "2.0", "id": 1,
-                        "method": "getTokenAccountsByOwner",
-                        "params": [w["public_key"], {"mint": mint_str}, {"encoding": "jsonParsed"}],
+                        "method": "getMultipleAccounts",
+                        "params": [ata_list, {"encoding": "jsonParsed"}],
                     })
                     if resp.status_code == 429:
-                        await asyncio.sleep(3)
-                        resp = await client.post(RPC, json={
-                            "jsonrpc": "2.0", "id": 1,
-                            "method": "getTokenAccountsByOwner",
-                            "params": [w["public_key"], {"mint": mint_str}, {"encoding": "jsonParsed"}],
-                        })
-                    accounts = resp.json().get("result", {}).get("value", [])
-                    if accounts:
-                        ui_amount = accounts[0]["account"]["data"]["parsed"]["info"]["tokenAmount"].get("uiAmount")
-                        if ui_amount is not None:
-                            w[field_name] = float(ui_amount)
-                except Exception:
-                    pass
-                await asyncio.sleep(0.4)
+                        await asyncio.sleep(2)
+                        continue
+                    data = resp.json()
+                    if "error" in data:
+                        logger.error(f"getMultipleAccounts error: {data['error']}")
+                        break
+                    accounts = data.get("result", {}).get("value", [])
+                    for i, acc in enumerate(accounts):
+                        if i < len(ata_list) and acc:
+                            parsed = acc.get("data", {})
+                            if isinstance(parsed, dict):
+                                token_amount = parsed.get("parsed", {}).get("info", {}).get("tokenAmount", {})
+                                ui_amount = token_amount.get("uiAmount")
+                                if ui_amount is not None and float(ui_amount) > 0:
+                                    w = ata_to_wallet.get(ata_list[i])
+                                    if w:
+                                        w[field_name] = float(ui_amount)
+                    break  # Success
+                except Exception as e:
+                    logger.error(f"Token balance fetch error: {e}")
+                    await asyncio.sleep(1)
 
     async def refresh_ftrx_balances(self):
         """Fetch actual FTRX balances from blockchain for active wallets"""
