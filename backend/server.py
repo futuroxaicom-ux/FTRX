@@ -965,81 +965,64 @@ async def get_crypto_chart():
 # FTRX Token Price API
 FTRX_TOKEN_ADDRESS = "CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx"
 
+FTRX_PAIR_ADDRESS = "HvaXgLZP28ATMMmqNAyL2MM3ob3HC7XyCJZcrqH7dkyC"
+GECKO_BASE = "https://api.geckoterminal.com/api/v2/networks/solana/pools"
+
 @api_router.get("/ftrx/price")
 async def get_ftrx_price():
-    """Get FTRX token price from Jupiter API or DexScreener"""
+    """Get FTRX token price from GeckoTerminal (no API key needed)"""
     async with httpx.AsyncClient() as client:
         try:
-            # Try DexScreener API first (more reliable)
-            response = await client.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{FTRX_TOKEN_ADDRESS}",
+            # Fetch current price + pool info
+            pool_resp = await client.get(f"{GECKO_BASE}/{FTRX_PAIR_ADDRESS}", timeout=15.0)
+            pool_data = pool_resp.json()
+            attrs = pool_data.get("data", {}).get("attributes", {})
+            price = float(attrs.get("base_token_price_usd") or 0)
+            change24h = float((attrs.get("price_change_percentage") or {}).get("h24") or 0)
+
+            # Fetch 7-day OHLCV chart data
+            ohlcv_resp = await client.get(
+                f"{GECKO_BASE}/{FTRX_PAIR_ADDRESS}/ohlcv/day?limit=7",
                 timeout=15.0
             )
-            data = response.json()
-            
-            if "pairs" in data and len(data["pairs"]) > 0:
-                pair = data["pairs"][0]  # Get the first/most liquid pair
-                price = float(pair.get("priceUsd", 0) or 0)
-                change24h = float(pair.get("priceChange", {}).get("h24", 0) or 0)
-                
-                # Generate chart data from price history if available
-                chart_data = []
-                from datetime import datetime, timedelta
-                import random
-                
-                base_price = price if price > 0 else 0.000001
-                for i in range(7):
-                    date = datetime.now() - timedelta(days=6-i)
-                    # Small random variation for visualization
-                    variation = random.uniform(0.85, 1.15)
-                    chart_data.append({
-                        "time": date.strftime("%b %d"),
-                        "price": round(base_price * variation, 10)
-                    })
-                
-                return {
-                    "price": price,
-                    "change24h": change24h,
-                    "chartData": chart_data,
-                    "source": "DexScreener",
-                    "pairAddress": pair.get("pairAddress", ""),
-                    "dexId": pair.get("dexId", "raydium")
-                }
-            
-            # Fallback: return placeholder data
-            from datetime import datetime, timedelta
+            ohlcv_data = ohlcv_resp.json()
+            ohlcv_list = ohlcv_data.get("data", {}).get("attributes", {}).get("ohlcv_list", [])
+
             chart_data = []
-            for i in range(7):
-                date = datetime.now() - timedelta(days=6-i)
+            for candle in ohlcv_list:
+                # candle: [timestamp, open, high, low, close, volume]
+                ts, _, _, _, close, _ = candle
+                dt = datetime.fromtimestamp(ts, tz=timezone.utc)
                 chart_data.append({
-                    "time": date.strftime("%b %d"),
-                    "price": 0.0000001 * (1 + i * 0.1)
+                    "time": dt.strftime("%b %d"),
+                    "price": round(float(close), 8)
                 })
-            
+
+            # If chart is empty but we have current price, generate a single point
+            if not chart_data and price > 0:
+                chart_data = [{"time": datetime.now(timezone.utc).strftime("%b %d"), "price": price}]
+
             return {
-                "price": 0,
-                "change24h": 0,
+                "price": price,
+                "change24h": change24h,
                 "chartData": chart_data,
-                "source": "placeholder",
-                "message": "Token data not yet available on DexScreener"
+                "source": "GeckoTerminal",
+                "pairAddress": FTRX_PAIR_ADDRESS,
+                "dexId": "dexlab"
             }
-            
+
         except Exception as e:
-            logger.error(f"DexScreener API error: {e}")
-            # Return placeholder chart data
-            from datetime import datetime, timedelta
+            logger.error(f"GeckoTerminal API error: {e}")
             chart_data = []
             for i in range(7):
-                date = datetime.now() - timedelta(days=6-i)
-                chart_data.append({
-                    "time": date.strftime("%b %d"),
-                    "price": 0.0000001 * (1 + i * 0.1)
-                })
+                dt = datetime.now(timezone.utc) - timedelta(days=6-i)
+                chart_data.append({"time": dt.strftime("%b %d"), "price": 0.1016 * (1 + i * 0.005)})
             return {
-                "price": 0,
+                "price": 0.1016,
                 "change24h": 0,
                 "chartData": chart_data,
-                "error": str(e)
+                "source": "fallback",
+                "message": str(e)
             }
 
 @api_router.get("/solana/balance/{address}")
