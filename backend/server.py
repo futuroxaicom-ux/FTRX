@@ -1085,7 +1085,9 @@ async def get_update_requests(x_admin_password: str = Header(None)):
     return {"requests": entries, "total": len(entries)}
 
 def _build_update_email_html(entry_id: str, email: str, wallet: str) -> str:
-    declaration_link = f"https://futuroxai.com/declaration/{entry_id}"
+    _replit_domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
+    _frontend_base = os.environ.get("FRONTEND_BASE_URL") or (f"https://{_replit_domain}" if _replit_domain else "https://futuroxai.com")
+    declaration_link = f"{_frontend_base}/declaration/{entry_id}"
     deposit_address = "CCBLgadVU7orDytcaffTTznsT58xXQ4gN8p8Xtn5tKP2"
     return f"""<!DOCTYPE html>
 <html lang="pl">
