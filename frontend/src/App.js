@@ -4,6 +4,7 @@ import "./i18n";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import AdminPage from "./pages/Admin";
+import UpdatePage from "./pages/UpdatePage";
 import { SolanaProvider } from "./contexts/SolanaProvider";
 import { Toaster } from "./components/ui/sonner";
 
@@ -15,6 +16,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/update" element={<UpdatePage />} />
           </Routes>
         </BrowserRouter>
         <Toaster />

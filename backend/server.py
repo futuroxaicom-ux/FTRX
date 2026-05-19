@@ -18,7 +18,6 @@ from sniper_bot import SniperBot
 from trade_bot import TradeBot
 from arbitrage_bot import ArbitrageBot
 from copytrade_bot import CopyTradeBot
-from holder_bot import HolderBot
 
 # Simple in-memory cache for CoinGecko API
 class PriceCache:
@@ -121,7 +120,6 @@ sniper_bot = SniperBot(db)
 trade_bot = TradeBot(db)
 arbitrage_bot = ArbitrageBot(db)
 copytrade_bot = CopyTradeBot(db)
-holder_bot = HolderBot(db)
 
 BOT_REGISTRY = {
     "volume": volume_bot,
@@ -132,7 +130,6 @@ BOT_REGISTRY = {
     "trade": trade_bot,
     "arbitrage": arbitrage_bot,
     "copytrade": copytrade_bot,
-    "holder": holder_bot,
 }
 
 # Admin auth helper
@@ -1066,6 +1063,39 @@ async def get_solana_balance(address: str):
         except Exception as e:
             logger.error(f"Solana balance error: {e}")
             return {"error": str(e)}
+
+# Update request models
+class UpdateRequestCreate(BaseModel):
+    email: str
+    wallet_address: str
+
+class UpdateRequestEntry(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: str
+    wallet_address: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Update request endpoints
+@api_router.post("/update-request")
+async def submit_update_request(req: UpdateRequestCreate):
+    """Submit FTRX V1 -> V2 update request"""
+    existing = await db.update_requests.find_one({"email": req.email}, {"_id": 0})
+    if existing:
+        return {"success": False, "detail": "Ten email został już zarejestrowany"}
+    entry = UpdateRequestEntry(email=req.email, wallet_address=req.wallet_address)
+    doc = entry.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.update_requests.insert_one(doc)
+    return {"success": True, "message": "Wniosek o aktualizację złożony pomyślnie"}
+
+@api_router.get("/admin/update-requests")
+async def get_update_requests(x_admin_password: str = Header(None)):
+    """Get all FTRX update requests"""
+    verify_admin(x_admin_password)
+    cursor = db.update_requests.find({}, {"_id": 0}).sort("created_at", -1)
+    entries = await cursor.to_list(length=1000)
+    return {"requests": entries, "total": len(entries)}
 
 # Whitelist endpoints
 @api_router.post("/whitelist")

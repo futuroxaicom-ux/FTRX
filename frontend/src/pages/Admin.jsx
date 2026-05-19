@@ -18,14 +18,13 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, 
 const API = process.env.REACT_APP_BACKEND_URL || '';
 
 const OTHER_BOTS = [
-  { id: 'volume2', name: 'Volume Bot #2', icon: BarChart3, color: '#00FFD1', desc: 'Volume dla drugiego tokena' },
-  { id: 'volume3', name: 'Bot Makk GL', icon: BarChart3, color: '#FF6B35', desc: 'Volume MAKK GL / CRBR' },
+  { id: 'volume2', name: 'Market Maker #2', icon: BarChart3, color: '#00FFD1', desc: 'Market making dla drugiego tokena' },
+  { id: 'volume3', name: 'Bot Makk GL', icon: BarChart3, color: '#FF6B35', desc: 'Market making MAKK GL / CRBR' },
   { id: 'spread', name: 'Spread Bot', icon: TrendingUp, color: '#FFD700', desc: 'Market making' },
   { id: 'sniper', name: 'Sniper Bot', icon: Crosshair, color: '#FF4444', desc: 'Snipuj nowe pule' },
   { id: 'trade', name: 'Trade Bot', icon: Target, color: '#4488FF', desc: 'Auto-trading' },
   { id: 'arbitrage', name: 'Arbitrage Bot', icon: GitBranch, color: '#AA44FF', desc: 'Arbitraz DEX' },
   { id: 'copytrade', name: 'Copy Trade', icon: Copy, color: '#FF8844', desc: 'Kopiuj wieloryby' },
-  { id: 'holder', name: 'Holder Bot', icon: UserPlus, color: '#00CCFF', desc: 'Twórz holderów' },
 ];
 
 export default function AdminPage() {
@@ -83,6 +82,10 @@ export default function AdminPage() {
 
   if (selectedBot === 'analytics') {
     return <AnalyticsDashboard pw={pw} onBack={() => setSelectedBot('volume')} />;
+  }
+
+  if (selectedBot === 'updates') {
+    return <UpdatesDashboard pw={pw} onBack={() => setSelectedBot('volume')} />;
   }
 
   return <GenericBotDashboard botType={selectedBot} pw={pw} onBack={() => setSelectedBot('volume')} />;
@@ -173,7 +176,7 @@ function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
           <div className="flex items-center gap-3">
             <a href="/" className="text-[#666] hover:text-white transition-colors"><ArrowLeft className="w-5 h-5" /></a>
             <div className="w-8 h-8 bg-[#00FFD1] flex items-center justify-center font-bold text-black text-[10px]">FTRX</div>
-            <span className="text-lg font-bold">{botType === 'volume' ? 'Volume Bot' : botType === 'volume2' ? 'Volume Bot #2' : 'Bot Makk GL'}</span>
+            <span className="text-lg font-bold">{botType === 'volume' ? 'Market Maker Bot' : botType === 'volume2' ? 'Market Maker #2' : 'Bot Makk GL'}</span>
             {running && <span data-testid="bot-running-badge" className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded animate-pulse">AKTYWNY</span>}
           </div>
           <div className="flex items-center gap-3">
@@ -183,7 +186,7 @@ function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
         </div>
         {/* Bot Navigation */}
         <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1">
-          <span className="text-xs text-[#00FFD1] bg-[#00FFD1]/10 px-2.5 py-1 rounded font-bold border border-[#00FFD1]/30 whitespace-nowrap">Volume Bot</span>
+          <span className="text-xs text-[#00FFD1] bg-[#00FFD1]/10 px-2.5 py-1 rounded font-bold border border-[#00FFD1]/30 whitespace-nowrap">Market Maker Bot</span>
           {OTHER_BOTS.map(b => (
             <button key={b.id} onClick={() => onSwitchBot(b.id)}
               className="text-xs px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] hover:border-opacity-40 transition-all whitespace-nowrap"
@@ -194,6 +197,10 @@ function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
           <button onClick={() => onSwitchBot('analytics')}
             className="text-xs px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] hover:border-opacity-40 transition-all whitespace-nowrap text-[#00FF88] border-[#00FF8833]">
             Analytics
+          </button>
+          <button onClick={() => onSwitchBot('updates')}
+            className="text-xs px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] hover:border-opacity-40 transition-all whitespace-nowrap text-[#FFD700] border-[#FFD70033]">
+            Aktualizacje
           </button>
         </div>
       </header>
@@ -1287,102 +1294,6 @@ function GenericBotDashboard({ botType, pw, onBack }) {
         )}
 
 
-        {/* Holder Bot - Preset buttons + Token Distribution + Collect/Close */}
-        {botType === 'holder' && (
-          <Card className="bg-[#0a0a0a] border-[#00CCFF]/20">
-            <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><UserPlus className="w-4 h-4 text-[#00CCFF]" /> Utwórz Holderów</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {/* Token-Only Mode: Distribute tokens from main wallet */}
-              <div className="p-3 bg-[rgba(0,204,255,0.05)] border border-[rgba(0,204,255,0.2)] rounded space-y-3">
-                <p className="text-sm font-bold text-[#00CCFF] flex items-center gap-2"><Upload className="w-4 h-4" /> Rozdziel tokeny (Token-Only Holders)</p>
-                <p className="text-xs text-[#888]">Wyslij tokeny na portfel glowny → wygeneruj portfele → kliknij rozdziel. Kazdy portfel = 1 holder.</p>
-                <div className="flex flex-wrap gap-2">
-                  {[100, 250, 500, 1000, 5000].map(n => (
-                    <Button key={n} data-testid={`holder-token-${n}-btn`} onClick={async () => {
-                      if (!config.token_mint) { toast.error('Najpierw ustaw Token Mint!'); return; }
-                      const existing = wallets.filter(w => !w.is_main).length;
-                      const toGen = Math.max(0, n - existing);
-                      if (toGen > 0) {
-                        toast.info(`Generowanie ${toGen} portfeli...`);
-                        await fetch(`${API}/api/admin/bot/holder/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: Math.min(toGen, 50), prefix: 'Holder' }) });
-                        if (toGen > 50) {
-                          for (let batch = 50; batch < toGen; batch += 50) {
-                            await fetch(`${API}/api/admin/bot/holder/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: Math.min(50, toGen - batch), prefix: 'Holder' }) });
-                          }
-                        }
-                        toast.success(`Wygenerowano ${toGen} portfeli`);
-                      }
-                      toast.info(`Rozdzielanie tokenow na ${n} portfeli...`);
-                      await fetch(`${API}/api/admin/bot/holder/distribute-tokens`, { method: 'POST', headers, body: JSON.stringify({ tokens_per_wallet: 0 }) });
-                      fetchData();
-                    }} className="px-4 py-2 text-sm font-bold" style={{ background: '#00CCFF22', color: '#00CCFF', border: '1px solid #00CCFF33' }}>
-                      {n} holderów
-                    </Button>
-                  ))}
-                </div>
-                <p className="text-[10px] text-[#555]">Koszt: ~0.002 SOL per holder (ATA rent). Dla 1000 holderow = ~2 SOL na portfelu glownym.</p>
-              </div>
-
-              {/* Classic SOL Mode: SOL + Jupiter buy */}
-              <div className="p-3 bg-black/30 border border-[rgba(255,255,255,0.08)] rounded space-y-3">
-                <p className="text-sm font-bold text-[#888] flex items-center gap-2"><Coins className="w-4 h-4" /> Tryb klasyczny (SOL → kupno tokena)</p>
-                <p className="text-xs text-[#666]">Rozdziela SOL i kupuje token przez Jupiter na kazdym portfelu:</p>
-                <div className="flex flex-wrap gap-2">
-                  {[50, 100, 200, 500].map(n => (
-                    <Button key={n} onClick={async () => {
-                      if (!config.token_mint) { toast.error('Najpierw ustaw Token Mint!'); return; }
-                      const existing = wallets.filter(w => !w.is_main).length;
-                      const toGen = Math.max(0, n - existing);
-                      if (toGen > 0) {
-                        toast.info(`Generowanie ${toGen} portfeli...`);
-                        await fetch(`${API}/api/admin/bot/holder/wallets/generate`, { method: 'POST', headers, body: JSON.stringify({ count: toGen, prefix: 'Holder' }) });
-                      }
-                      toast.info(`Uruchamianie zakupow dla ${n} holderow...`);
-                      await fetch(`${API}/api/admin/bot/holder/start`, { method: 'POST', headers });
-                      fetchData();
-                    }} className="px-3 py-1.5 text-xs" style={{ background: '#ffffff08', color: '#888', border: '1px solid #ffffff15' }}>
-                      {n} (SOL)
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Progress */}
-              {stats.phase && stats.phase !== 'idle' && (
-                <div className="p-3 bg-black/50 rounded border border-[rgba(255,255,255,0.1)]">
-                  <p className="text-xs text-[#00CCFF] font-bold mb-1">Faza: {stats.phase}</p>
-                  <div className="w-full bg-gray-800 rounded h-2">
-                    <div className="bg-[#00CCFF] h-2 rounded transition-all" style={{ width: `${stats.progress_total ? (stats.progress / stats.progress_total * 100) : 0}%` }}></div>
-                  </div>
-                  <p className="text-xs text-[#888] mt-1">{stats.progress}/{stats.progress_total} | Holders: {stats.total_holders || stats.wallets_bought || 0} | Bledy: {stats.errors}</p>
-                </div>
-              )}
-              {/* Collect + Close actions */}
-              <div className="flex gap-2">
-                <Button onClick={async () => {
-                  toast.info('Zbieranie tokenow i SOL...');
-                  const r = await fetch(`${API}/api/admin/bot/holder/collect-tokens`, { method: 'POST', headers });
-                  const d = await r.json();
-                  if (d.collected) toast.success(`Zebrano tokeny z ${d.collected} portfeli → ${d.total_sol?.toFixed(4)} SOL`);
-                  else toast.info(d.error || 'Brak tokenow do zebrania');
-                  fetchData();
-                }} className="flex-1 bg-orange-700 hover:bg-orange-600 text-sm">
-                  Zbierz tokeny → SOL
-                </Button>
-                <Button onClick={async () => {
-                  toast.info('Zamykanie kont → odzyskiwanie rent...');
-                  const r = await fetch(`${API}/api/admin/bot/holder/close-accounts`, { method: 'POST', headers });
-                  const d = await r.json();
-                  if (d.closed) toast.success(`Zamknieto ${d.closed} kont → odzyskano ~${d.rent_recovered_approx} SOL`);
-                  else toast.info(d.error || 'Brak kont do zamkniecia');
-                  fetchData();
-                }} className="flex-1 bg-purple-700 hover:bg-purple-600 text-sm">
-                  Zamknij konta → odzyskaj SOL
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
 
         {/* Controls + Config */}
@@ -1507,6 +1418,140 @@ function GenericBotDashboard({ botType, pw, onBack }) {
   );
 }
 
+
+function UpdatesDashboard({ pw, onBack }) {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const headers = { 'x-admin-password': pw };
+
+  const fetchData = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/api/admin/update-requests`, { headers });
+      if (r.ok) {
+        const d = await r.json();
+        setRequests(d.requests || []);
+      }
+    } catch {}
+    setLoading(false);
+  }, [pw]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const filtered = requests.filter(r =>
+    r.email?.toLowerCase().includes(search.toLowerCase()) ||
+    r.wallet_address?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (loading) return <div className="min-h-screen bg-black text-white flex items-center justify-center"><RefreshCw className="w-6 h-6 animate-spin text-[#FFD700]" /></div>;
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <header className="border-b border-[rgba(255,255,255,0.1)] px-4 md:px-8 py-4">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="text-[#666] hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
+            <div className="w-8 h-8 bg-[#FFD700] flex items-center justify-center font-bold text-black text-[10px]">FTRX</div>
+            <span className="text-lg font-bold text-[#FFD700]">Wnioski o Aktualizację V1 → V2</span>
+            <span className="text-xs bg-[#FFD700]/10 text-[#FFD700] px-2 py-0.5 rounded border border-[#FFD700]/30">{requests.length} wniosków</span>
+          </div>
+          <button onClick={fetchData} className="p-2 hover:bg-white/5 rounded"><RefreshCw className="w-4 h-4 text-[#666]" /></button>
+        </div>
+      </header>
+
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-[#0a0a0a] border-[#FFD700]/20">
+            <CardContent className="p-4">
+              <p className="text-xs text-[#666] uppercase mb-1">Łącznie wniosków</p>
+              <p className="text-3xl font-bold text-[#FFD700]">{requests.length}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
+            <CardContent className="p-4">
+              <p className="text-xs text-[#666] uppercase mb-1">Dzisiaj</p>
+              <p className="text-3xl font-bold text-white">
+                {requests.filter(r => {
+                  const d = new Date(r.created_at);
+                  const now = new Date();
+                  return d.toDateString() === now.toDateString();
+                }).length}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
+            <CardContent className="p-4">
+              <p className="text-xs text-[#666] uppercase mb-1">Ostatni 7 dni</p>
+              <p className="text-3xl font-bold text-white">
+                {requests.filter(r => {
+                  const d = new Date(r.created_at);
+                  const now = new Date();
+                  return (now - d) < 7 * 24 * 60 * 60 * 1000;
+                }).length}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-4">
+              <CardTitle className="text-white text-sm">Lista wniosków o aktualizację FTRX</CardTitle>
+              <Input
+                placeholder="Szukaj email lub adres portfela..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="bg-black border-[rgba(255,255,255,0.15)] text-white w-64 h-8 text-xs"
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {filtered.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-[#444] text-sm">Brak wniosków o aktualizację.</p>
+                <p className="text-[#333] text-xs mt-1">Wnioski pojawią się tutaj gdy użytkownicy wypełnią formularz.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[#555] text-xs border-b border-[rgba(255,255,255,0.05)]">
+                      <th className="text-left py-2 px-3">#</th>
+                      <th className="text-left py-2 px-3">Email</th>
+                      <th className="text-left py-2 px-3">Adres portfela Solana</th>
+                      <th className="text-left py-2 px-3">Data zgłoszenia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((req, i) => (
+                      <tr key={req.id || i} className="border-b border-[rgba(255,255,255,0.04)] hover:bg-white/5 transition-colors">
+                        <td className="py-3 px-3 text-[#555]">{i + 1}</td>
+                        <td className="py-3 px-3 text-[#00FFD1] font-medium">{req.email}</td>
+                        <td className="py-3 px-3">
+                          <a
+                            href={`https://solscan.io/account/${req.wallet_address}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[#888] hover:text-white font-mono text-xs transition-colors"
+                          >
+                            {req.wallet_address}
+                          </a>
+                        </td>
+                        <td className="py-3 px-3 text-[#666] text-xs">
+                          {req.created_at ? new Date(req.created_at).toLocaleString('pl-PL') : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
 
 function AnalyticsDashboard({ pw, onBack }) {
   const [data, setData] = useState(null);

@@ -180,6 +180,34 @@ const Home = () => {
         </div>
       </section>
 
+      {/* FTRX V1 → V2 Update Banner */}
+      <section className="relative overflow-hidden py-8 px-4 bg-[#050505] border-y border-[#FFD700]/20">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#FFD700] via-[#FFD700]/50 to-transparent"></div>
+          <div className="absolute inset-0 bg-[#FFD700] opacity-[0.02]"></div>
+        </div>
+        <div className="relative max-w-[1400px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-[#FFD700]/15 border border-[#FFD700]/40 flex items-center justify-center rounded shrink-0">
+              <span className="text-[#FFD700] text-lg font-black">!</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-xs font-bold text-[#FFD700] uppercase tracking-wider">Ważna informacja</span>
+                <span className="text-xs bg-[#FFD700]/10 text-[#FFD700] px-2 py-0.5 rounded border border-[#FFD700]/30 font-bold">Aktualizacja obowiązkowa</span>
+              </div>
+              <p className="text-white font-semibold">
+                Token FTRX przechodzi aktualizację z <span className="text-[#FFD700] font-bold">V1</span> na <span className="text-[#00FFD1] font-bold">V2</span> — zgłoś swój portfel, aby zachować tokeny.
+              </p>
+            </div>
+          </div>
+          <a href="/update" className="shrink-0 inline-flex items-center gap-2 px-6 py-3 font-bold text-black rounded transition-all hover:opacity-90 whitespace-nowrap" style={{ background: '#FFD700' }}>
+            Złóż wniosek o aktualizację
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </div>
+      </section>
+
       {/* AI Banner 1: Neural Networks - After Hero */}
       <AIBannerBrain />
 
