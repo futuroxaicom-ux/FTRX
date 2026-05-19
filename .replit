@@ -68,6 +68,5 @@ SMTP_PORT = "587"
 ADMIN_PASSWORD = "futurox2026"
 
 [deployment]
-deploymentTarget = "autoscale"
-run = ["bash", "-c", "cd /home/runner/workspace/backend && pip install -r requirements.txt && uvicorn server:app --host 0.0.0.0 --port 8000"]
-build = ["bash", "-c", "cd /home/runner/workspace/frontend && npm install && npm run build"]
+deploymentTarget = "vm"
+run = ["bash", "/home/runner/workspace/start_production.sh"]
