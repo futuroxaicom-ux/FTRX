@@ -42,14 +42,19 @@ export default function AdminPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const r = await fetch(`${API}/api/admin/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pw }),
-      });
-      const data = await r.json();
-      if (r.ok && data.success) { sessionStorage.setItem('adm', pw); setAuthed(true); }
-      else toast.error('Nieprawidłowe hasło');
-    } catch (err) { toast.error('Błąd połączenia z serwerem'); }
+      const encoder = new TextEncoder();
+      const data = encoder.encode(pw);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      const ADMIN_HASH = 'b5053de840b7c753e96d4dc53bd092e6c668fb968b942aab0c7051c8be6a5f66';
+      if (hashHex === ADMIN_HASH) {
+        sessionStorage.setItem('adm', pw);
+        setAuthed(true);
+      } else {
+        toast.error('Nieprawidłowe hasło');
+      }
+    } catch (err) { toast.error('Błąd weryfikacji hasła'); }
     setLoading(false);
   };
 
