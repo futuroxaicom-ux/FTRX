@@ -54,3 +54,9 @@ externalPort = 80
 [[ports]]
 localPort = 8000
 externalPort = 8000
+
+[userenv]
+
+[userenv.shared]
+SMTP_HOST = "mail.privateemail.com"
+SMTP_PORT = "587"
