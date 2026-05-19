@@ -4,7 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { ArrowRight, Zap, Sparkles, Globe, Clock, Cpu, TrendingUp } from 'lucide-react';
+import { ArrowRight, Zap, Sparkles, Globe, Clock, Cpu, TrendingUp, Copy, Check } from 'lucide-react';
 import Spline from '@splinetool/react-spline';
 import { WalletConnect } from '../components/WalletConnect';
 import { TokenPurchase } from '../components/TokenPurchase';
@@ -20,6 +20,36 @@ import { Whitelist } from '../components/Whitelist';
 import { Roadmap } from '../components/Roadmap';
 import { BotOffer } from '../components/BotOffer';
 import { AIServices } from '../components/AIServicesOffer';
+
+const FTRX_CA = 'CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx';
+
+const ContractAddressBadge = () => {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(FTRX_CA).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  const short = `${FTRX_CA.slice(0, 8)}...${FTRX_CA.slice(-8)}`;
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-[10px] sm:text-xs text-[#4D4D4D] uppercase tracking-widest">Smart Contract (CA)</p>
+      <div className="flex items-center gap-2 bg-[rgba(0,255,209,0.07)] border border-[rgba(0,255,209,0.2)] rounded px-3 py-2 w-fit max-w-full">
+        <span className="font-mono text-[#00FFD1] text-xs select-all hidden sm:block">{FTRX_CA}</span>
+        <span className="font-mono text-[#00FFD1] text-xs select-all sm:hidden">{short}</span>
+        <button
+          onClick={copy}
+          className="flex-shrink-0 p-1 rounded hover:bg-[rgba(0,255,209,0.2)] transition-colors"
+          title="Kopiuj CA"
+        >
+          {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-[#00FFD1]" />}
+        </button>
+        {copied && <span className="text-xs text-green-400">Skopiowano!</span>}
+      </div>
+    </div>
+  );
+};
 
 const Home = () => {
   const { t, i18n } = useTranslation();
@@ -160,6 +190,9 @@ const Home = () => {
                   {t('hero.learnMore')}
                 </Button>
               </div>
+
+              {/* Contract Address */}
+              <ContractAddressBadge />
             </div>
 
             {/* Right - Spline 3D */}

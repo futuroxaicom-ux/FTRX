@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Copy, Check } from 'lucide-react';
 import { TOKEN_CONFIG } from '../config/links';
+
+const FTRX_CA = 'CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx';
 
 export const LivePriceChart = () => {
   const { t } = useTranslation();
@@ -16,6 +18,14 @@ export const LivePriceChart = () => {
   const [loading, setLoading] = useState(true);
   const [ftrxLoading, setFtrxLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('SOL'); // SOL or FTRX
+  const [copied, setCopied] = useState(false);
+
+  const copyCA = () => {
+    navigator.clipboard.writeText(FTRX_CA).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   // Fetch Solana price from backend proxy (avoids CORS)
   const fetchSolanaPrice = async () => {
@@ -317,10 +327,34 @@ export const LivePriceChart = () => {
               )}
             </div>
 
+            {/* Contract Address */}
+            <div className="bg-[rgba(0,255,209,0.07)] border border-[rgba(0,255,209,0.25)] rounded p-3">
+              <p className="text-xs text-[#4D4D4D] mb-2 uppercase tracking-wide">Smart Contract (CA)</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-mono text-[#00FFD1] break-all flex-1 select-all">{FTRX_CA}</p>
+                <button
+                  onClick={copyCA}
+                  className="flex-shrink-0 p-1.5 rounded bg-[rgba(0,255,209,0.15)] hover:bg-[rgba(0,255,209,0.3)] transition-colors"
+                  title="Kopiuj adres"
+                >
+                  {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-[#00FFD1]" />}
+                </button>
+              </div>
+              {copied && <p className="text-xs text-green-400 mt-1">Skopiowano!</p>}
+            </div>
+
             {/* FTRX Info */}
             <div className="bg-[rgba(0,255,209,0.1)] border border-[rgba(0,255,209,0.3)] p-4 rounded">
               <p className="text-[#00FFD1] text-sm text-center">
-                🚀 FTRX trading live on Raydium DEX!
+                🚀 FTRX notowany na DexLab!{' '}
+                <a
+                  href="https://app.dexlab.space/token-hub/CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx?tab=trade"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline hover:text-white transition-colors"
+                >
+                  Kup FTRX →
+                </a>
               </p>
             </div>
 
@@ -336,7 +370,14 @@ export const LivePriceChart = () => {
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <p className="text-xs text-[#4D4D4D] mb-1">DEX</p>
-                <p className="text-sm font-semibold text-[#00FFD1]">Raydium</p>
+                <a
+                  href="https://app.dexlab.space/token-hub/CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx?tab=trade"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-[#00FFD1] hover:underline"
+                >
+                  DexLab
+                </a>
               </div>
             </div>
           </>
@@ -344,7 +385,7 @@ export const LivePriceChart = () => {
 
         {/* Last Updated */}
         <div className="text-xs text-[#4D4D4D] text-center pt-2">
-          Updated every 60 seconds • Powered by {activeTab === 'SOL' ? 'CoinGecko' : 'Jupiter'}
+          Aktualizacja co 60 s • Dane: {activeTab === 'SOL' ? 'CoinGecko' : 'GeckoTerminal'}
         </div>
       </CardContent>
     </Card>

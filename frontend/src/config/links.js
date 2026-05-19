@@ -2,14 +2,14 @@
 // Update these links after token launch
 
 export const EXTERNAL_LINKS = {
-  // Raydium DEX Pool Link - LIVE
-  raydium: 'https://raydium.io/swap/?inputMint=sol&outputMint=9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray',
+  // DexLab DEX Pool Link - LIVE
+  raydium: 'https://app.dexlab.space/token-hub/CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx?tab=trade',
   
   // Jupiter Aggregator (alternative)
-  jupiter: 'https://jup.ag/swap/SOL-9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray',
+  jupiter: 'https://jup.ag/swap/SOL-CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx',
   
   // Solscan Explorer (for token info)
-  solscan: 'https://solscan.io/token/9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray',
+  solscan: 'https://solscan.io/token/CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx',
   
   // Social Media (add your actual links)
   twitter: 'https://twitter.com/FuturoXAI',
@@ -27,17 +27,14 @@ export const TOKEN_CONFIG = {
   name: 'FuturoX AI',
   decimals: 9,
   // Token address on Solana
-  address: '9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray',
+  address: 'CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx',
   
   // Price API Configuration (for LivePriceChart)
   priceAPI: {
-    // Option 1: Jupiter Price API (recommended)
-    jupiter: 'https://price.jup.ag/v4/price?ids=9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray',
+    // GeckoTerminal (no API key needed)
+    gecko: 'https://api.geckoterminal.com/api/v2/networks/solana/pools/HvaXgLZP28ATMMmqNAyL2MM3ob3HC7XyCJZcrqH7dkyC',
     
-    // Option 2: Your custom backend endpoint
-    custom: '/api/token/price',
-    
-    // Option 3: CoinGecko (if token gets listed)
-    coingecko: 'https://api.coingecko.com/api/v3/simple/price?ids=futurox-ai&vs_currencies=usd',
+    // Custom backend endpoint
+    custom: '/api/ftrx/price',
   }
 };
