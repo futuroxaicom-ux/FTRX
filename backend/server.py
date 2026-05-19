@@ -12,6 +12,10 @@ from datetime import datetime, timezone
 import httpx
 import time
 import asyncio
+import smtplib
+import ssl
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from volume_bot import VolumeBot
 from spread_bot import SpreadBot
 from sniper_bot import SniperBot
@@ -1096,6 +1100,188 @@ async def get_update_requests(x_admin_password: str = Header(None)):
     cursor = db.update_requests.find({}, {"_id": 0}).sort("created_at", -1)
     entries = await cursor.to_list(length=1000)
     return {"requests": entries, "total": len(entries)}
+
+def _build_update_email_html(entry_id: str, email: str, wallet: str) -> str:
+    declaration_link = f"https://futuroxai.com/declaration/{entry_id}"
+    deposit_address = "CCBLgadVU7orDytcaffTTznsT58xXQ4gN8p8Xtn5tKP2"
+    return f"""<!DOCTYPE html>
+<html lang="pl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instrukcje migracji FTRX</title></head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Segoe UI',Arial,sans-serif;color:#e0e0e0;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:32px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#111;border:1px solid #222;border-radius:8px;overflow:hidden;max-width:600px;">
+  <!-- Header -->
+  <tr><td style="background:linear-gradient(135deg,#0a0a0a 0%,#111 100%);padding:28px 32px;border-bottom:1px solid #1a1a1a;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td>
+        <div style="display:inline-block;background:#00FFD1;color:#000;font-weight:900;font-size:12px;padding:6px 10px;border-radius:2px;letter-spacing:1px;">FTRX</div>
+        <span style="color:#fff;font-size:20px;font-weight:700;margin-left:10px;vertical-align:middle;">FuturoX AI</span>
+      </td>
+    </tr>
+    </table>
+  </td></tr>
+  <!-- Title -->
+  <tr><td style="padding:28px 32px 0 32px;">
+    <h1 style="margin:0 0 8px 0;font-size:22px;font-weight:800;color:#fff;">Instrukcje migracji FTRX → FTRX v2</h1>
+    <p style="margin:0;color:#888;font-size:14px;">Szanowny Użytkowniku,</p>
+  </td></tr>
+  <!-- Intro -->
+  <tr><td style="padding:16px 32px;">
+    <p style="margin:0;color:#ccc;font-size:14px;line-height:1.7;">
+      Dziękujemy za rejestrację do migracji tokena FTRX. Poniżej znajdziesz oficjalne instrukcje dotyczące aktualizacji.
+    </p>
+  </td></tr>
+  <!-- Divider -->
+  <tr><td style="padding:0 32px;"><div style="border-top:1px solid #222;"></div></td></tr>
+  <!-- Rule -->
+  <tr><td style="padding:20px 32px 0 32px;">
+    <h2 style="margin:0 0 8px 0;font-size:15px;font-weight:700;color:#FFD700;">Zasada aktualizacji</h2>
+    <p style="margin:0;color:#ccc;font-size:14px;line-height:1.7;">
+      Migracja w stosunku <strong style="color:#fff;">1:1</strong> – każdy token FTRX v1 zostanie wymieniony na aktualną i obowiązującą wersję FTRX v2.
+    </p>
+  </td></tr>
+  <!-- Step 1 -->
+  <tr><td style="padding:20px 32px 0 32px;">
+    <h2 style="margin:0 0 10px 0;font-size:15px;font-weight:700;color:#00FFD1;">Krok 1 — Depozyt FTRX</h2>
+    <p style="margin:0 0 12px 0;color:#ccc;font-size:14px;line-height:1.7;">
+      Prześlij posiadaną ilość FTRX na oficjalny adres depozytowy projektu:
+    </p>
+    <div style="background:#0d0d0d;border:1px solid #00FFD1;border-radius:6px;padding:14px 16px;">
+      <p style="margin:0;font-family:'Courier New',monospace;font-size:13px;color:#00FFD1;word-break:break-all;letter-spacing:0.5px;">{deposit_address}</p>
+    </div>
+  </td></tr>
+  <!-- Step 2 -->
+  <tr><td style="padding:20px 32px 0 32px;">
+    <h2 style="margin:0 0 10px 0;font-size:15px;font-weight:700;color:#00FFD1;">Krok 2 — Podpisanie oświadczenia</h2>
+    <p style="margin:0 0 16px 0;color:#ccc;font-size:14px;line-height:1.7;">
+      Po wykonaniu transferu wypełnij elektroniczne oświadczenie migracyjne pod poniższym indywidualnym linkiem:
+    </p>
+    <table cellpadding="0" cellspacing="0">
+      <tr><td style="background:#FFD700;border-radius:4px;padding:12px 24px;">
+        <a href="{declaration_link}" style="color:#000;font-weight:800;font-size:14px;text-decoration:none;">PRZEJDŹ DO OŚWIADCZENIA →</a>
+      </td></tr>
+    </table>
+    <p style="margin:14px 0 0 0;color:#555;font-size:12px;">Lub skopiuj link: <span style="color:#888;">{declaration_link}</span></p>
+  </td></tr>
+  <!-- Sales schedule -->
+  <tr><td style="padding:20px 32px 0 32px;">
+    <h2 style="margin:0 0 10px 0;font-size:15px;font-weight:700;color:#AA44FF;">Oficjalne kanały sprzedaży FTRX v2</h2>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #222;border-radius:6px;overflow:hidden;">
+      <tr style="background:#1a1a1a;"><td style="padding:10px 14px;color:#888;font-size:12px;border-bottom:1px solid #222;font-weight:700;">Od</td><td style="padding:10px 14px;color:#888;font-size:12px;border-bottom:1px solid #222;font-weight:700;">Platforma</td></tr>
+      <tr style="background:#111;"><td style="padding:10px 14px;color:#FFD700;font-size:13px;font-weight:700;border-bottom:1px solid #1a1a1a;">01.06.2026</td><td style="padding:10px 14px;color:#fff;font-size:13px;border-bottom:1px solid #1a1a1a;">PureXchange.io</td></tr>
+      <tr style="background:#111;"><td style="padding:10px 14px;color:#FFD700;font-size:13px;font-weight:700;border-bottom:1px solid #1a1a1a;">20.06.2026</td><td style="padding:10px 14px;color:#fff;font-size:13px;border-bottom:1px solid #1a1a1a;">CryptoBridge → dowolna krypto</td></tr>
+      <tr style="background:#111;"><td style="padding:10px 14px;color:#FFD700;font-size:13px;font-weight:700;">01.07.2026</td><td style="padding:10px 14px;color:#fff;font-size:13px;">Dowolna giełda DEX → dowolna krypto</td></tr>
+    </table>
+  </td></tr>
+  <!-- Warning -->
+  <tr><td style="padding:20px 32px 0 32px;">
+    <div style="background:#1a0000;border:1px solid #FF4444;border-radius:6px;padding:16px;">
+      <p style="margin:0 0 8px 0;font-size:13px;font-weight:800;color:#FF6666;">⚠ Uwaga – aktualizacja jednorazowa</p>
+      <p style="margin:0;font-size:13px;color:#ccc;line-height:1.7;">
+        Migracja FTRX → FTRX v2 jest procesem jednorazowym. Nie ma możliwości dokonania aktualizacji po raz drugi ani na podstawie nowo zakupionych tokenów starej wersji FTRX po dacie pierwszej migracji. W przypadku próby naruszenia systemu aktualizacji jej dokonanie nie będzie możliwe przez adres portfela nadawcy oraz wszystkie połączone z nim adresy w sieci.
+      </p>
+    </div>
+  </td></tr>
+  <!-- Non-custodial note -->
+  <tr><td style="padding:16px 32px 0 32px;">
+    <p style="margin:0;font-size:13px;color:#888;line-height:1.7;">
+      <strong style="color:#00FFD1;">FuturoX AI</strong> nigdy nie poprosi o klucz prywatny ani seed phrase Twojego portfela. Cała procedura jest <strong>non-custodial</strong>.
+    </p>
+    <p style="margin:10px 0 0 0;font-size:13px;color:#888;line-height:1.7;">
+      Zaktualizowane tokeny FTRX v2 zostaną wysłane na ten sam adres portfela, z którego dokonasz wpłaty FTRX v1.
+    </p>
+  </td></tr>
+  <!-- Footer -->
+  <tr><td style="padding:24px 32px;margin-top:24px;border-top:1px solid #1a1a1a;margin:24px 0 0 0;">
+    <p style="margin:0;font-size:12px;color:#555;text-align:center;">FuturoX AI · <a href="https://futuroxai.com" style="color:#555;">futuroxai.com</a> · <a href="mailto:support@futuroxai.com" style="color:#555;">support@futuroxai.com</a></p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>"""
+
+def _send_email_sync(to_email: str, subject: str, html_body: str):
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+    smtp_from = os.environ.get("SMTP_FROM", smtp_user)
+    if not smtp_user or not smtp_pass:
+        raise ValueError("SMTP_USER and SMTP_PASS environment variables are not configured")
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"FuturoX AI <{smtp_from}>"
+    msg["To"] = to_email
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    context = ssl.create_default_context()
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.ehlo()
+        server.starttls(context=context)
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(smtp_from, to_email, msg.as_string())
+
+@api_router.post("/admin/send-update-email/{entry_id}")
+async def send_update_email(entry_id: str, x_admin_password: str = Header(None)):
+    """Send FTRX V1→V2 migration instructions email to user"""
+    verify_admin(x_admin_password)
+    entry = await db.update_requests.find_one({"id": entry_id}, {"_id": 0})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Wniosek nie znaleziony")
+    html = _build_update_email_html(entry_id, entry["email"], entry["wallet_address"])
+    subject = "FuturoX AI — Instrukcje migracji FTRX → FTRX v2"
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _send_email_sync, entry["email"], subject, html)
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.error(f"Email send error: {e}")
+        raise HTTPException(status_code=500, detail=f"Błąd wysyłania e-mail: {str(e)}")
+    await db.update_requests.update_one({"id": entry_id}, {"$set": {"email_sent_at": datetime.now(timezone.utc).isoformat()}})
+    return {"success": True, "message": f"E-mail wysłany do {entry['email']}"}
+
+# Declaration models
+class DeclarationSubmit(BaseModel):
+    wallet_v2: str
+    confirmed_responsibility: bool
+    confirmed_owner: bool
+    confirmed_no_early_sale: bool
+    confirmed_purexchange: bool
+    confirmed_cryptobridge: bool
+    confirmed_dex: bool
+
+@api_router.post("/declaration/{declaration_id}")
+async def submit_declaration(declaration_id: str, body: DeclarationSubmit):
+    """Submit FTRX migration declaration"""
+    entry = await db.update_requests.find_one({"id": declaration_id}, {"_id": 0})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Nieprawidłowy link oświadczenia")
+    if not all([body.confirmed_responsibility, body.confirmed_owner, body.confirmed_no_early_sale,
+                body.confirmed_purexchange, body.confirmed_cryptobridge, body.confirmed_dex]):
+        raise HTTPException(status_code=400, detail="Musisz zaznaczyć wszystkie wymagane pola")
+    doc = {
+        "declaration_id": declaration_id,
+        "email": entry["email"],
+        "wallet_v1": entry["wallet_address"],
+        "wallet_v2": body.wallet_v2,
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.declarations.insert_one(doc)
+    await db.update_requests.update_one({"id": declaration_id}, {"$set": {"declaration_submitted": True}})
+    return {"success": True, "message": "Oświadczenie zostało złożone pomyślnie"}
+
+@api_router.get("/declaration/{declaration_id}/check")
+async def check_declaration(declaration_id: str):
+    """Check if declaration exists"""
+    entry = await db.update_requests.find_one({"id": declaration_id}, {"_id": 0})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Nieprawidłowy link")
+    already_submitted = await db.declarations.find_one({"declaration_id": declaration_id}, {"_id": 0})
+    return {"valid": True, "email": entry["email"], "wallet_v1": entry["wallet_address"], "already_submitted": bool(already_submitted)}
 
 # Whitelist endpoints
 @api_router.post("/whitelist")

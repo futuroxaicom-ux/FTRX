@@ -1423,6 +1423,8 @@ function UpdatesDashboard({ pw, onBack }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [sending, setSending] = useState(new Set());
+  const [sent, setSent] = useState(new Set());
   const headers = { 'x-admin-password': pw };
 
   const fetchData = useCallback(async () => {
@@ -1434,6 +1436,27 @@ function UpdatesDashboard({ pw, onBack }) {
       }
     } catch {}
     setLoading(false);
+  }, [pw]);
+
+  const sendEmail = useCallback(async (req) => {
+    const id = req.id;
+    setSending(prev => new Set([...prev, id]));
+    try {
+      const r = await fetch(`${API}/api/admin/send-update-email/${id}`, {
+        method: 'POST',
+        headers,
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast.success(`E-mail wysłany do ${req.email}`);
+        setSent(prev => new Set([...prev, id]));
+      } else {
+        toast.error(d.detail || 'Błąd wysyłania e-mail');
+      }
+    } catch {
+      toast.error('Błąd połączenia z serwerem');
+    }
+    setSending(prev => { const s = new Set(prev); s.delete(id); return s; });
   }, [pw]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -1520,6 +1543,7 @@ function UpdatesDashboard({ pw, onBack }) {
                       <th className="text-left py-2 px-3">Email</th>
                       <th className="text-left py-2 px-3">Adres portfela Solana</th>
                       <th className="text-left py-2 px-3">Data zgłoszenia</th>
+                      <th className="text-left py-2 px-3">Akcja</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1539,6 +1563,23 @@ function UpdatesDashboard({ pw, onBack }) {
                         </td>
                         <td className="py-3 px-3 text-[#666] text-xs">
                           {req.created_at ? new Date(req.created_at).toLocaleString('pl-PL') : '-'}
+                        </td>
+                        <td className="py-3 px-3">
+                          {sent.has(req.id) ? (
+                            <span className="text-xs text-green-400 flex items-center gap-1">✓ Wysłano</span>
+                          ) : (
+                            <button
+                              onClick={() => sendEmail(req)}
+                              disabled={sending.has(req.id)}
+                              className="text-xs px-3 py-1.5 rounded border border-[#FFD700]/40 text-[#FFD700] hover:bg-[#FFD700]/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                            >
+                              {sending.has(req.id) ? (
+                                <><RefreshCw className="w-3 h-3 animate-spin" /> Wysyłanie...</>
+                              ) : (
+                                'Wyślij formularz'
+                              )}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

@@ -22,7 +22,8 @@ import { BotOffer } from '../components/BotOffer';
 import { AIServices } from '../components/AIServicesOffer';
 
 const Home = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isPl = i18n.language === 'pl';
   const { connected } = useWallet();
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
@@ -193,16 +194,23 @@ const Home = () => {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-xs font-bold text-[#FFD700] uppercase tracking-wider">Ważna informacja</span>
-                <span className="text-xs bg-[#FFD700]/10 text-[#FFD700] px-2 py-0.5 rounded border border-[#FFD700]/30 font-bold">Aktualizacja obowiązkowa</span>
+                <span className="text-xs font-bold text-[#FFD700] uppercase tracking-wider">
+                  {isPl ? 'Ważna informacja' : 'Important Notice'}
+                </span>
+                <span className="text-xs bg-[#FFD700]/10 text-[#FFD700] px-2 py-0.5 rounded border border-[#FFD700]/30 font-bold">
+                  {isPl ? 'Aktualizacja obowiązkowa' : 'Mandatory Update'}
+                </span>
               </div>
               <p className="text-white font-semibold">
-                Token FTRX przechodzi aktualizację z <span className="text-[#FFD700] font-bold">V1</span> na <span className="text-[#00FFD1] font-bold">V2</span> — zgłoś swój portfel, aby zachować tokeny.
+                {isPl
+                  ? <>Token FTRX przechodzi aktualizację z <span className="text-[#FFD700] font-bold">V1</span> na <span className="text-[#00FFD1] font-bold">V2</span> — zgłoś swój portfel, aby zachować tokeny.</>
+                  : <>FTRX token is migrating from <span className="text-[#FFD700] font-bold">V1</span> to <span className="text-[#00FFD1] font-bold">V2</span> — register your wallet to keep your tokens.</>
+                }
               </p>
             </div>
           </div>
           <a href="/update" className="shrink-0 inline-flex items-center gap-2 px-6 py-3 font-bold text-black rounded transition-all hover:opacity-90 whitespace-nowrap" style={{ background: '#FFD700' }}>
-            Złóż wniosek o aktualizację
+            {isPl ? 'Złóż wniosek o aktualizację' : 'Submit Update Request'}
             <ArrowRight className="w-4 h-4" />
           </a>
         </div>

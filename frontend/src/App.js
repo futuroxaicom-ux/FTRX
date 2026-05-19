@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import AdminPage from "./pages/Admin";
 import UpdatePage from "./pages/UpdatePage";
+import DeclarationPage from "./pages/DeclarationPage";
 import { SolanaProvider } from "./contexts/SolanaProvider";
 import { Toaster } from "./components/ui/sonner";
 
@@ -17,6 +18,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/update" element={<UpdatePage />} />
+            <Route path="/declaration/:id" element={<DeclarationPage />} />
           </Routes>
         </BrowserRouter>
         <Toaster />
