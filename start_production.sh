@@ -3,22 +3,13 @@ set -e
 
 echo "=== FuturoX AI Production Startup ==="
 
-# Install MongoDB if not available
-if ! command -v mongod &> /dev/null; then
-    echo "Installing MongoDB..."
-    apt-get update -qq
-    apt-get install -y -qq gnupg curl
-    curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list
-    apt-get update -qq
-    apt-get install -y -qq mongodb-org
-fi
+# MongoDB data dir inside workspace (has write permissions)
+MONGO_DATA_DIR="/home/runner/workspace/mongodb-data"
+mkdir -p "$MONGO_DATA_DIR"
 
 # Start MongoDB
 echo "Starting MongoDB..."
-mkdir -p /data/db
-mongod --fork --logpath /var/log/mongod.log --dbpath /data/db --bind_ip 127.0.0.1
-echo "MongoDB started."
+mongod --fork --logpath "$MONGO_DATA_DIR/mongod.log" --dbpath "$MONGO_DATA_DIR" --bind_ip 127.0.0.1
 
 # Wait for MongoDB to be ready
 echo "Waiting for MongoDB..."
@@ -33,12 +24,12 @@ done
 # Build React frontend
 echo "Building frontend..."
 cd /home/runner/workspace/frontend
-npm install --legacy-peer-deps
+npm install --legacy-peer-deps --silent
 npm run build
 echo "Frontend built."
 
-# Start FastAPI backend (serves frontend + API)
-echo "Starting backend..."
+# Start FastAPI backend on port 5000 (mapped to external port 80)
+echo "Starting backend on port 5000..."
 cd /home/runner/workspace/backend
 pip install -r requirements.txt -q
-exec uvicorn server:app --host 0.0.0.0 --port 8000
+exec uvicorn server:app --host 0.0.0.0 --port 5000
