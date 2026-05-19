@@ -38,7 +38,7 @@ const Home = () => {
 
   useEffect(() => { trackVisit('/'); }, []);
   useEffect(() => {
-    const targetDate = new Date('2026-05-10T00:00:00');
+    const targetDate = new Date('2026-06-01T00:00:00');
     
     const calculateTimeLeft = () => {
       const now = new Date();
@@ -223,6 +223,12 @@ const Home = () => {
       <section id="ai" className="py-12 sm:py-20 px-4 sm:px-[7.6923%] bg-[#121212]">
         <div className="max-w-[1400px] mx-auto">
           <div className="text-center mb-8 sm:mb-16 space-y-3 sm:space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#FFD700]/10 border border-[#FFD700]/30 rounded-full mb-2">
+              <span className="w-1.5 h-1.5 bg-[#FFD700] rounded-full animate-pulse"></span>
+              <span className="text-xs font-bold text-[#FFD700] uppercase tracking-wider">
+                {isPl ? 'II Etap projektu MakkCoin Global' : 'MakkCoin Global — Phase II'}
+              </span>
+            </div>
             <h2 className="text-2xl sm:text-4xl md:text-5xl font-semibold text-white">{t('aiServices.title')}</h2>
             <p className="text-sm sm:text-lg text-[rgba(255,255,255,0.85)] max-w-2xl mx-auto">
               {t('aiServices.description')}
