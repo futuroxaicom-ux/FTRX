@@ -33,19 +33,40 @@ const ContractAddressBadge = () => {
   };
   const short = `${FTRX_CA.slice(0, 8)}...${FTRX_CA.slice(-8)}`;
   return (
-    <div className="flex flex-col gap-1">
-      <p className="text-[10px] sm:text-xs text-[#4D4D4D] uppercase tracking-widest">Smart Contract (CA)</p>
-      <div className="flex items-center gap-2 bg-[rgba(0,255,209,0.07)] border border-[rgba(0,255,209,0.2)] rounded px-3 py-2 w-fit max-w-full">
-        <span className="font-mono text-[#00FFD1] text-xs select-all hidden sm:block">{FTRX_CA}</span>
-        <span className="font-mono text-[#00FFD1] text-xs select-all sm:hidden">{short}</span>
-        <button
-          onClick={copy}
-          className="flex-shrink-0 p-1 rounded hover:bg-[rgba(0,255,209,0.2)] transition-colors"
-          title="Kopiuj CA"
-        >
-          {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-[#00FFD1]" />}
-        </button>
-        {copied && <span className="text-xs text-green-400">Skopiowano!</span>}
+    <div className="w-full max-w-xl">
+      <p className="text-[10px] sm:text-xs text-[#4D4D4D] uppercase tracking-widest mb-2 flex items-center gap-1.5">
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#00FFD1] animate-pulse"></span>
+        Smart Contract (CA)
+      </p>
+      <div
+        onClick={copy}
+        className="flex items-center gap-3 bg-[rgba(0,255,209,0.06)] border border-[rgba(0,255,209,0.35)] rounded-lg px-4 py-3 cursor-pointer hover:bg-[rgba(0,255,209,0.12)] hover:border-[rgba(0,255,209,0.6)] transition-all group w-full"
+        title="Kliknij aby skopiować"
+      >
+        <span className="font-mono text-[#00FFD1] text-[11px] sm:text-sm select-all flex-1 hidden sm:block tracking-wide">{FTRX_CA}</span>
+        <span className="font-mono text-[#00FFD1] text-xs select-all flex-1 sm:hidden">{short}</span>
+        <span className="flex-shrink-0 flex items-center gap-1.5">
+          {copied
+            ? <><Check className="w-4 h-4 text-green-400" /><span className="text-xs text-green-400 hidden sm:inline">Skopiowano!</span></>
+            : <><Copy className="w-4 h-4 text-[#00FFD1] group-hover:scale-110 transition-transform" /><span className="text-xs text-[#4D4D4D] hidden sm:inline">Kopiuj</span></>
+          }
+        </span>
+      </div>
+      <div className="flex items-center gap-3 mt-1.5">
+        <a href={`https://solscan.io/token/${FTRX_CA}`} target="_blank" rel="noreferrer"
+          className="text-[10px] text-[#4D4D4D] hover:text-[#00FFD1] transition-colors">
+          Solscan ↗
+        </a>
+        <span className="text-[#333] text-[10px]">•</span>
+        <a href={`https://app.dexlab.space/token-hub/${FTRX_CA}?tab=trade`} target="_blank" rel="noreferrer"
+          className="text-[10px] text-[#4D4D4D] hover:text-[#00FFD1] transition-colors">
+          DexLab ↗
+        </a>
+        <span className="text-[#333] text-[10px]">•</span>
+        <a href={`https://www.geckoterminal.com/solana/pools/HvaXgLZP28ATMMmqNAyL2MM3ob3HC7XyCJZcrqH7dkyC`} target="_blank" rel="noreferrer"
+          className="text-[10px] text-[#4D4D4D] hover:text-[#00FFD1] transition-colors">
+          GeckoTerminal ↗
+        </a>
       </div>
     </div>
   );

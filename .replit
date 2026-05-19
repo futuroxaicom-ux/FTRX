@@ -60,3 +60,4 @@ externalPort = 8000
 [userenv.shared]
 SMTP_HOST = "mail.privateemail.com"
 SMTP_PORT = "587"
+ADMIN_PASSWORD = "futurox2026"

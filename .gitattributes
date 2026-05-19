@@ -8,3 +8,4 @@ mongodb-data/journal/WiredTigerLog.0000000008 filter=lfs diff=lfs merge=lfs -tex
 mongodb-data/journal/WiredTigerLog.0000000010 filter=lfs diff=lfs merge=lfs -text
 mongodb-data/journal/WiredTigerLog.0000000011 filter=lfs diff=lfs merge=lfs -text
 mongodb-data/journal/WiredTigerLog.0000000012 filter=lfs diff=lfs merge=lfs -text
+mongodb-data/journal/WiredTigerLog.0000000013 filter=lfs diff=lfs merge=lfs -text
