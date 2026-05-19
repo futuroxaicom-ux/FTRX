@@ -7,7 +7,7 @@ import {
   Wallet, ArrowLeft, Lock, Eye, EyeOff, AlertTriangle,
   TrendingUp, Zap, XCircle, Star, Download, Upload,
   Calculator, Users, Clock, Target, Coins, Link2, BarChart3,
-  Crosshair, GitBranch, Copy, ChevronRight, UserPlus
+  Crosshair, GitBranch, Copy, ChevronRight, UserPlus, CheckCircle
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
@@ -1430,18 +1430,29 @@ function GenericBotDashboard({ botType, pw, onBack }) {
 
 function UpdatesDashboard({ pw, onBack }) {
   const [requests, setRequests] = useState([]);
+  const [declarations, setDeclarations] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sending, setSending] = useState(new Set());
   const [sent, setSent] = useState(new Set());
+  const [expanded, setExpanded] = useState(null);
   const headers = { 'x-admin-password': pw };
 
   const fetchData = useCallback(async () => {
     try {
-      const r = await fetch(`${API}/api/admin/update-requests`, { headers });
-      if (r.ok) {
-        const d = await r.json();
+      const [rReq, rDecl] = await Promise.all([
+        fetch(`${API}/api/admin/update-requests`, { headers }),
+        fetch(`${API}/api/admin/declarations`, { headers }),
+      ]);
+      if (rReq.ok) {
+        const d = await rReq.json();
         setRequests(d.requests || []);
+      }
+      if (rDecl.ok) {
+        const d = await rDecl.json();
+        const map = {};
+        (d.declarations || []).forEach(decl => { map[decl.declaration_id] = decl; });
+        setDeclarations(map);
       }
     } catch {}
     setLoading(false);
@@ -1492,11 +1503,17 @@ function UpdatesDashboard({ pw, onBack }) {
       </header>
 
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="bg-[#0a0a0a] border-[#FFD700]/20">
             <CardContent className="p-4">
               <p className="text-xs text-[#666] uppercase mb-1">Łącznie wniosków</p>
               <p className="text-3xl font-bold text-[#FFD700]">{requests.length}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#0a0a0a] border-[#00FFD1]/20">
+            <CardContent className="p-4">
+              <p className="text-xs text-[#666] uppercase mb-1">Złożone oświadczenia</p>
+              <p className="text-3xl font-bold text-[#00FFD1]">{Object.keys(declarations).length}</p>
             </CardContent>
           </Card>
           <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
@@ -1552,46 +1569,101 @@ function UpdatesDashboard({ pw, onBack }) {
                       <th className="text-left py-2 px-3">Email</th>
                       <th className="text-left py-2 px-3">Adres portfela Solana</th>
                       <th className="text-left py-2 px-3">Data zgłoszenia</th>
+                      <th className="text-left py-2 px-3">Oświadczenie</th>
                       <th className="text-left py-2 px-3">Akcja</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((req, i) => (
-                      <tr key={req.id || i} className="border-b border-[rgba(255,255,255,0.04)] hover:bg-white/5 transition-colors">
-                        <td className="py-3 px-3 text-[#555]">{i + 1}</td>
-                        <td className="py-3 px-3 text-[#00FFD1] font-medium">{req.email}</td>
-                        <td className="py-3 px-3">
-                          <a
-                            href={`https://solscan.io/account/${req.wallet_address}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[#888] hover:text-white font-mono text-xs transition-colors"
-                          >
-                            {req.wallet_address}
-                          </a>
-                        </td>
-                        <td className="py-3 px-3 text-[#666] text-xs">
-                          {req.created_at ? new Date(req.created_at).toLocaleString('pl-PL') : '-'}
-                        </td>
-                        <td className="py-3 px-3">
-                          {sent.has(req.id) ? (
-                            <span className="text-xs text-green-400 flex items-center gap-1">✓ Wysłano</span>
-                          ) : (
-                            <button
-                              onClick={() => sendEmail(req)}
-                              disabled={sending.has(req.id)}
-                              className="text-xs px-3 py-1.5 rounded border border-[#FFD700]/40 text-[#FFD700] hover:bg-[#FFD700]/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
-                            >
-                              {sending.has(req.id) ? (
-                                <><RefreshCw className="w-3 h-3 animate-spin" /> Wysyłanie...</>
+                    {filtered.map((req, i) => {
+                      const decl = declarations[req.id];
+                      const isExpanded = expanded === req.id;
+                      return (
+                        <React.Fragment key={req.id || i}>
+                          <tr className="border-b border-[rgba(255,255,255,0.04)] hover:bg-white/5 transition-colors">
+                            <td className="py-3 px-3 text-[#555]">{i + 1}</td>
+                            <td className="py-3 px-3 text-[#00FFD1] font-medium">{req.email}</td>
+                            <td className="py-3 px-3">
+                              <a
+                                href={`https://solscan.io/account/${req.wallet_address}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[#888] hover:text-white font-mono text-xs transition-colors"
+                              >
+                                {req.wallet_address}
+                              </a>
+                            </td>
+                            <td className="py-3 px-3 text-[#666] text-xs">
+                              {req.created_at ? new Date(req.created_at).toLocaleString('pl-PL') : '-'}
+                            </td>
+                            <td className="py-3 px-3">
+                              {decl ? (
+                                <button
+                                  onClick={() => setExpanded(isExpanded ? null : req.id)}
+                                  className="text-xs px-2 py-1 rounded border border-[#00FFD1]/40 text-[#00FFD1] hover:bg-[#00FFD1]/10 transition-all flex items-center gap-1"
+                                >
+                                  <CheckCircle className="w-3 h-3" /> Złożone {isExpanded ? '▲' : '▼'}
+                                </button>
                               ) : (
-                                'Wyślij formularz'
+                                <span className="text-xs text-[#444]">Oczekuje</span>
                               )}
-                            </button>
+                            </td>
+                            <td className="py-3 px-3">
+                              {sent.has(req.id) ? (
+                                <span className="text-xs text-green-400 flex items-center gap-1">✓ Wysłano</span>
+                              ) : (
+                                <button
+                                  onClick={() => sendEmail(req)}
+                                  disabled={sending.has(req.id)}
+                                  className="text-xs px-3 py-1.5 rounded border border-[#FFD700]/40 text-[#FFD700] hover:bg-[#FFD700]/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                                >
+                                  {sending.has(req.id) ? (
+                                    <><RefreshCw className="w-3 h-3 animate-spin" /> Wysyłanie...</>
+                                  ) : (
+                                    'Wyślij formularz'
+                                  )}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                          {isExpanded && decl && (
+                            <tr className="border-b border-[rgba(255,255,255,0.04)] bg-[#0d0d0d]">
+                              <td colSpan={6} className="px-4 py-4">
+                                <div className="space-y-3 text-xs">
+                                  <p className="text-[#00FFD1] font-bold uppercase tracking-wider text-[11px]">Treść oświadczenia — złożono {decl.submitted_at ? new Date(decl.submitted_at).toLocaleString('pl-PL') : '-'}</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="space-y-1.5 p-3 bg-black/40 rounded border border-[rgba(255,255,255,0.06)]">
+                                      <p className="text-[#555] uppercase tracking-wider text-[10px] font-bold mb-2">Dane portfeli</p>
+                                      <p><span className="text-[#666]">Portfel V1:</span> <span className="font-mono text-[#888]">{decl.wallet_v1}</span></p>
+                                      <p><span className="text-[#666]">Portfel V2:</span> <span className="font-mono text-[#00FFD1]">{decl.wallet_v2}</span></p>
+                                      <p><span className="text-[#666]">Ilość FTRX V1:</span> <span className="text-[#FFD700] font-bold">{decl.ftrx_amount != null ? `${Number(decl.ftrx_amount).toLocaleString('pl-PL')} FTRX` : '-'}</span></p>
+                                    </div>
+                                    <div className="space-y-1.5 p-3 bg-black/40 rounded border border-[rgba(255,255,255,0.06)]">
+                                      <p className="text-[#555] uppercase tracking-wider text-[10px] font-bold mb-2">Potwierdzone oświadczenia</p>
+                                      {[
+                                        { key: 'confirmed_responsibility', label: 'Odpowiedzialność i warunki migracji' },
+                                        { key: 'confirmed_owner', label: 'Właściciel portfela' },
+                                        { key: 'confirmed_no_early_sale', label: 'Brak sprzedaży przed harmonogramem' },
+                                        { key: 'confirmed_risk', label: 'Świadomość ryzyka utraty środków' },
+                                        { key: 'confirmed_purexchange', label: 'od 01.06.2026 — PureXchange.io' },
+                                        { key: 'confirmed_cryptobridge', label: 'od 20.06.2026 — CryptoBridge' },
+                                        { key: 'confirmed_dex', label: 'od 01.07.2026 — Dowolna DEX' },
+                                      ].map(({ key, label }) => (
+                                        <p key={key} className="flex items-center gap-2">
+                                          <span className={decl[key] ? 'text-[#00FFD1]' : 'text-red-500'}>
+                                            {decl[key] ? '✓' : '✗'}
+                                          </span>
+                                          <span className={decl[key] ? 'text-[#888]' : 'text-red-400/60'}>{label}</span>
+                                        </p>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                      </tr>
-                    ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

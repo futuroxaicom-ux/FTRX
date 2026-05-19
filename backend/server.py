@@ -1232,9 +1232,11 @@ async def send_update_email(entry_id: str, x_admin_password: str = Header(None))
 # Declaration models
 class DeclarationSubmit(BaseModel):
     wallet_v2: str
+    ftrx_amount: float
     confirmed_responsibility: bool
     confirmed_owner: bool
     confirmed_no_early_sale: bool
+    confirmed_risk: bool
     confirmed_purexchange: bool
     confirmed_cryptobridge: bool
     confirmed_dex: bool
@@ -1246,18 +1248,34 @@ async def submit_declaration(declaration_id: str, body: DeclarationSubmit):
     if not entry:
         raise HTTPException(status_code=404, detail="Nieprawidłowy link oświadczenia")
     if not all([body.confirmed_responsibility, body.confirmed_owner, body.confirmed_no_early_sale,
-                body.confirmed_purexchange, body.confirmed_cryptobridge, body.confirmed_dex]):
+                body.confirmed_risk, body.confirmed_purexchange, body.confirmed_cryptobridge, body.confirmed_dex]):
         raise HTTPException(status_code=400, detail="Musisz zaznaczyć wszystkie wymagane pola")
     doc = {
         "declaration_id": declaration_id,
         "email": entry["email"],
         "wallet_v1": entry["wallet_address"],
         "wallet_v2": body.wallet_v2,
+        "ftrx_amount": body.ftrx_amount,
+        "confirmed_responsibility": body.confirmed_responsibility,
+        "confirmed_owner": body.confirmed_owner,
+        "confirmed_no_early_sale": body.confirmed_no_early_sale,
+        "confirmed_risk": body.confirmed_risk,
+        "confirmed_purexchange": body.confirmed_purexchange,
+        "confirmed_cryptobridge": body.confirmed_cryptobridge,
+        "confirmed_dex": body.confirmed_dex,
         "submitted_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.declarations.insert_one(doc)
     await db.update_requests.update_one({"id": declaration_id}, {"$set": {"declaration_submitted": True}})
     return {"success": True, "message": "Oświadczenie zostało złożone pomyślnie"}
+
+@api_router.get("/admin/declarations")
+async def get_declarations(x_admin_password: str = Header(None)):
+    """Get all submitted declarations"""
+    verify_admin(x_admin_password)
+    cursor = db.declarations.find({}, {"_id": 0}).sort("submitted_at", -1)
+    items = await cursor.to_list(length=1000)
+    return {"declarations": items, "total": len(items)}
 
 @api_router.get("/declaration/{declaration_id}/check")
 async def check_declaration(declaration_id: str):

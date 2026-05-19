@@ -20,10 +20,12 @@ export default function DeclarationPage() {
   const [submitted, setSubmitted] = useState(false);
 
   const [walletV2, setWalletV2] = useState('');
+  const [ftrxAmount, setFtrxAmount] = useState('');
   const [checks, setChecks] = useState({
     responsibility: false,
     owner: false,
     noEarlySale: false,
+    risk: false,
     purexchange: false,
     cryptobridge: false,
     dex: false,
@@ -54,6 +56,7 @@ export default function DeclarationPage() {
   const handleSubmit = async () => {
     if (!walletV2) { toast.error('Podaj adres portfela dla FTRX V2'); return; }
     if (!walletV2.match(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)) { toast.error('Podaj poprawny adres portfela Solana'); return; }
+    if (!ftrxAmount || isNaN(parseFloat(ftrxAmount)) || parseFloat(ftrxAmount) <= 0) { toast.error('Podaj ilość tokenów FTRX'); return; }
     if (!allChecked) { toast.error('Zaznacz wszystkie wymagane pola'); return; }
     setSubmitting(true);
     try {
@@ -62,9 +65,11 @@ export default function DeclarationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           wallet_v2: walletV2,
+          ftrx_amount: parseFloat(ftrxAmount),
           confirmed_responsibility: checks.responsibility,
           confirmed_owner: checks.owner,
           confirmed_no_early_sale: checks.noEarlySale,
+          confirmed_risk: checks.risk,
           confirmed_purexchange: checks.purexchange,
           confirmed_cryptobridge: checks.cryptobridge,
           confirmed_dex: checks.dex,
@@ -187,7 +192,31 @@ export default function DeclarationPage() {
                 </ul>
               </div>
 
-              <Button onClick={() => setStep(2)} className="w-full h-12 font-bold" style={{ background: '#00FFD1', color: '#000' }}>
+              <div className="space-y-2">
+                <label className="text-xs text-[#666] uppercase tracking-wide">Ilość wysyłanych tokenów FTRX (V1)</label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="Np. 500"
+                  value={ftrxAmount}
+                  onChange={e => setFtrxAmount(e.target.value)}
+                  className="bg-black border-[rgba(255,255,255,0.15)] text-white h-12 font-mono text-sm focus:border-[#00FFD1]/50"
+                />
+                <p className="text-[10px] text-[#444]">Podaj dokładną ilość tokenów FTRX V1, które wysyłasz na powyższy adres</p>
+              </div>
+
+              <Button
+                onClick={() => {
+                  if (!ftrxAmount || isNaN(parseFloat(ftrxAmount)) || parseFloat(ftrxAmount) <= 0) {
+                    toast.error('Podaj ilość tokenów FTRX przed przejściem dalej');
+                    return;
+                  }
+                  setStep(2);
+                }}
+                className="w-full h-12 font-bold"
+                style={{ background: '#00FFD1', color: '#000' }}
+              >
                 Wysłałem tokeny — przejdź do Kroku 2 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </CardContent>
@@ -267,6 +296,11 @@ export default function DeclarationPage() {
                   id="noEarlySale"
                   label="Zobowiązuję się nie dokonywać sprzedaży tokenów FTRX V2 przed datami wskazanymi w harmonogramie poniżej."
                 />
+                <Check
+                  id="risk"
+                  label="Rozumiem, że w przypadku sprzedaży FTRX przed ustalonym harmonogramem lub w inny sposób grozi to niekorzystnym kursem sprzedaży, a nawet utratą wszystkich środków."
+                  sublabel="Oświadczam, że zapoznałem się z ryzykiem związanym z przedwczesną sprzedażą tokenów."
+                />
 
                 <div className="border-t border-[rgba(255,255,255,0.06)] pt-4 space-y-3">
                   <p className="text-xs text-[#555] uppercase tracking-wider font-bold">Harmonogram sprzedaży — potwierdzam znajomość</p>
@@ -293,6 +327,7 @@ export default function DeclarationPage() {
                 <p><span className="text-[#888]">Email:</span> {info?.email}</p>
                 <p><span className="text-[#888]">Portfel V1:</span> <span className="font-mono">{info?.wallet_v1}</span></p>
                 <p><span className="text-[#888]">Portfel V2:</span> <span className="font-mono text-[#00FFD1]">{walletV2}</span></p>
+                <p><span className="text-[#888]">Ilość FTRX V1:</span> <span className="text-[#FFD700] font-bold">{ftrxAmount ? `${parseFloat(ftrxAmount).toLocaleString('pl-PL')} FTRX` : '-'}</span></p>
                 <p className="text-[#333] pt-1 border-t border-[rgba(255,255,255,0.04)] mt-2">FuturoX AI nigdy nie poprosi o klucz prywatny ani seed phrase. Procedura jest non-custodial.</p>
               </div>
 
