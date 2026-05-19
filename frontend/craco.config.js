@@ -80,29 +80,60 @@ webpackConfig.devServer = (devServerConfig) => {
   devServerConfig.host = '0.0.0.0';
   devServerConfig.port = 5000;
   devServerConfig.allowedHosts = 'all';
+
+  // GET requests work fine with the WDS/HPM proxy.
+  // POST requests hang with HPM (body stream issue), so we handle them
+  // via onBeforeSetupMiddleware with a raw Node.js proxy that runs FIRST.
   devServerConfig.proxy = {
     '/api': {
       target: 'http://localhost:8000',
       changeOrigin: true,
+      secure: false,
     },
   };
 
-  // Add health check endpoints if enabled
-  if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
-    const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
-
-    devServerConfig.setupMiddlewares = (middlewares, devServer) => {
-      // Call original setup if exists
-      if (originalSetupMiddlewares) {
-        middlewares = originalSetupMiddlewares(middlewares, devServer);
+  const http = require('http');
+  const originalOnBefore = devServerConfig.onBeforeSetupMiddleware;
+  devServerConfig.onBeforeSetupMiddleware = (devServer) => {
+    // Raw Node.js proxy for non-GET /api/* requests, registered on devServer.app
+    // BEFORE the middlewares array (webpack-dev-middleware, HPM, etc.) is applied.
+    devServer.app.use((req, res, next) => {
+      if (req.method === 'GET' || req.method === 'HEAD' || !req.originalUrl.startsWith('/api')) {
+        return next();
       }
+      const options = {
+        hostname: 'localhost',
+        port: 8000,
+        path: req.originalUrl,
+        method: req.method,
+        headers: { ...req.headers, host: 'localhost:8000' },
+      };
+      const proxyReq = http.request(options, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res, { end: true });
+      });
+      proxyReq.on('error', (err) => {
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Proxy error', message: err.message }));
+      });
+      req.pipe(proxyReq, { end: true });
+    });
 
-      // Setup health endpoints
+    if (originalOnBefore) {
+      originalOnBefore(devServer);
+    }
+  };
+
+  const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
+  devServerConfig.setupMiddlewares = (middlewares, devServer) => {
+    if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
       setupHealthEndpoints(devServer, healthPluginInstance);
-
-      return middlewares;
-    };
-  }
+    }
+    if (originalSetupMiddlewares) {
+      middlewares = originalSetupMiddlewares(middlewares, devServer);
+    }
+    return middlewares;
+  };
 
   return devServerConfig;
 };
