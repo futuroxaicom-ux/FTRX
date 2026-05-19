@@ -963,7 +963,7 @@ async def get_crypto_chart():
             return {"error": str(e)}
 
 # FTRX Token Price API
-FTRX_TOKEN_ADDRESS = "9BJSWWexWrGffYR4RJBL8YtdwoNGPLgA1yDvZ4zBxray"
+FTRX_TOKEN_ADDRESS = "CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx"
 
 @api_router.get("/ftrx/price")
 async def get_ftrx_price():

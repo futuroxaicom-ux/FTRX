@@ -25,38 +25,29 @@ const Home = () => {
   const { t, i18n } = useTranslation();
   const isPl = i18n.language === 'pl';
   const { connected } = useWallet();
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0
-  });
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showDirectPurchase, setShowDirectPurchase] = useState(false);
   const [showSolanaModal, setShowSolanaModal] = useState(false);
 
+  const LAUNCH_DATE = new Date('2026-06-01T00:00:00');
+
+  const calcTimeLeft = () => {
+    const diff = LAUNCH_DATE - new Date();
+    if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+    return {
+      days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+      minutes: Math.floor((diff / 1000 / 60) % 60),
+      seconds: Math.floor((diff / 1000) % 60),
+    };
+  };
+
+  const [timeLeft, setTimeLeft] = useState(calcTimeLeft);
+
   useEffect(() => { trackVisit('/'); }, []);
   useEffect(() => {
-    const targetDate = new Date('2026-06-01T00:00:00');
-    
-    const calculateTimeLeft = () => {
-      const now = new Date();
-      const difference = targetDate - now;
-
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60)
-        });
-      }
-    };
-
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
-
+    const timer = setInterval(() => setTimeLeft(calcTimeLeft()), 1000);
     return () => clearInterval(timer);
   }, []);
 
