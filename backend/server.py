@@ -1,4 +1,6 @@
 from fastapi import FastAPI, APIRouter, Header, HTTPException, BackgroundTasks
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1315,6 +1317,20 @@ async def get_whitelist_count():
 
 # Include the router in the main app
 app.include_router(api_router)
+
+# Serve React frontend static files in production
+_build_dir = Path(__file__).parent.parent / "frontend" / "build"
+if _build_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(_build_dir / "static")), name="static")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_react(full_path: str):
+        index = _build_dir / "index.html"
+        return FileResponse(str(index))
+
+    @app.get("/", include_in_schema=False)
+    async def serve_root():
+        return FileResponse(str(_build_dir / "index.html"))
 
 app.add_middleware(
     CORSMiddleware,
