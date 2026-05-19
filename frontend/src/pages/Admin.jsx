@@ -28,10 +28,15 @@ const OTHER_BOTS = [
 ];
 
 export default function AdminPage() {
-  const [authed, setAuthed] = useState(false);
+  const [authed, setAuthed] = useState(() => false);
   const [pw, setPw] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedBot, setSelectedBot] = useState('volume');
+
+  useEffect(() => {
+    const s = sessionStorage.getItem('adm');
+    if (s) { setPw(s); setAuthed(true); }
+  }, []);
 
   const login = async (e) => {
     e.preventDefault();
@@ -41,15 +46,14 @@ export default function AdminPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: pw }),
       });
-      if (r.ok) { sessionStorage.setItem('adm', pw); setAuthed(true); }
-      else toast.error('Nieprawidlowe haslo');
-    } catch { toast.error('Blad polaczenia'); }
+      const data = await r.json();
+      if (r.ok && data.success) { sessionStorage.setItem('adm', pw); setAuthed(true); }
+      else toast.error('Nieprawidłowe hasło');
+    } catch (err) { toast.error('Błąd połączenia z serwerem'); }
     setLoading(false);
   };
 
   if (!authed) {
-    const s = sessionStorage.getItem('adm');
-    if (s) { setPw(s); setAuthed(true); return null; }
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
         <Card data-testid="admin-login-card" className="bg-[#0a0a0a] border-[rgba(255,255,255,0.15)] w-full max-w-md">

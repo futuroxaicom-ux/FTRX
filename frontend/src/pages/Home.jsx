@@ -21,6 +21,22 @@ import { Roadmap } from '../components/Roadmap';
 import { BotOffer } from '../components/BotOffer';
 import { AIServices } from '../components/AIServicesOffer';
 
+class SplineSafe extends React.Component {
+  constructor(props) { super(props); this.state = { err: false }; }
+  static getDerivedStateFromError() { return { err: true }; }
+  componentDidCatch() {}
+  render() {
+    if (this.state.err) return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="w-48 h-48 rounded-full bg-gradient-to-br from-[#00FFD1]/20 to-[#00FFD1]/5 border border-[#00FFD1]/20 flex items-center justify-center">
+          <span className="text-5xl font-bold text-[#00FFD1] tracking-widest">FTRX</span>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 const FTRX_CA = 'CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx';
 
 const ContractAddressBadge = () => {
@@ -219,7 +235,9 @@ const Home = () => {
             {/* Right - Spline 3D */}
             <div className="relative h-[400px] md:h-[700px] w-full hidden md:flex items-center justify-center">
               <div style={{ width: '100%', maxWidth: '700px', height: '100%', overflow: 'visible', position: 'relative' }}>
-                <Spline scene="https://prod.spline.design/NbVmy6DPLhY-5Lvg/scene.splinecode" />
+                <SplineSafe>
+                  <Spline scene="https://prod.spline.design/NbVmy6DPLhY-5Lvg/scene.splinecode" />
+                </SplineSafe>
               </div>
             </div>
           </div>
