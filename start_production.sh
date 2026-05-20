@@ -2,40 +2,52 @@
 
 echo "=== FuturoX AI Production Startup ==="
 
-# MongoDB data dir
 MONGO_DATA_DIR="/home/runner/workspace/mongodb-data"
+MONGO_LOG="$MONGO_DATA_DIR/mongod.log"
+
 mkdir -p "$MONGO_DATA_DIR"
 
-# Kill any existing mongod
-pkill mongod 2>/dev/null || true
-sleep 1
+# Remove stale lock file from previous crash
+rm -f "$MONGO_DATA_DIR/mongod.lock"
 
-# Start MongoDB in background
+# Kill any existing mongod
+pkill -9 mongod 2>/dev/null || true
+sleep 2
+
+# Start MongoDB
 echo "Starting MongoDB..."
 mongod --dbpath "$MONGO_DATA_DIR" \
-       --logpath "$MONGO_DATA_DIR/mongod.log" \
+       --logpath "$MONGO_LOG" \
        --bind_ip 127.0.0.1 \
        --port 27017 &
 
-MONGO_PID=$!
-echo "MongoDB PID: $MONGO_PID"
+echo "MongoDB PID: $!"
 
-# Wait for MongoDB using bash /dev/tcp
-echo "Waiting for MongoDB..."
-for i in $(seq 1 30); do
-    if (echo > /dev/tcp/127.0.0.1/27017) 2>/dev/null; then
+# Install Python dependencies in parallel while waiting for MongoDB
+echo "Installing Python dependencies..."
+cd /home/runner/workspace/backend
+pip install -r requirements.txt -q &
+PIP_PID=$!
+
+# Wait for MongoDB log to confirm it's ready (up to 90s)
+echo "Waiting for MongoDB to accept connections..."
+for i in $(seq 1 90); do
+    if grep -q "Waiting for connections" "$MONGO_LOG" 2>/dev/null; then
         echo "MongoDB ready after ${i}s."
         break
+    fi
+    if [ $i -eq 90 ]; then
+        echo "MongoDB timeout — starting anyway"
     fi
     sleep 1
 done
 
-# Install Python dependencies
-echo "Installing Python dependencies..."
-cd /home/runner/workspace/backend
-pip install -r requirements.txt -q
-echo "Dependencies installed."
+# Wait for pip to finish
+echo "Waiting for pip install to finish..."
+wait $PIP_PID
+echo "Dependencies ready."
 
 # Start FastAPI backend on port 5000
 echo "Starting backend on port 5000..."
-exec uvicorn server:app --host 0.0.0.0 --port 5000
+cd /home/runner/workspace/backend
+exec python -m uvicorn server:app --host 0.0.0.0 --port 5000
