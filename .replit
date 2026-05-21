@@ -67,6 +67,9 @@ SMTP_HOST = "mail.privateemail.com"
 SMTP_PORT = "587"
 ADMIN_PASSWORD = "futurox2026"
 
+[userenv.production]
+FRONTEND_BASE_URL = "https://futuroxai.com"
+
 [deployment]
 deploymentTarget = "vm"
 run = ["bash", "/home/runner/workspace/start_production.sh"]
