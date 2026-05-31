@@ -135,6 +135,19 @@ export default function UpdatePage() {
           </div>
         </div>
 
+        {/* Status aktualizacji */}
+        <div className="max-w-[800px] mx-auto mb-8">
+          <div className="flex items-start gap-3 p-4 bg-[#FFD700]/5 border border-[#FFD700]/30 rounded-lg">
+            <span className="w-2.5 h-2.5 bg-[#FFD700] rounded-full animate-ping shrink-0 mt-1"></span>
+            <div>
+              <p className="text-sm font-semibold text-[#FFD700]">Aktualizacja w trakcie</p>
+              <p className="text-sm text-[#FFD700]/70 mt-0.5">
+                Zakończenie aktualizacji dla wszystkich użytkowników: <span className="font-bold text-[#FFD700]">09.06.2026 godz. 19:00</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Form */}
         <div className="max-w-[560px] mx-auto">
           {submitted ? (

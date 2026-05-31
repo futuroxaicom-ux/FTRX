@@ -191,27 +191,19 @@ const Home = () => {
                 {t('hero.description')}
               </p>
 
-              {/* Countdown */}
+              {/* Launch Date */}
               <div className="space-y-3 sm:space-y-4">
                 <p className="text-xs sm:text-sm text-[#4D4D4D] uppercase tracking-wider">
-                  {t('hero.countdown')}
+                  AI SERVICES LAUNCH — 9 DZIEŃ DRUGIEGO ETAPU INFRASTRUKTURY MAKKCOIN GLOBAL
                 </p>
-                <div className="grid grid-cols-4 gap-1.5 sm:gap-4">
-                  {[
-                    { value: timeLeft.days, label: t('hero.days') },
-                    { value: timeLeft.hours, label: t('hero.hours') },
-                    { value: timeLeft.minutes, label: t('hero.minutes') },
-                    { value: timeLeft.seconds, label: t('hero.seconds') }
-                  ].map((item, index) => (
-                    <div key={index} className="bg-[#121212] border border-[rgba(255,255,255,0.25)] p-1.5 sm:p-4 text-center">
-                      <div className="text-lg sm:text-3xl font-bold text-[#00FFD1]">
-                        {String(item.value).padStart(2, '0')}
-                      </div>
-                      <div className="text-[8px] sm:text-xs text-[#4D4D4D] mt-0.5 sm:mt-1 uppercase">
-                        {item.label}
-                      </div>
-                    </div>
-                  ))}
+                <div className="bg-[#121212] border border-[rgba(0,255,209,0.25)] p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
+                  <div className="text-3xl sm:text-5xl font-black text-[#00FFD1] tracking-tight">
+                    09.06.2026
+                  </div>
+                  <div className="border-l border-[rgba(255,255,255,0.1)] pl-4 sm:pl-6 hidden sm:block">
+                    <p className="text-xs text-[#4D4D4D] uppercase tracking-wider">Data startu</p>
+                    <p className="text-sm text-[rgba(255,255,255,0.7)] mt-1">Faza II — MakkCoin Global</p>
+                  </div>
                 </div>
               </div>
 
