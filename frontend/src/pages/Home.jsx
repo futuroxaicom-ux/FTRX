@@ -269,6 +269,24 @@ const Home = () => {
             <ArrowRight className="w-4 h-4" />
           </a>
         </div>
+
+        {/* Status aktualizacji */}
+        <div className="mt-3 flex items-center gap-3 px-4 py-3 bg-[#FFD700]/5 border border-[#FFD700]/20 rounded-lg">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FFD700] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FFD700]"></span>
+          </span>
+          <p className="text-sm text-[#FFD700]/80">
+            <span className="font-bold text-[#FFD700]">
+              {isPl ? 'Aktualizacja w trakcie' : 'Update in progress'}
+            </span>
+            {' — '}
+            {isPl
+              ? <>Zakończenie aktualizacji dla wszystkich użytkowników: <span className="font-bold text-[#FFD700]">09.06.2026 godz. 19:00</span></>
+              : <>Update completion for all users: <span className="font-bold text-[#FFD700]">09.06.2026 at 19:00</span></>
+            }
+          </p>
+        </div>
       </section>
 
       {/* AI Banner 1: Neural Networks - After Hero */}
