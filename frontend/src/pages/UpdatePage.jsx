@@ -11,13 +11,6 @@ const DIST_START = new Date('2026-06-09T17:00:00Z');
 const DIST_TOTAL_H = 50;
 const DIST_END = new Date(DIST_START.getTime() + DIST_TOTAL_H * 3600000);
 
-const DIST_PHASES = [
-  { label: 'Portfele priorytetowe',           desc: 'Posiadacze powyżej 100 000 FTRX',              start: 0,  end: 10, time: '09.06 19:00 – 10.06 05:00' },
-  { label: 'Portfele duże',                   desc: 'Posiadacze 10 000 – 100 000 FTRX',             start: 10, end: 20, time: '10.06 05:00 – 10.06 15:00' },
-  { label: 'Portfele średnie',                desc: 'Posiadacze 1 000 – 10 000 FTRX',              start: 20, end: 30, time: '10.06 15:00 – 11.06 01:00' },
-  { label: 'Portfele mniejsze',               desc: 'Posiadacze 100 – 1 000 FTRX',                 start: 30, end: 40, time: '11.06 01:00 – 11.06 11:00' },
-  { label: 'Portfele minimalne + Weryfikacja',desc: 'Poniżej 100 FTRX oraz kontrola końcowa',      start: 40, end: 50, time: '11.06 11:00 – 11.06 21:00' },
-];
 
 export default function UpdatePage() {
   const [email, setEmail] = useState('');
@@ -38,13 +31,6 @@ export default function UpdatePage() {
   const timeRemaining = isComplete ? 0 : Math.max(0, (DIST_END - now) / 3600000);
   const remHours = Math.floor(timeRemaining);
   const remMins = Math.floor((timeRemaining - remHours) * 60);
-
-  const phaseStatus = (phase) => {
-    if (!isStarted) return 'pending';
-    if (distElapsed >= phase.end) return 'done';
-    if (distElapsed >= phase.start) return 'active';
-    return 'pending';
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -182,11 +168,11 @@ export default function UpdatePage() {
             </div>
 
             {/* Progress bar */}
-            <div className="space-y-2 mb-5">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-[#888]">Postęp dystrybucji</span>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[#888]">Postęp dystrybucji FTRX V2</span>
                 <span className="font-bold" style={{ color: isComplete ? '#22C55E' : '#FFD700' }}>
-                  {isComplete ? 'Ukończono (50/50h)' : isStarted ? `${distElapsed.toFixed(1)}h / 50h` : 'Rozpoczęcie: 09.06 godz. 19:00'}
+                  {isComplete ? 'Zakończono' : isStarted ? `${Math.round(distPct)}%` : 'Wkrótce'}
                 </span>
               </div>
               <div className="h-3 bg-[#111] rounded-full overflow-hidden border border-[rgba(255,255,255,0.06)]">
@@ -200,75 +186,20 @@ export default function UpdatePage() {
                   }}
                 />
               </div>
-              {!isComplete && isStarted && (
-                <div className="flex items-center gap-1.5 text-xs text-[#666]">
-                  <Clock className="w-3 h-3" />
-                  <span>Pozostało: <strong className="text-[#FFD700]">{remHours}h {remMins}m</strong></span>
-                  <span className="text-[#444]">· Zakończenie: 11.06.2026 godz. 21:00</span>
-                </div>
-              )}
-              {isComplete && (
-                <div className="flex items-center gap-1.5 text-xs text-[#22C55E]">
-                  <Check className="w-3 h-3" />
-                  <span className="font-semibold">Dystrybucja zakończona — wszystkie portfele zaktualizowane</span>
-                </div>
-              )}
-            </div>
-
-            {/* Phases table */}
-            <div className="space-y-2">
-              <p className="text-xs font-bold text-[#555] uppercase tracking-wider mb-3">Harmonogram dystrybucji</p>
-              <div className="rounded-lg overflow-hidden border border-[rgba(255,255,255,0.06)]">
-                <div className="grid grid-cols-12 px-3 py-2 bg-[#0a0a0a] border-b border-[rgba(255,255,255,0.06)]">
-                  <span className="col-span-1 text-[10px] text-[#444] uppercase">#</span>
-                  <span className="col-span-4 text-[10px] text-[#444] uppercase">Faza</span>
-                  <span className="col-span-3 text-[10px] text-[#444] uppercase hidden sm:block">Warunek</span>
-                  <span className="col-span-3 text-[10px] text-[#444] uppercase hidden sm:block">Czas</span>
-                  <span className="col-span-4 sm:col-span-2 text-[10px] text-[#444] uppercase text-right">Status</span>
-                </div>
-                {DIST_PHASES.map((ph, i) => {
-                  const st = phaseStatus(ph);
-                  return (
-                    <div
-                      key={i}
-                      className={`grid grid-cols-12 px-3 py-3 border-b border-[rgba(255,255,255,0.04)] last:border-0 transition-colors ${st === 'active' ? 'bg-[#FFD700]/04' : ''}`}
-                    >
-                      <span className="col-span-1 text-xs font-bold" style={{ color: st === 'done' ? '#22C55E' : st === 'active' ? '#FFD700' : '#333' }}>
-                        {i + 1}
-                      </span>
-                      <div className="col-span-4">
-                        <p className="text-xs font-semibold" style={{ color: st === 'done' ? '#888' : st === 'active' ? '#fff' : '#444' }}>
-                          {ph.label}
-                        </p>
-                      </div>
-                      <div className="col-span-3 hidden sm:block">
-                        <p className="text-[10px] text-[#555]">{ph.desc}</p>
-                      </div>
-                      <div className="col-span-3 hidden sm:block">
-                        <p className="text-[10px] text-[#444] font-mono">{ph.time}</p>
-                      </div>
-                      <div className="col-span-4 sm:col-span-2 flex justify-end">
-                        {st === 'done' && (
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-[#22C55E] bg-[#22C55E]/10 px-2 py-0.5 rounded-full border border-[#22C55E]/20">
-                            <Check className="w-2.5 h-2.5" /> Ukończono
-                          </span>
-                        )}
-                        {st === 'active' && (
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-[#FFD700] bg-[#FFD700]/10 px-2 py-0.5 rounded-full border border-[#FFD700]/20">
-                            <span className="w-1.5 h-1.5 bg-[#FFD700] rounded-full animate-pulse" /> W trakcie
-                          </span>
-                        )}
-                        {st === 'pending' && (
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-[#444] bg-[rgba(255,255,255,0.03)] px-2 py-0.5 rounded-full border border-[rgba(255,255,255,0.06)]">
-                            <Clock className="w-2.5 h-2.5" /> Oczekuje
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex justify-between text-[10px] text-[#333]">
+                <span>0h</span>
+                {!isComplete && isStarted && (
+                  <span className="text-[#555]">
+                    Pozostało: <strong className="text-[#FFD700]">{remHours}h {remMins}m</strong>
+                  </span>
+                )}
+                {isComplete && (
+                  <span className="text-[#22C55E] font-semibold flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Wszystkie portfele zaktualizowane
+                  </span>
+                )}
+                <span>50h</span>
               </div>
-              <p className="text-[10px] text-[#333] mt-2">Czas podany w strefie czasowej CEST (UTC+2). Kolejność dystrybucji zależy od salda FTRX V1 na weryfikowanym portfelu.</p>
             </div>
           </div>
         </div>
