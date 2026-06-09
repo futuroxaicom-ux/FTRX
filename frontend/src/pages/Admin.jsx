@@ -1445,6 +1445,10 @@ function UpdatesDashboard({ pw, onBack }) {
   const [sending, setSending] = useState(new Set());
   const [sent, setSent] = useState(new Set());
   const [expanded, setExpanded] = useState(null);
+  const [manualEmail, setManualEmail] = useState('');
+  const [manualWallet, setManualWallet] = useState('');
+  const [manualAdding, setManualAdding] = useState(false);
+  const [manualSendAfter, setManualSendAfter] = useState(true);
   const headers = { 'x-admin-password': pw };
 
   const fetchData = useCallback(async () => {
@@ -1487,6 +1491,37 @@ function UpdatesDashboard({ pw, onBack }) {
     }
     setSending(prev => { const s = new Set(prev); s.delete(id); return s; });
   }, [pw]);
+
+  const addManualEntry = useCallback(async () => {
+    if (!manualEmail.trim() || !manualWallet.trim()) {
+      toast.error('Wypełnij oba pola — email i adres portfela');
+      return;
+    }
+    setManualAdding(true);
+    try {
+      const r = await fetch(`${API}/api/admin/add-update-request`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: manualEmail.trim(), wallet_address: manualWallet.trim() }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast.success(`Dodano: ${manualEmail.trim()}`);
+        setManualEmail('');
+        setManualWallet('');
+        await fetchData();
+        if (manualSendAfter && d.entry?.id) {
+          await sendEmail(d.entry);
+        }
+      } else {
+        toast.error(d.detail || 'Błąd dodawania wpisu');
+        if (d.entry) await fetchData();
+      }
+    } catch {
+      toast.error('Błąd połączenia z serwerem');
+    }
+    setManualAdding(false);
+  }, [manualEmail, manualWallet, manualSendAfter, fetchData, sendEmail, pw]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -1550,6 +1585,52 @@ function UpdatesDashboard({ pw, onBack }) {
             </CardContent>
           </Card>
         </div>
+
+        {/* Manual add form */}
+        <Card className="bg-[#0a0a0a] border-[#FFD700]/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-white text-sm flex items-center gap-2">
+              <span className="w-5 h-5 bg-[#FFD700]/15 rounded flex items-center justify-center text-[#FFD700] text-[10px]">+</span>
+              Ręczne dodanie wpisu i wysłanie formularza
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                placeholder="Email użytkownika"
+                value={manualEmail}
+                onChange={e => setManualEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addManualEntry()}
+                className="bg-black border-[rgba(255,255,255,0.15)] text-white h-9 text-xs flex-1"
+              />
+              <Input
+                placeholder="Adres portfela Solana"
+                value={manualWallet}
+                onChange={e => setManualWallet(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addManualEntry()}
+                className="bg-black border-[rgba(255,255,255,0.15)] text-white h-9 text-xs flex-1 font-mono"
+              />
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 text-xs text-[#666] cursor-pointer whitespace-nowrap select-none">
+                  <input
+                    type="checkbox"
+                    checked={manualSendAfter}
+                    onChange={e => setManualSendAfter(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-yellow-400"
+                  />
+                  Wyślij email po dodaniu
+                </label>
+                <Button
+                  onClick={addManualEntry}
+                  disabled={manualAdding || !manualEmail.trim() || !manualWallet.trim()}
+                  className="bg-[#FFD700] text-black font-bold hover:bg-[#e6c200] h-9 px-4 text-xs whitespace-nowrap disabled:opacity-40"
+                >
+                  {manualAdding ? <><RefreshCw className="w-3 h-3 animate-spin mr-1" />Dodawanie...</> : '+ Dodaj i wyślij'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
           <CardHeader className="pb-3">

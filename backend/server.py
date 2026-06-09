@@ -1086,6 +1086,25 @@ async def get_update_requests(x_admin_password: str = Header(None)):
     entries = await cursor.to_list(length=1000)
     return {"requests": entries, "total": len(entries)}
 
+@api_router.post("/admin/add-update-request")
+async def admin_add_update_request(body: dict, x_admin_password: str = Header(None)):
+    """Manually add an update request entry (admin only)"""
+    verify_admin(x_admin_password)
+    email = (body.get("email") or "").strip()
+    wallet_address = (body.get("wallet_address") or "").strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy adres email")
+    if not wallet_address or len(wallet_address) < 32:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy adres portfela Solana")
+    existing = await db.update_requests.find_one({"email": email}, {"_id": 0})
+    if existing:
+        return {"success": False, "detail": "Ten email już istnieje w bazie", "entry": existing}
+    entry = UpdateRequestEntry(email=email, wallet_address=wallet_address)
+    doc = entry.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.update_requests.insert_one(doc)
+    return {"success": True, "entry": {k: v for k, v in doc.items() if k != "_id"}}
+
 def _build_update_email_html(entry_id: str, email: str, wallet: str) -> str:
     _replit_domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
     _frontend_base = os.environ.get("FRONTEND_BASE_URL") or (f"https://{_replit_domain}" if _replit_domain else "https://futuroxai.com")
