@@ -404,10 +404,16 @@ export default function BotOrderPage() {
                 </div>
               )}
             </div>
-            <div className="pt-2 border-t border-[rgba(255,255,255,0.05)] space-y-1">
+            <div className="pt-2 border-t border-[rgba(255,255,255,0.05)] space-y-1.5">
               <p className="text-xs text-[#444]">
                 Wymagana płatność: <strong className="text-[#888]">{selectedTier ? `${selectedTier.sol} SOL` : 'X SOL'}</strong> — kapitał roboczy przesyłany jednorazowo przed uruchomieniem Bota.
               </p>
+              <div className="flex items-start gap-1.5">
+                <span className="text-[#00CCFF] text-xs mt-px">ℹ</span>
+                <p className="text-xs text-[#444] leading-relaxed">
+                  Kwota SOL <strong className="text-[#666]">nie jest kosztem obsługi</strong> — stanowi wyłącznie środki robocze, na podstawie których Bot generuje zysk. Po zakończeniu pracy Bota środki te można w całości wypłacić z powrotem na portfel użytkownika <strong className="text-[#666]">bez ich utraty</strong>.
+                </p>
+              </div>
               <p className="text-xs text-[#333]">
                 Opłata subskrypcyjna w FTRX (${ bot.price } USD/mies.) jest naliczana wyłącznie po potwierdzeniu osiągnięcia gwarantowanych progów zysku.
               </p>
@@ -517,6 +523,12 @@ export default function BotOrderPage() {
               <span className="text-2xl font-black text-[#00CCFF]">{order?.sol_tier} SOL</span>
             </div>
             <p className="text-xs text-[#555] mt-2">Sieć: Solana · Token: SOL natywny (nie wrapped)</p>
+            <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.06)] flex items-start gap-2">
+              <span className="text-[#00CCFF] text-xs mt-px flex-shrink-0">ℹ</span>
+              <p className="text-[11px] text-[#555] leading-relaxed">
+                Kwota ta <strong className="text-[#777]">nie jest kosztem obsługi</strong> — stanowi wyłącznie środki robocze, na podstawie których Bot generuje zysk dla Ciebie. Po zakończeniu pracy Bota środki te można w całości wypłacić z powrotem na Twój portfel <strong className="text-[#777]">bez ich utraty</strong>.
+              </p>
+            </div>
           </div>
 
           <div className="rounded-xl border border-[rgba(255,215,0,0.22)] bg-[rgba(255,215,0,0.04)] overflow-hidden">
