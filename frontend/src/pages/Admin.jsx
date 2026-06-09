@@ -7,7 +7,8 @@ import {
   Wallet, ArrowLeft, Lock, Eye, EyeOff, AlertTriangle,
   TrendingUp, Zap, XCircle, Star, Download, Upload,
   Calculator, Users, Clock, Target, Coins, Link2, BarChart3,
-  Crosshair, GitBranch, Copy, ChevronRight, UserPlus, CheckCircle
+  Crosshair, GitBranch, Copy, ChevronRight, UserPlus, CheckCircle,
+  ShoppingCart, Package, Check, Filter, ChevronDown
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
@@ -95,6 +96,10 @@ export default function AdminPage() {
 
   if (selectedBot === 'updates') {
     return <UpdatesDashboard pw={pw} onBack={() => setSelectedBot('volume')} />;
+  }
+
+  if (selectedBot === 'bot-orders') {
+    return <BotOrdersDashboard pw={pw} onBack={() => setSelectedBot('volume')} />;
   }
 
   return <GenericBotDashboard botType={selectedBot} pw={pw} onBack={() => setSelectedBot('volume')} />;
@@ -210,6 +215,10 @@ function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
           <button onClick={() => onSwitchBot('updates')}
             className="text-xs px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] hover:border-opacity-40 transition-all whitespace-nowrap text-[#FFD700] border-[#FFD70033]">
             Aktualizacje
+          </button>
+          <button onClick={() => onSwitchBot('bot-orders')}
+            className="text-xs px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] hover:border-opacity-40 transition-all whitespace-nowrap text-[#FF3366] border-[#FF336633]">
+            Zamówienia Botów
           </button>
         </div>
       </header>
@@ -1797,6 +1806,289 @@ function AnalyticsDashboard({ pw, onBack }) {
             </CardContent>
           </Card>
         </div>
+      </div>
+    </div>
+  );
+}
+
+const BOT_STATUS_CONFIG = {
+  pending_payment: { label: 'Oczekuje na płatność', color: '#FFD700',  bg: '#FFD70015', next: 'paid',           nextLabel: '✓ Opłacone'        },
+  paid:            { label: 'Płatność przyjęta',    color: '#00CCFF',  bg: '#00CCFF15', next: 'configuring',    nextLabel: '⚙ Konfiguracja'    },
+  configuring:     { label: 'Konfiguracja boota',   color: '#7B61FF',  bg: '#7B61FF15', next: 'access_granted', nextLabel: '📧 Dostęp wysłany' },
+  access_granted:  { label: 'Dostępy wysłane',      color: '#FFB800',  bg: '#FFB80015', next: 'live',           nextLabel: '🚀 Uruchom live'   },
+  live:            { label: 'Bot aktywny — LIVE',   color: '#22C55E',  bg: '#22C55E15', next: null,             nextLabel: null                 },
+};
+
+const BOT_COLORS = {
+  spread: '#00FFD1', sniper: '#FF3366', trade: '#7B61FF',
+  arbitrage: '#00CCFF', trend: '#22C55E', copytrade: '#FFB800',
+};
+
+function BotOrdersDashboard({ pw, onBack }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [updating, setUpdating] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+  const headers = { 'x-admin-password': pw };
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/api/admin/bot-orders`, { headers });
+      if (r.ok) {
+        const d = await r.json();
+        setOrders(d.orders || []);
+      }
+    } catch {}
+    setLoading(false);
+  }, [pw]);
+
+  const updateStatus = async (orderId, status) => {
+    setUpdating(orderId);
+    try {
+      const r = await fetch(`${API}/api/admin/bot-orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast.success(`Status: ${BOT_STATUS_CONFIG[status]?.label}`);
+        await fetchOrders();
+      } else {
+        toast.error(d.detail || 'Błąd zmiany statusu');
+      }
+    } catch {
+      toast.error('Błąd połączenia');
+    }
+    setUpdating(null);
+  };
+
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  const statusCounts = orders.reduce((acc, o) => {
+    acc[o.status] = (acc[o.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter);
+
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.price_usd || 0), 0);
+  const totalSol = orders.reduce((sum, o) => sum + (o.sol_tier || 0), 0);
+
+  if (loading) return (
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <RefreshCw className="w-6 h-6 animate-spin text-[#FF3366]" />
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <Toaster />
+      <header className="border-b border-[rgba(255,255,255,0.1)] px-4 md:px-8 py-4">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="text-[#666] hover:text-white transition-colors"><ArrowLeft className="w-5 h-5" /></button>
+            <div className="w-8 h-8 bg-[#FF3366] flex items-center justify-center font-bold text-white text-[10px] rounded">BOT</div>
+            <span className="text-lg font-bold text-[#FF3366]">Zamówienia Botów</span>
+            <span className="text-xs bg-[#FF3366]/10 text-[#FF3366] px-2 py-0.5 rounded border border-[#FF3366]/30">{orders.length} zamówień</span>
+          </div>
+          <button onClick={fetchOrders} className="p-2 hover:bg-white/5 rounded"><RefreshCw className="w-4 h-4 text-[#666]" /></button>
+        </div>
+      </header>
+
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6 space-y-6">
+
+        {/* Stats cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <Card className="bg-[#0a0a0a] border-[#FF3366]/20">
+            <CardContent className="p-4">
+              <p className="text-xs text-[#666] uppercase mb-1">Łącznie</p>
+              <p className="text-3xl font-bold text-[#FF3366]">{orders.length}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#0a0a0a] border-[#FFD700]/20">
+            <CardContent className="p-4">
+              <p className="text-xs text-[#666] uppercase mb-1">Oczekują płatności</p>
+              <p className="text-3xl font-bold text-[#FFD700]">{statusCounts.pending_payment || 0}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#0a0a0a] border-[#7B61FF]/20">
+            <CardContent className="p-4">
+              <p className="text-xs text-[#666] uppercase mb-1">W konfiguracji</p>
+              <p className="text-3xl font-bold text-[#7B61FF]">{(statusCounts.paid || 0) + (statusCounts.configuring || 0)}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#0a0a0a] border-[#22C55E]/20">
+            <CardContent className="p-4">
+              <p className="text-xs text-[#666] uppercase mb-1">Live</p>
+              <p className="text-3xl font-bold text-[#22C55E]">{statusCounts.live || 0}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
+            <CardContent className="p-4">
+              <p className="text-xs text-[#666] uppercase mb-1">Przychód / SOL</p>
+              <p className="text-lg font-bold text-white">${totalRevenue}</p>
+              <p className="text-xs text-[#555]">{totalSol} SOL</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {[
+            { id: 'all', label: 'Wszystkie', count: orders.length },
+            ...Object.entries(BOT_STATUS_CONFIG).map(([id, cfg]) => ({
+              id, label: cfg.label, count: statusCounts[id] || 0, color: cfg.color,
+            })),
+          ].map(({ id, label, count, color }) => (
+            <button
+              key={id}
+              onClick={() => setFilter(id)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all"
+              style={{
+                borderColor: filter === id ? (color || '#FF3366') : 'rgba(255,255,255,0.08)',
+                background: filter === id ? `${color || '#FF3366'}15` : '#111',
+                color: filter === id ? (color || '#FF3366') : '#666',
+              }}
+            >
+              {label}
+              <span className="font-bold">{count}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Orders table */}
+        {filtered.length === 0 ? (
+          <div className="text-center py-16 text-[#333]">
+            <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">Brak zamówień w tej kategorii</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map((order) => {
+              const statusCfg = BOT_STATUS_CONFIG[order.status] || BOT_STATUS_CONFIG.pending_payment;
+              const botColor = BOT_COLORS[order.bot_id] || '#00FFD1';
+              const isExpanded = expandedId === order.order_id;
+              const isUpdating = updating === order.order_id;
+              return (
+                <Card key={order.order_id} className="bg-[#0a0a0a] border-[rgba(255,255,255,0.06)] overflow-hidden">
+                  <CardContent className="p-0">
+                    {/* Main row */}
+                    <div
+                      className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                      onClick={() => setExpandedId(isExpanded ? null : order.order_id)}
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-black" style={{ background: `${botColor}20`, color: botColor }}>
+                        {order.bot_id?.slice(0, 2).toUpperCase()}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-bold text-white truncate">{order.bot_name}</span>
+                          <code className="text-[10px] text-[#555] font-mono">{order.order_id}</code>
+                        </div>
+                        <p className="text-xs text-[#666] truncate">{order.email}</p>
+                      </div>
+
+                      <div className="hidden sm:flex items-center gap-4 text-xs text-[#666] flex-shrink-0">
+                        <div className="text-center">
+                          <p className="font-bold text-white">{order.sol_tier} SOL</p>
+                          <p className="text-[10px] text-[#444]">Kapitał</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-bold text-white">${order.price_usd}</p>
+                          <p className="text-[10px] text-[#444]">Subskrypcja</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[#666]">co {order.payout_interval}d</p>
+                          <p className="text-[10px] text-[#444]">Wypłaty</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ color: statusCfg.color, background: statusCfg.bg, borderColor: `${statusCfg.color}40` }}>
+                          {statusCfg.label}
+                        </span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-[#444] transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </div>
+                    </div>
+
+                    {/* Expanded details */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 border-t border-[rgba(255,255,255,0.04)] pt-3 space-y-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                          {[
+                            ['Bot', order.bot_name],
+                            ['E-mail', order.email],
+                            ['Kapitał SOL', `${order.sol_tier} SOL`],
+                            ['Subskrypcja', `$${order.price_usd} USD`],
+                            ['Harmonogram', `co ${order.payout_interval} dni`],
+                            ['Data złożenia', order.created_at ? new Date(order.created_at).toLocaleString('pl-PL') : '—'],
+                          ].map(([k, v]) => (
+                            <div key={k}>
+                              <p className="text-[#444] uppercase tracking-wider mb-0.5">{k}</p>
+                              <p className="font-medium text-white break-all">{v}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] text-[#444] uppercase mb-1">Portfel do wypłat</p>
+                          <code className="text-xs text-[#00FFD1] font-mono break-all">{order.profit_wallet}</code>
+                        </div>
+
+                        {/* Status change buttons */}
+                        <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-[rgba(255,255,255,0.04)]">
+                          <span className="text-[10px] text-[#555] uppercase tracking-wider mr-1">Zmień status:</span>
+                          {Object.entries(BOT_STATUS_CONFIG).map(([statusId, cfg]) => {
+                            const isCurrent = order.status === statusId;
+                            return (
+                              <button
+                                key={statusId}
+                                onClick={() => !isCurrent && updateStatus(order.order_id, statusId)}
+                                disabled={isCurrent || isUpdating}
+                                className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-lg border transition-all disabled:opacity-40"
+                                style={{
+                                  borderColor: isCurrent ? cfg.color : 'rgba(255,255,255,0.1)',
+                                  background: isCurrent ? cfg.bg : 'transparent',
+                                  color: isCurrent ? cfg.color : '#666',
+                                  cursor: isCurrent ? 'default' : 'pointer',
+                                }}
+                              >
+                                {isCurrent && <Check className="w-2.5 h-2.5" />}
+                                {statusId === 'pending_payment' ? 'Oczekuje' :
+                                 statusId === 'paid' ? 'Opłacone' :
+                                 statusId === 'configuring' ? '⚙ Konfiguracja' :
+                                 statusId === 'access_granted' ? '📧 Dostęp wysłany' :
+                                 '🚀 Live'}
+                              </button>
+                            );
+                          })}
+                          {isUpdating && <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#666]" />}
+                        </div>
+
+                        {/* Config notice: only shown when status = configuring */}
+                        {order.status === 'configuring' && (
+                          <div className="flex items-start gap-2 p-3 rounded-lg bg-[#7B61FF]/10 border border-[#7B61FF]/25">
+                            <Settings className="w-4 h-4 text-[#7B61FF] flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-bold text-[#7B61FF]">Konfiguracja aktywna</p>
+                              <p className="text-[11px] text-[#7B61FF]/70 mt-0.5">
+                                Czas konfiguracji boota: <strong className="text-[#7B61FF]">14 dni</strong> od zmiany statusu.
+                                Po tym czasie prześlij dostępy do panelu na adres {order.email}.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

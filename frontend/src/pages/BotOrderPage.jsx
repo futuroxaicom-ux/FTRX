@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, ArrowLeftRight, Crosshair, TrendingUp, Repeat, Activity, Users,
   Check, Copy, ChevronRight, AlertCircle, Wallet, Clock, BarChart3, Zap,
-  Shield, Mail, TrendingDown
+  Shield, Mail, CircleDollarSign, Star, ArrowUpRight, Target
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
@@ -31,12 +31,12 @@ const SOL_TIERS = [
 ];
 
 const BOT_RETURNS = {
-  spread:    ['15–20%', '18–25%', '20–30%', '23–35%', '26–40%', '32–48%', '38–55%'],
-  sniper:    ['20–35%', '28–48%', '38–65%', '45–80%', '52–90%', '65–110%','75–130%'],
-  trade:     ['18–28%', '25–40%', '32–52%', '38–62%', '45–72%', '55–88%', '65–100%'],
-  arbitrage: ['10–15%', '12–18%', '15–22%', '18–28%', '22–35%', '28–45%', '35–55%'],
-  trend:     ['15–22%', '18–28%', '22–35%', '28–42%', '32–50%', '42–65%', '52–78%'],
-  copytrade: ['20–30%', '25–38%', '30–48%', '38–58%', '45–68%', '55–82%', '65–95%'],
+  spread:    ['22–35%', '30–48%', '40–62%', '52–78%', '65–95%', '82–120%', '100–145%'],
+  sniper:    ['38–60%', '52–82%', '70–108%', '88–135%', '105–160%', '135–200%', '162–240%'],
+  trade:     ['30–50%', '42–68%', '56–88%', '70–108%', '85–130%', '108–162%', '130–195%'],
+  arbitrage: ['20–32%', '28–44%', '36–56%', '46–72%', '58–90%', '74–115%', '92–140%'],
+  trend:     ['28–44%', '38–60%', '50–78%', '62–96%', '78–118%', '100–150%', '122–182%'],
+  copytrade: ['34–54%', '46–72%', '60–92%', '76–116%', '92–140%', '118–175%', '142–210%'],
 };
 
 const PAYOUT_INTERVALS = [
@@ -46,19 +46,28 @@ const PAYOUT_INTERVALS = [
   { days: 100, label: 'Co 100 dni', desc: 'Długi horyzont'      },
 ];
 
+const STATUS_ORDER = ['pending_payment', 'paid', 'configuring', 'access_granted', 'live'];
+
 const STATUS_STEPS = [
-  { id: 'pending', label: 'Oczekiwanie na płatność',        desc: 'Weryfikacja transakcji na blockchain'        },
-  { id: 'paid',    label: 'Płatność przyjęta',              desc: 'Transakcja potwierdzona i zweryfikowana'     },
-  { id: 'config',  label: 'Konfiguracja boota',             desc: 'Personalizacja parametrów strategii'         },
-  { id: 'access',  label: 'Przekazanie dostępów do panelu', desc: 'Link do panelu wysłany na e-mail'            },
-  { id: 'live',    label: 'Uruchomienie boota',             desc: 'Bot aktywny i pracuje na Twoim kapitale'     },
+  { id: 'pending_payment', label: 'Oczekiwanie na płatność',        desc: 'Weryfikacja transakcji na blockchain'         },
+  { id: 'paid',            label: 'Płatność przyjęta',              desc: 'Transakcja potwierdzona i zweryfikowana'      },
+  { id: 'configuring',     label: 'Konfiguracja boota',             desc: 'Personalizacja parametrów strategii'          },
+  { id: 'access_granted',  label: 'Przekazanie dostępów do panelu', desc: 'Link do panelu wysłany na e-mail'             },
+  { id: 'live',            label: 'Uruchomienie boota',             desc: 'Bot aktywny i pracuje na Twoim kapitale'      },
 ];
+
+const STEP_COLORS = ['#FFD700', '#00CCFF', '#7B61FF', '#FFB800', '#22C55E'];
 
 const formatFtrx = (amount) => {
   if (!amount) return '—';
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M`;
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(1)}K`;
   return amount.toFixed(0);
+};
+
+const parseReturn = (str) => {
+  const m = str?.match(/(\d+)[–-](\d+)%/);
+  return m ? { min: parseInt(m[1]), max: parseInt(m[2]) } : null;
 };
 
 export default function BotOrderPage() {
@@ -201,9 +210,7 @@ export default function BotOrderPage() {
               <p className="text-xs text-[#555] mt-1 ml-8">Bot potrzebuje kapitału SOL do realizowania transakcji. Im więcej — tym większy potencjał zysku.</p>
             </div>
             {errors.solTier && (
-              <p className="text-xs text-red-400 flex items-center gap-1 ml-8">
-                <AlertCircle className="w-3 h-3" />{errors.solTier}
-              </p>
+              <p className="text-xs text-red-400 flex items-center gap-1 ml-8"><AlertCircle className="w-3 h-3" />{errors.solTier}</p>
             )}
             <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
               {SOL_TIERS.map((t, i) => {
@@ -380,10 +387,16 @@ export default function BotOrderPage() {
     );
   }
 
-  const orderReturn = order
-    ? (BOT_RETURNS[botId]?.[SOL_TIERS.findIndex(t => t.sol === order.sol_tier)] ?? '—')
-    : '—';
+  const orderTierIdx = order ? SOL_TIERS.findIndex(t => t.sol === order.sol_tier) : -1;
+  const orderReturn = orderTierIdx >= 0 ? (BOT_RETURNS[botId]?.[orderTierIdx] ?? '—') : '—';
   const orderTierLabel = order ? (SOL_TIERS.find(t => t.sol === order.sol_tier)?.tier ?? '') : '';
+  const activeStep = STATUS_ORDER.indexOf(order?.status ?? 'pending_payment');
+  const earningsRange = parseReturn(orderReturn);
+  const solCap = order?.sol_tier ?? 0;
+  const monthlyMin = earningsRange ? (solCap * earningsRange.min / 100).toFixed(2) : null;
+  const monthlyMax = earningsRange ? (solCap * earningsRange.max / 100).toFixed(2) : null;
+  const monthlyAvg = earningsRange ? (solCap * (earningsRange.min + earningsRange.max) / 2 / 100).toFixed(2) : null;
+  const isConfiguring = activeStep >= 2;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -394,14 +407,14 @@ export default function BotOrderPage() {
         <span className="text-sm font-semibold">{bot.name} — Potwierdzenie zamówienia</span>
       </div>
 
-      <div className="max-w-[680px] mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-6">
+      <div className="max-w-[700px] mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-6">
 
         <div className="text-center space-y-3 py-2">
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: `${bot.color}20` }}>
             <Check className="w-8 h-8" style={{ color: bot.color }} />
           </div>
           <h1 className="text-2xl font-black text-white">Zamówienie złożone!</h1>
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2 flex-wrap">
             <span className="text-sm text-[#666]">Numer zamówienia:</span>
             <code className="text-sm font-black text-white bg-[#111] px-3 py-1 rounded-lg border border-[rgba(255,255,255,0.08)]">{order?.order_id}</code>
             <button onClick={() => copyText(order?.order_id, 'oid')} className="text-[#555] hover:text-[#00FFD1] transition-colors">
@@ -492,58 +505,141 @@ export default function BotOrderPage() {
 
         <div className="space-y-1">
           <h3 className="text-base font-bold text-white mb-3">Status zamówienia</h3>
-          {STATUS_STEPS.map((s, i) => (
-            <div key={s.id} className="flex items-start gap-3">
-              <div className="flex flex-col items-center flex-shrink-0">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border-2 transition-all ${
-                  i === 0
-                    ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]'
-                    : 'border-[rgba(255,255,255,0.08)] text-[#333]'
-                }`}>
-                  {i === 0 ? <span className="animate-pulse text-base">●</span> : i + 1}
+          {STATUS_STEPS.map((s, i) => {
+            const isDone = i < activeStep;
+            const isActive = i === activeStep;
+            const color = STEP_COLORS[i];
+            return (
+              <div key={s.id} className="flex items-start gap-3">
+                <div className="flex flex-col items-center flex-shrink-0">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border-2 transition-all"
+                    style={{
+                      borderColor: isDone ? '#22C55E' : isActive ? color : 'rgba(255,255,255,0.08)',
+                      background: isDone ? 'rgba(34,197,94,0.12)' : isActive ? `${color}18` : 'transparent',
+                      color: isDone ? '#22C55E' : isActive ? color : '#333',
+                    }}
+                  >
+                    {isDone
+                      ? <Check className="w-3.5 h-3.5" />
+                      : isActive
+                        ? <span className="animate-pulse text-base leading-none">●</span>
+                        : i + 1}
+                  </div>
+                  {i < STATUS_STEPS.length - 1 && <div className="w-px h-6 mt-1 bg-[rgba(255,255,255,0.05)]" />}
                 </div>
-                {i < STATUS_STEPS.length - 1 && <div className="w-px h-6 mt-1 bg-[rgba(255,255,255,0.05)]" />}
+                <div className="pb-3 pt-1 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold" style={{ color: isDone ? '#22C55E' : isActive ? color : '#333' }}>
+                      {s.label}
+                    </p>
+                    {i === 2 && isConfiguring && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ color: '#7B61FF', borderColor: '#7B61FF44', background: '#7B61FF12' }}>
+                        Czas konfiguracji: 14 dni
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs mt-0.5" style={{ color: isDone ? '#666' : isActive ? `${color}99` : '#2a2a2a' }}>
+                    {s.desc}
+                  </p>
+                </div>
               </div>
-              <div className="pb-3 pt-1">
-                <p className={`text-sm font-semibold ${i === 0 ? 'text-[#FFD700]' : 'text-[#333]'}`}>{s.label}</p>
-                <p className={`text-xs mt-0.5 ${i === 0 ? 'text-[#888]' : 'text-[#2a2a2a]'}`}>{s.desc}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div className="p-5 rounded-xl border space-y-4" style={{ borderColor: `${bot.color}20`, background: `${bot.color}05` }}>
-          <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="rounded-xl border overflow-hidden" style={{ borderColor: `${bot.color}22` }}>
+          <div className="px-5 py-4 flex items-center justify-between" style={{ background: `${bot.color}08` }}>
             <div className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5" style={{ color: bot.color }} />
-              <h3 className="text-base font-bold text-white">Panel Boota — podgląd</h3>
+              <h3 className="text-base font-bold text-white">Panel Boota — Live Dashboard</h3>
             </div>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FFD700]/10 text-[#FFD700] font-bold uppercase tracking-wider">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FFD700]/10 text-[#FFD700] font-bold uppercase tracking-wider border border-[#FFD700]/20">
               Aktywuje się po płatności
             </span>
           </div>
-          <p className="text-xs text-[#555]">Tak będzie wyglądał Twój panel po uruchomieniu boota:</p>
 
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: 'Zysk dzienny',       Icon: TrendingUp   },
-              { label: 'Zysk miesięczny',    Icon: BarChart3    },
-              { label: 'Wypłacono na portfel', Icon: Wallet      },
-            ].map(({ label, Icon: StatIcon }) => (
-              <div key={label} className="p-3 sm:p-4 rounded-xl bg-[#0a0a0a] border border-[rgba(255,255,255,0.05)] text-center">
-                <StatIcon className="w-4 h-4 mx-auto mb-2 text-[#444]" />
-                <p className="text-[9px] sm:text-[10px] text-[#555] uppercase tracking-wider leading-tight">{label}</p>
-                <div className="mt-2 flex items-center justify-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-[#FFD700] rounded-full animate-pulse" />
-                  <p className="text-xs font-bold text-[#FFD700]">in progress</p>
+          <div className="p-5 space-y-5 bg-[#0d0d0d]">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { label: 'Zysk dzienny',       Icon: ArrowUpRight,       unit: 'SOL' },
+                { label: 'Zysk tygodniowy',    Icon: TrendingUp,         unit: 'SOL' },
+                { label: 'Zysk miesięczny',    Icon: BarChart3,          unit: 'SOL' },
+                { label: 'Transakcje / 24h',   Icon: Zap,                unit: 'tx'  },
+                { label: 'Wskaźnik sukcesu',   Icon: Target,             unit: '%'   },
+                { label: 'Łączne wypłaty',     Icon: CircleDollarSign,   unit: 'SOL' },
+              ].map(({ label, Icon: SI, unit }) => (
+                <div key={label} className="p-3 sm:p-4 rounded-xl bg-[#111] border border-[rgba(255,255,255,0.06)] text-center">
+                  <SI className="w-4 h-4 mx-auto mb-1.5 text-[#444]" />
+                  <p className="text-[9px] sm:text-[10px] text-[#555] uppercase tracking-wider leading-tight">{label}</p>
+                  <div className="mt-2 flex items-center justify-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-[#FFD700] rounded-full animate-pulse flex-shrink-0" />
+                    <p className="text-xs font-bold text-[#FFD700]">in progress</p>
+                  </div>
+                  <p className="text-[9px] text-[#333] mt-0.5">{unit}</p>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          <p className="text-[11px] text-center text-[#444]">
-            Pełny dostęp do panelu zostanie przesłany na <strong className="text-[#666]">{order?.email}</strong> po potwierdzeniu płatności.
-          </p>
+            {monthlyMin && (
+              <div className="p-4 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#111]">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Star className="w-3.5 h-3.5" style={{ color: bot.color }} />
+                  <p className="text-xs font-bold text-white uppercase tracking-wider">Szacowane zyski miesięczne</p>
+                  <span className="text-[10px] text-[#555]">(na podstawie wybranego kapitału i strategii)</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Minimalny', value: `${monthlyMin} SOL`, note: `${earningsRange?.min}% z ${solCap} SOL`, color: '#888' },
+                    { label: 'Średni',    value: `${monthlyAvg} SOL`, note: 'Szacowanie bazowe',                       color: bot.color },
+                    { label: 'Maksymalny',value: `${monthlyMax} SOL`, note: `${earningsRange?.max}% z ${solCap} SOL`, color: '#22C55E' },
+                  ].map(({ label, value, note, color: c }) => (
+                    <div key={label} className="text-center p-3 rounded-lg bg-[#0a0a0a] border border-[rgba(255,255,255,0.04)]">
+                      <p className="text-[10px] text-[#555] uppercase">{label}</p>
+                      <p className="text-base font-black mt-1" style={{ color: c }}>{value}</p>
+                      <p className="text-[9px] text-[#444] mt-0.5">{note}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#333] mt-2 text-center">* Szacunki nie stanowią gwarancji zysku. Wyniki zależą od warunków rynkowych.</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-xl bg-[#111] border border-[rgba(255,255,255,0.06)]">
+                <p className="text-[10px] text-[#555] uppercase tracking-wider mb-1.5">Harmonogram wypłat</p>
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-[#444]" />
+                  <p className="text-sm font-bold text-white">co {order?.payout_interval} dni</p>
+                </div>
+                <p className="text-[10px] text-[#333] mt-1">Wypłata na: <span className="text-[#555] font-mono">{order?.profit_wallet?.slice(0,8)}...{order?.profit_wallet?.slice(-4)}</span></p>
+              </div>
+              <div className="p-3 rounded-xl bg-[#111] border border-[rgba(255,255,255,0.06)]">
+                <p className="text-[10px] text-[#555] uppercase tracking-wider mb-1.5">Następna wypłata</p>
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-[#FFD700] rounded-full animate-pulse flex-shrink-0" />
+                  <p className="text-sm font-bold text-[#FFD700]">po aktywacji</p>
+                </div>
+                <p className="text-[10px] text-[#333] mt-1">Kapital roboczy: <span className="text-[#555]">{order?.sol_tier} SOL</span></p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl border border-dashed border-[rgba(255,255,255,0.05)] flex items-center justify-center gap-3">
+              <div className="flex-1">
+                <p className="text-xs text-[#444] text-center mb-2">Wykres zysków (ostatnie 30 dni)</p>
+                <div className="flex items-end justify-center gap-1 h-12">
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <div key={i} className="flex-1 rounded-sm opacity-20" style={{ height: `${Math.random() * 100}%`, background: bot.color, minHeight: '4px' }} />
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#333] text-center mt-2">Dane pojawią się po 7 dniach pracy boota</p>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-center text-[#444]">
+              Pełny dostęp do panelu zostanie przesłany na <strong className="text-[#666]">{order?.email}</strong> po potwierdzeniu płatności.
+            </p>
+          </div>
         </div>
 
         <Button

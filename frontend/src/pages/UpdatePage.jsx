@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle, AlertTriangle, Mail, Wallet, RefreshCw, Zap, Shield, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, ArrowRight, CheckCircle, AlertTriangle, Mail, Wallet, RefreshCw, Zap, Shield, TrendingUp, Check, Clock, Send } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
@@ -7,22 +7,49 @@ import { toast, Toaster } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL || '';
 
+const DIST_START = new Date('2026-06-09T17:00:00Z');
+const DIST_TOTAL_H = 50;
+const DIST_END = new Date(DIST_START.getTime() + DIST_TOTAL_H * 3600000);
+
+const DIST_PHASES = [
+  { label: 'Portfele priorytetowe',           desc: 'Posiadacze powyżej 100 000 FTRX',              start: 0,  end: 10, time: '09.06 19:00 – 10.06 05:00' },
+  { label: 'Portfele duże',                   desc: 'Posiadacze 10 000 – 100 000 FTRX',             start: 10, end: 20, time: '10.06 05:00 – 10.06 15:00' },
+  { label: 'Portfele średnie',                desc: 'Posiadacze 1 000 – 10 000 FTRX',              start: 20, end: 30, time: '10.06 15:00 – 11.06 01:00' },
+  { label: 'Portfele mniejsze',               desc: 'Posiadacze 100 – 1 000 FTRX',                 start: 30, end: 40, time: '11.06 01:00 – 11.06 11:00' },
+  { label: 'Portfele minimalne + Weryfikacja',desc: 'Poniżej 100 FTRX oraz kontrola końcowa',      start: 40, end: 50, time: '11.06 11:00 – 11.06 21:00' },
+];
+
 export default function UpdatePage() {
   const [email, setEmail] = useState('');
   const [wallet, setWallet] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  const distElapsed = Math.max(0, Math.min(DIST_TOTAL_H, (now - DIST_START) / 3600000));
+  const distPct = (distElapsed / DIST_TOTAL_H) * 100;
+  const isStarted = now >= DIST_START;
+  const isComplete = now >= DIST_END;
+  const timeRemaining = isComplete ? 0 : Math.max(0, (DIST_END - now) / 3600000);
+  const remHours = Math.floor(timeRemaining);
+  const remMins = Math.floor((timeRemaining - remHours) * 60);
+
+  const phaseStatus = (phase) => {
+    if (!isStarted) return 'pending';
+    if (distElapsed >= phase.end) return 'done';
+    if (distElapsed >= phase.start) return 'active';
+    return 'pending';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !wallet) {
-      toast.error('Wypełnij wszystkie pola');
-      return;
-    }
-    if (!wallet.match(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)) {
-      toast.error('Podaj poprawny adres portfela Solana');
-      return;
-    }
+    if (!email || !wallet) { toast.error('Wypełnij wszystkie pola'); return; }
+    if (!wallet.match(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)) { toast.error('Podaj poprawny adres portfela Solana'); return; }
     setLoading(true);
     try {
       const r = await fetch(`${API}/api/update-request`, {
@@ -31,14 +58,9 @@ export default function UpdatePage() {
         body: JSON.stringify({ email, wallet_address: wallet }),
       });
       const d = await r.json();
-      if (d.success) {
-        setSubmitted(true);
-      } else {
-        toast.error(d.detail || 'Wystąpił błąd. Spróbuj ponownie.');
-      }
-    } catch {
-      toast.error('Błąd połączenia z serwerem');
-    }
+      if (d.success) { setSubmitted(true); }
+      else { toast.error(d.detail || 'Wystąpił błąd. Spróbuj ponownie.'); }
+    } catch { toast.error('Błąd połączenia z serwerem'); }
     setLoading(false);
   };
 
@@ -46,7 +68,6 @@ export default function UpdatePage() {
     <div className="min-h-screen bg-black text-white">
       <Toaster />
 
-      {/* Header */}
       <header className="border-b border-[rgba(255,255,255,0.08)] px-4 md:px-8 py-4">
         <div className="max-w-[1200px] mx-auto flex items-center gap-3">
           <a href="/" className="text-[#666] hover:text-white transition-colors">
@@ -57,7 +78,6 @@ export default function UpdatePage() {
         </div>
       </header>
 
-      {/* Hero */}
       <section className="relative py-16 px-4 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#FFD700] opacity-[0.03] blur-[120px] rounded-full"></div>
@@ -77,7 +97,6 @@ export default function UpdatePage() {
         </div>
       </section>
 
-      {/* Info Cards */}
       <section className="px-4 pb-12">
         <div className="max-w-[1200px] mx-auto grid md:grid-cols-3 gap-4 mb-12">
           <Card className="bg-[#0a0a0a] border-[rgba(255,255,255,0.08)]">
@@ -115,7 +134,6 @@ export default function UpdatePage() {
           </Card>
         </div>
 
-        {/* How it works */}
         <div className="max-w-[800px] mx-auto mb-12">
           <h2 className="text-2xl font-bold text-center mb-8">Jak przebiega aktualizacja?</h2>
           <div className="space-y-4">
@@ -135,15 +153,122 @@ export default function UpdatePage() {
           </div>
         </div>
 
-        {/* Status aktualizacji */}
-        <div className="max-w-[800px] mx-auto mb-8">
-          <div className="flex items-start gap-3 p-4 bg-[#FFD700]/5 border border-[#FFD700]/30 rounded-lg">
-            <span className="w-2.5 h-2.5 bg-[#FFD700] rounded-full animate-ping shrink-0 mt-1"></span>
+        {/* Status: Aktualizacja complete */}
+        <div className="max-w-[800px] mx-auto mb-6">
+          <div className="flex items-center gap-3 p-4 bg-[#00FFD1]/5 border border-[#00FFD1]/30 rounded-lg">
+            <div className="w-8 h-8 rounded-full bg-[#00FFD1]/15 flex items-center justify-center flex-shrink-0">
+              <Check className="w-4 h-4 text-[#00FFD1]" />
+            </div>
             <div>
-              <p className="text-sm font-semibold text-[#FFD700]">Aktualizacja w trakcie</p>
-              <p className="text-sm text-[#FFD700]/70 mt-0.5">
-                Zakończenie aktualizacji dla wszystkich użytkowników: <span className="font-bold text-[#FFD700]">09.06.2026 godz. 19:00</span>
+              <p className="text-sm font-bold text-[#00FFD1]">Aktualizacja complete</p>
+              <p className="text-sm text-[#00FFD1]/70 mt-0.5">
+                Migracja FTRX V1 → V2 zakończona: <span className="font-bold text-[#00FFD1]">09.06.2026 godz. 19:00</span>
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* FTRX Distribution Section */}
+        <div className="max-w-[800px] mx-auto mb-10 space-y-4">
+          <div className="p-5 rounded-xl border border-[rgba(255,215,0,0.2)] bg-[#FFD700]/04">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-[#FFD700]/10 flex items-center justify-center flex-shrink-0">
+                <Send className="w-4 h-4 text-[#FFD700]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Rozpoczęcie przesyłania FTRX na portfele indywidualnie</h3>
+                <p className="text-xs text-[#666] mt-0.5">Dystrybucja tokenów FTRX V2 do wszystkich zweryfikowanych portfeli</p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="space-y-2 mb-5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-[#888]">Postęp dystrybucji</span>
+                <span className="font-bold" style={{ color: isComplete ? '#22C55E' : '#FFD700' }}>
+                  {isComplete ? 'Ukończono (50/50h)' : isStarted ? `${distElapsed.toFixed(1)}h / 50h` : 'Rozpoczęcie: 09.06 godz. 19:00'}
+                </span>
+              </div>
+              <div className="h-3 bg-[#111] rounded-full overflow-hidden border border-[rgba(255,255,255,0.06)]">
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{
+                    width: `${distPct}%`,
+                    background: isComplete
+                      ? 'linear-gradient(90deg, #22C55E, #00FFD1)'
+                      : 'linear-gradient(90deg, #FFD700, #FFB800)',
+                  }}
+                />
+              </div>
+              {!isComplete && isStarted && (
+                <div className="flex items-center gap-1.5 text-xs text-[#666]">
+                  <Clock className="w-3 h-3" />
+                  <span>Pozostało: <strong className="text-[#FFD700]">{remHours}h {remMins}m</strong></span>
+                  <span className="text-[#444]">· Zakończenie: 11.06.2026 godz. 21:00</span>
+                </div>
+              )}
+              {isComplete && (
+                <div className="flex items-center gap-1.5 text-xs text-[#22C55E]">
+                  <Check className="w-3 h-3" />
+                  <span className="font-semibold">Dystrybucja zakończona — wszystkie portfele zaktualizowane</span>
+                </div>
+              )}
+            </div>
+
+            {/* Phases table */}
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-[#555] uppercase tracking-wider mb-3">Harmonogram dystrybucji</p>
+              <div className="rounded-lg overflow-hidden border border-[rgba(255,255,255,0.06)]">
+                <div className="grid grid-cols-12 px-3 py-2 bg-[#0a0a0a] border-b border-[rgba(255,255,255,0.06)]">
+                  <span className="col-span-1 text-[10px] text-[#444] uppercase">#</span>
+                  <span className="col-span-4 text-[10px] text-[#444] uppercase">Faza</span>
+                  <span className="col-span-3 text-[10px] text-[#444] uppercase hidden sm:block">Warunek</span>
+                  <span className="col-span-3 text-[10px] text-[#444] uppercase hidden sm:block">Czas</span>
+                  <span className="col-span-4 sm:col-span-2 text-[10px] text-[#444] uppercase text-right">Status</span>
+                </div>
+                {DIST_PHASES.map((ph, i) => {
+                  const st = phaseStatus(ph);
+                  return (
+                    <div
+                      key={i}
+                      className={`grid grid-cols-12 px-3 py-3 border-b border-[rgba(255,255,255,0.04)] last:border-0 transition-colors ${st === 'active' ? 'bg-[#FFD700]/04' : ''}`}
+                    >
+                      <span className="col-span-1 text-xs font-bold" style={{ color: st === 'done' ? '#22C55E' : st === 'active' ? '#FFD700' : '#333' }}>
+                        {i + 1}
+                      </span>
+                      <div className="col-span-4">
+                        <p className="text-xs font-semibold" style={{ color: st === 'done' ? '#888' : st === 'active' ? '#fff' : '#444' }}>
+                          {ph.label}
+                        </p>
+                      </div>
+                      <div className="col-span-3 hidden sm:block">
+                        <p className="text-[10px] text-[#555]">{ph.desc}</p>
+                      </div>
+                      <div className="col-span-3 hidden sm:block">
+                        <p className="text-[10px] text-[#444] font-mono">{ph.time}</p>
+                      </div>
+                      <div className="col-span-4 sm:col-span-2 flex justify-end">
+                        {st === 'done' && (
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-[#22C55E] bg-[#22C55E]/10 px-2 py-0.5 rounded-full border border-[#22C55E]/20">
+                            <Check className="w-2.5 h-2.5" /> Ukończono
+                          </span>
+                        )}
+                        {st === 'active' && (
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-[#FFD700] bg-[#FFD700]/10 px-2 py-0.5 rounded-full border border-[#FFD700]/20">
+                            <span className="w-1.5 h-1.5 bg-[#FFD700] rounded-full animate-pulse" /> W trakcie
+                          </span>
+                        )}
+                        {st === 'pending' && (
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-[#444] bg-[rgba(255,255,255,0.03)] px-2 py-0.5 rounded-full border border-[rgba(255,255,255,0.06)]">
+                            <Clock className="w-2.5 h-2.5" /> Oczekuje
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-[#333] mt-2">Czas podany w strefie czasowej CEST (UTC+2). Kolejność dystrybucji zależy od salda FTRX V1 na weryfikowanym portfelu.</p>
             </div>
           </div>
         </div>
@@ -226,7 +351,6 @@ export default function UpdatePage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-[rgba(255,255,255,0.06)] py-8 px-4 text-center">
         <p className="text-[#333] text-sm">© 2026 FuturoX AI. Migracja FTRX V1 → V2.</p>
       </footer>
