@@ -12,7 +12,7 @@ rm -f "$MONGO_DATA_DIR/mongod.lock"
 
 # Kill any existing mongod
 pkill -9 mongod 2>/dev/null || true
-sleep 2
+sleep 1
 
 # Start MongoDB
 echo "Starting MongoDB..."
@@ -23,29 +23,18 @@ mongod --dbpath "$MONGO_DATA_DIR" \
 
 echo "MongoDB PID: $!"
 
-# Install Python dependencies in parallel while waiting for MongoDB
-echo "Installing Python dependencies..."
-cd /home/runner/workspace/backend
-pip install -r requirements.txt -q &
-PIP_PID=$!
-
-# Wait for MongoDB log to confirm it's ready (up to 90s)
+# Wait for MongoDB to be ready (up to 60s)
 echo "Waiting for MongoDB to accept connections..."
-for i in $(seq 1 90); do
+for i in $(seq 1 60); do
     if grep -q "Waiting for connections" "$MONGO_LOG" 2>/dev/null; then
         echo "MongoDB ready after ${i}s."
         break
     fi
-    if [ $i -eq 90 ]; then
+    if [ $i -eq 60 ]; then
         echo "MongoDB timeout — starting anyway"
     fi
     sleep 1
 done
-
-# Wait for pip to finish
-echo "Waiting for pip install to finish..."
-wait $PIP_PID
-echo "Dependencies ready."
 
 # Start FastAPI backend on port 5000
 echo "Starting backend on port 5000..."

@@ -73,4 +73,4 @@ FRONTEND_BASE_URL = "https://futuroxai.com"
 [deployment]
 deploymentTarget = "vm"
 run = ["bash", "/home/runner/workspace/start_production.sh"]
-build = ["bash", "-c", "cd /home/runner/workspace/frontend && npm install --legacy-peer-deps && npm run build"]
+build = ["bash", "-c", "cd /home/runner/workspace/frontend && npm install --legacy-peer-deps && npm run build && cd /home/runner/workspace/backend && pip install -r requirements.txt -q"]
