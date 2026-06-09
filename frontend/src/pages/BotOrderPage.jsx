@@ -146,10 +146,16 @@ export default function BotOrderPage() {
         setStep('summary');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        setErrors({ submit: data.detail || 'Błąd podczas składania zamówienia' });
+        const detail = data.detail || data.error || data.message;
+        const msg = typeof detail === 'string'
+          ? detail
+          : res.status === 502 || res.status === 503
+            ? 'Backend chwilowo niedostępny — spróbuj za chwilę.'
+            : 'Błąd podczas składania zamówienia. Spróbuj ponownie.';
+        setErrors({ submit: msg });
       }
     } catch (_) {
-      setErrors({ submit: 'Błąd połączenia z serwerem. Spróbuj ponownie.' });
+      setErrors({ submit: 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.' });
     } finally {
       setSubmitting(false);
     }
