@@ -1326,12 +1326,12 @@ def _build_declaration2_email_html(entry_id: str, email: str, wallet: str) -> st
     <span style="color:#fff;font-size:20px;font-weight:700;margin-left:10px;vertical-align:middle;">FuturoX AI</span>
   </td></tr>
   <tr><td style="padding:28px 32px 12px;">
-    <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#fff;">Oświadczenie końcowe FTRX V2</h1>
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#fff;">Formularz uzupełniający i potwierdzający — FTRX V2</h1>
     <p style="margin:0;color:#888;font-size:14px;">Szanowny Użytkowniku ({email}),</p>
   </td></tr>
   <tr><td style="padding:0 32px 16px;">
     <p style="margin:0;color:#ccc;font-size:14px;line-height:1.7;">
-      W związku z zakończeniem migracji FTRX V1 → V2 prosimy o złożenie <strong style="color:#fff;">oświadczenia końcowego</strong>,
+      W związku z zakończeniem migracji FTRX V1 → V2 prosimy o złożenie <strong style="color:#fff;">oświadczenia uzupełniającego i potwierdzającego</strong>,
       w którym potwierdzisz dane swojego portfela odbiorczego, ilość przesłanych tokenów FTRX V1 oraz
       zapoznanie się z harmonogramem i warunkami obrotu tokenem FTRX V2.
     </p>
@@ -1348,6 +1348,7 @@ def _build_declaration2_email_html(entry_id: str, email: str, wallet: str) -> st
           "✓ Oświadczenie dot. oficjalnego listingu FTRX V2 na PureXchange.io (10.06.2026) i uruchomienia SWAP (17.06.2026)",
           "✓ Zgoda na wyłączny obrót FTRX V2 przez PureXchange.io w okresie 17.06–10.07.2026",
           "✓ Zgoda na dowolne użytkowanie tokena FTRX od dnia 10.07.2026",
+          "✓ Wyrażenie zgody na przyjęcie tokenów FTRX V2 na portfel indywidualny w przeciągu 50 godzin od momentu podpisania i akceptacji oświadczenia",
       ])}
     </table>
   </td></tr>
@@ -1386,6 +1387,7 @@ class Declaration2Submit(BaseModel):
     confirmed_listing: bool
     confirmed_purexchange_only: bool
     confirmed_free_use: bool
+    confirmed_receive_tokens: bool
 
 @api_router.get("/declaration2/{declaration_id}/check")
 async def check_declaration2(declaration_id: str):
@@ -1406,7 +1408,8 @@ async def submit_declaration2(declaration_id: str, body: Declaration2Submit):
     if body.wallet_confirmed.strip() != entry["wallet_address"]:
         raise HTTPException(status_code=400, detail="Adres portfela nie zgadza się z zarejestrowanym")
     if not all([body.confirmed_wallet_correct, body.confirmed_amount_correct,
-                body.confirmed_listing, body.confirmed_purexchange_only, body.confirmed_free_use]):
+                body.confirmed_listing, body.confirmed_purexchange_only, body.confirmed_free_use,
+                body.confirmed_receive_tokens]):
         raise HTTPException(status_code=400, detail="Musisz zaznaczyć wszystkie wymagane oświadczenia")
     doc = {
         "declaration_id": declaration_id,
@@ -1419,6 +1422,7 @@ async def submit_declaration2(declaration_id: str, body: Declaration2Submit):
         "confirmed_listing": body.confirmed_listing,
         "confirmed_purexchange_only": body.confirmed_purexchange_only,
         "confirmed_free_use": body.confirmed_free_use,
+        "confirmed_receive_tokens": body.confirmed_receive_tokens,
         "submitted_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.declarations2.insert_one(doc)
@@ -1438,7 +1442,7 @@ async def send_declaration2_email(entry_id: str, x_admin_password: str = Header(
     if not entry:
         raise HTTPException(status_code=404, detail="Wniosek nie znaleziony")
     html = _build_declaration2_email_html(entry_id, entry["email"], entry["wallet_address"])
-    subject = "FuturoX AI — Oświadczenie końcowe FTRX V2 — wymagane działanie"
+    subject = "FuturoX AI — Formularz uzupełniający i potwierdzający FTRX V2 — wymagane działanie"
     try:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, _send_email_sync, entry["email"], subject, html)

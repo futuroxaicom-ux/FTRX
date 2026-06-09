@@ -25,6 +25,7 @@ export default function Declaration2Page() {
     listing: false,
     purexchangeOnly: false,
     freeUse: false,
+    receiveTokens: false,
   });
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export default function Declaration2Page() {
           confirmed_listing: checks.listing,
           confirmed_purexchange_only: checks.purexchangeOnly,
           confirmed_free_use: checks.freeUse,
+          confirmed_receive_tokens: checks.receiveTokens,
         }),
       });
       const d = await r.json();
@@ -115,9 +117,9 @@ export default function Declaration2Page() {
       <div className="w-20 h-20 bg-[#00FFD1]/10 rounded-full flex items-center justify-center">
         <CheckCircle className="w-10 h-10 text-[#00FFD1]" />
       </div>
-      <h1 className="text-2xl font-bold">Oświadczenie złożone ✓</h1>
+      <h1 className="text-2xl font-bold">Oświadczenie uzupełniające złożone ✓</h1>
       <p className="text-[#888] max-w-sm leading-relaxed">
-        Twoje oświadczenie końcowe zostało pomyślnie złożone i zarejestrowane w systemie FuturoX AI.
+        Twoje oświadczenie uzupełniające i potwierdzające zostało pomyślnie złożone i zarejestrowane w systemie FuturoX AI.
       </p>
       <div className="text-xs text-[#555] font-mono bg-[#0a0a0a] border border-[rgba(255,255,255,0.08)] px-4 py-2 rounded">
         {info?.email}
@@ -135,7 +137,7 @@ export default function Declaration2Page() {
           <div className="w-8 h-8 bg-[#FFD700] flex items-center justify-center font-bold text-black text-[10px]">FTRX</div>
           <span className="text-lg font-bold">FuturoX AI</span>
           <span className="text-[#333] mx-2">·</span>
-          <span className="text-sm text-[#666]">Oświadczenie końcowe FTRX V2</span>
+          <span className="text-sm text-[#666]">Formularz uzupełniający i potwierdzający — FTRX V2</span>
         </div>
       </header>
 
@@ -145,9 +147,9 @@ export default function Declaration2Page() {
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#FFD700]/10 border border-[#FFD700]/30 rounded-full">
             <Shield className="w-4 h-4 text-[#FFD700]" />
-            <span className="text-sm font-medium text-[#FFD700]">Oświadczenie końcowe — Migracja FTRX V2</span>
+            <span className="text-sm font-medium text-[#FFD700]">Formularz uzupełniający i potwierdzający — Migracja FTRX V2</span>
           </div>
-          <h1 className="text-3xl font-black text-white">Potwierdzenie <span className="text-[#FFD700]">warunków</span> i danych</h1>
+          <h1 className="text-3xl font-black text-white">Oświadczenie <span className="text-[#FFD700]">uzupełniające</span> i potwierdzające</h1>
           <p className="text-[#888] text-sm">Formularz indywidualny dla: <span className="text-[#00FFD1] font-medium">{info?.email}</span></p>
         </div>
 
@@ -261,6 +263,15 @@ export default function Declaration2Page() {
                 label="Od dnia 10.07.2026 oświadczam i wyrażam zgodę na dowolne użytkowanie tokena FTRX za pośrednictwem dowolnej metody dostępnej na rynkach finansowych i giełdach kryptowalutowych."
                 sublabel="Rozumiem, że po dniu 10.07.2026 ograniczenia sprzedaży wygasają i token będzie swobodnie dostępny na wszelkich platformach."
               />
+
+              <div className="border-t border-[rgba(255,255,255,0.05)] my-3" />
+              <p className="text-[10px] text-[#444] uppercase tracking-wider font-bold px-3">Odbiór tokenów FTRX V2</p>
+
+              <CheckBox
+                id="receiveTokens"
+                label={`Wyrażam zgodę na przyjęcie tokenów FTRX V2 na portfel indywidualny ${walletConfirm || '(podany powyżej)'} w przeciągu 50 godzin od momentu podpisania i akceptacji niniejszego oświadczenia.`}
+                sublabel="Oświadczam, że jestem przygotowany/a do odbioru tokena FTRX V2 i rozumiem, że środki zostaną przesłane na wskazany portfel w wyżej określonym terminie."
+              />
             </div>
 
             <div className="border-t border-[rgba(255,255,255,0.05)]" />
@@ -274,7 +285,7 @@ export default function Declaration2Page() {
               <p><span className="text-[#666]">Email:</span> <span className="text-[#888]">{info?.email}</span></p>
               <p><span className="text-[#666]">Portfel (odbiór FTRX V2):</span> <span className="font-mono text-[#00FFD1]">{walletConfirm || '—'}</span></p>
               <p><span className="text-[#666]">Ilość FTRX V1:</span> <span className="text-[#FFD700] font-bold">{ftrxAmount ? `${parseFloat(ftrxAmount).toLocaleString('pl-PL')} FTRX` : '—'}</span></p>
-              <p><span className="text-[#666]">Oświadczenia:</span> <span className={allChecked ? 'text-[#22C55E] font-bold' : 'text-[#555]'}>{Object.values(checks).filter(Boolean).length} / 5 zaznaczonych</span></p>
+              <p><span className="text-[#666]">Oświadczenia:</span> <span className={allChecked ? 'text-[#22C55E] font-bold' : 'text-[#555]'}>{Object.values(checks).filter(Boolean).length} / 6 zaznaczonych</span></p>
               <p className="text-[#2a2a2a] pt-2 border-t border-[rgba(255,255,255,0.04)] mt-2">FuturoX AI nigdy nie poprosi o klucz prywatny ani seed phrase. Procedura jest non-custodial.</p>
             </div>
 
@@ -289,7 +300,7 @@ export default function Declaration2Page() {
             >
               {submitting
                 ? <><RefreshCw className="w-4 h-4 animate-spin mr-2" />Wysyłanie...</>
-                : 'Złóż oświadczenie końcowe →'}
+                : 'Złóż oświadczenie uzupełniające i potwierdzające →'}
             </Button>
           </CardContent>
         </Card>
