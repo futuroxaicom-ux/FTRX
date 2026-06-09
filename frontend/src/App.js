@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import AdminPage from "./pages/Admin";
 import UpdatePage from "./pages/UpdatePage";
 import DeclarationPage from "./pages/DeclarationPage";
+import BotOrderPage from "./pages/BotOrderPage";
 import { SolanaProvider } from "./contexts/SolanaProvider";
 import { Toaster } from "./components/ui/sonner";
 
@@ -19,6 +20,7 @@ function App() {
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/update" element={<UpdatePage />} />
             <Route path="/declaration/:id" element={<DeclarationPage />} />
+            <Route path="/bot-order/:botId" element={<BotOrderPage />} />
           </Routes>
         </BrowserRouter>
         <Toaster />

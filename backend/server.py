@@ -1315,6 +1315,97 @@ async def get_whitelist_count():
     count = await db.whitelist.count_documents({})
     return {"count": count}
 
+
+VALID_BOT_IDS = {"spread", "sniper", "trade", "arbitrage", "trend", "copytrade"}
+VALID_SOL_TIERS = {5, 10, 25, 50, 100, 500, 1000}
+VALID_PAYOUT_INTERVALS = {15, 30, 50, 100}
+BOT_PRICES = {"spread": 99, "sniper": 199, "trade": 199, "arbitrage": 99, "trend": 99, "copytrade": 99}
+BOT_NAMES = {
+    "spread": "AI Spread Bot", "sniper": "AI Sniper Bot", "trade": "AI Trade Bot",
+    "arbitrage": "AI Arbitrage Bot", "trend": "AI Trend Bot", "copytrade": "AI Copy Trade",
+}
+
+class BotOrderCreate(BaseModel):
+    email: str
+    bot_id: str
+    bot_name: Optional[str] = None
+    price_usd: Optional[float] = None
+    sol_tier: int
+    payout_interval: int
+    profit_wallet: str
+
+class BotOrderEntry(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    order_id: str = Field(default_factory=lambda: f"FTRX-{int(datetime.now(timezone.utc).timestamp())}-{str(uuid.uuid4())[:4].upper()}")
+    email: str
+    bot_id: str
+    bot_name: str
+    price_usd: float
+    sol_tier: int
+    payout_interval: int
+    profit_wallet: str
+    status: str = "pending_payment"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+@api_router.post("/bot-order")
+async def submit_bot_order(req: BotOrderCreate):
+    """Submit a bot purchase order"""
+    if req.bot_id not in VALID_BOT_IDS:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy typ boota")
+    if req.sol_tier not in VALID_SOL_TIERS:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy poziom kapitału SOL")
+    if req.payout_interval not in VALID_PAYOUT_INTERVALS:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy harmonogram wypłat")
+    if not req.profit_wallet or len(req.profit_wallet) < 32 or len(req.profit_wallet) > 44:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy adres portfela Solana")
+
+    entry = BotOrderEntry(
+        email=req.email,
+        bot_id=req.bot_id,
+        bot_name=BOT_NAMES.get(req.bot_id, req.bot_id),
+        price_usd=BOT_PRICES.get(req.bot_id, 99),
+        sol_tier=req.sol_tier,
+        payout_interval=req.payout_interval,
+        profit_wallet=req.profit_wallet,
+    )
+    doc = entry.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.bot_orders.insert_one(doc)
+    return {
+        "success": True,
+        "order_id": entry.order_id,
+        "email": entry.email,
+        "bot_id": entry.bot_id,
+        "bot_name": entry.bot_name,
+        "price_usd": entry.price_usd,
+        "sol_tier": entry.sol_tier,
+        "payout_interval": entry.payout_interval,
+        "profit_wallet": entry.profit_wallet,
+        "status": entry.status,
+    }
+
+@api_router.get("/admin/bot-orders")
+async def get_bot_orders(x_admin_password: str = Header(None)):
+    """Get all bot orders"""
+    verify_admin(x_admin_password)
+    cursor = db.bot_orders.find({}, {"_id": 0}).sort("created_at", -1)
+    orders = await cursor.to_list(length=1000)
+    return {"orders": orders, "total": len(orders)}
+
+@api_router.patch("/admin/bot-orders/{order_id}/status")
+async def update_bot_order_status(order_id: str, body: dict, x_admin_password: str = Header(None)):
+    """Update bot order status"""
+    verify_admin(x_admin_password)
+    valid_statuses = {"pending_payment", "paid", "configuring", "access_granted", "live"}
+    new_status = body.get("status", "")
+    if new_status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Nieprawidłowy status. Dozwolone: {valid_statuses}")
+    result = await db.bot_orders.update_one({"order_id": order_id}, {"$set": {"status": new_status}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Zamówienie nie znalezione")
+    return {"success": True, "order_id": order_id, "status": new_status}
+
+
 # Include the router in the main app
 app.include_router(api_router)
 

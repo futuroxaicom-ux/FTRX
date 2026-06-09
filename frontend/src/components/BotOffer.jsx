@@ -1,11 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { TrendingUp, Crosshair, Repeat, ArrowLeftRight, Users, Shield, BarChart3, Wallet, Star, Zap, ChevronRight, Mail, Activity } from 'lucide-react';
 
 export const BotOffer = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const bots = [
     {
@@ -166,9 +168,11 @@ export const BotOffer = () => {
                   </div>
                 )}
 
-                <Button className="w-full h-11 font-bold text-sm transition-all duration-300 group-hover:shadow-lg"
+                <Button
+                  onClick={() => navigate(`/bot-order/${bot.id}`)}
+                  className="w-full h-11 font-bold text-sm transition-all duration-300 group-hover:shadow-lg"
                   style={{ background: `linear-gradient(135deg, ${bot.color}, ${bot.color}99)`, color: '#000', boxShadow: `0 0 20px ${bot.color}30` }}>
-                  {t('botOffer.buyFtrx')} <ChevronRight className="w-4 h-4 ml-1" />
+                  Zamów bota <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </CardContent>
             </Card>
