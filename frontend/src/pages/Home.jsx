@@ -298,49 +298,38 @@ const Home = () => {
               </span>
               {' — '}
               {isPl
-                ? <>Migracja zakończona · Trwa dystrybucja tokenów FTRX V2 (50h)</>
-                : <>Migration completed · FTRX V2 token distribution in progress (50h)</>
+                ? <>Migracja zakończona · Trwa dystrybucja tokenów FTRX V2 przez 50 godzin</>
+                : <>Migration completed · FTRX V2 token distribution in progress — 50 hours</>
               }
             </p>
           </div>
 
-          {/* 50h Distribution compact */}
-          <div className="space-y-2">
-            {/* Progress bar */}
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] text-[#666] whitespace-nowrap">
-                {isPl ? 'Dystrybucja FTRX V2' : 'FTRX V2 distribution'}
-              </span>
-              <div className="flex-1 h-1.5 bg-[#111] rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-1000"
-                  style={{
-                    width: `${distPct}%`,
-                    background: isDistComplete ? 'linear-gradient(90deg,#22C55E,#00FFD1)' : 'linear-gradient(90deg,#FFD700,#FFB800)',
-                  }} />
-              </div>
-              <span className="text-[10px] font-bold whitespace-nowrap" style={{ color: isDistComplete ? '#22C55E' : '#FFD700' }}>
-                {isDistComplete ? '50/50h' : isDistStarted ? `${distElapsed.toFixed(1)}/50h` : (isPl ? 'start 19:00' : 'starts 19:00')}
+          {/* 50h Distribution — pasek postępu */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[10px] text-[#666]">
+              <span>{isPl ? 'Postęp dystrybucji FTRX V2' : 'FTRX V2 distribution progress'}</span>
+              <span className="font-bold" style={{ color: isDistComplete ? '#22C55E' : '#FFD700' }}>
+                {isDistComplete
+                  ? (isPl ? 'Zakończono' : 'Complete')
+                  : isDistStarted
+                    ? `${Math.round(distPct)}%`
+                    : (isPl ? 'Wkrótce' : 'Soon')}
               </span>
             </div>
-
-            {/* Compact phase rows */}
-            <div className="rounded-lg overflow-hidden border border-[rgba(255,255,255,0.05)]">
-              {DIST_PHASES.map((ph, i) => {
-                const st = phaseStatus(ph);
-                return (
-                  <div key={i} className={`flex items-center gap-2 px-3 py-1.5 border-b border-[rgba(255,255,255,0.03)] last:border-0 ${st === 'active' ? 'bg-[#FFD700]/04' : ''}`}>
-                    <span className="text-[10px] font-bold w-4 shrink-0" style={{ color: st === 'done' ? '#22C55E' : st === 'active' ? '#FFD700' : '#333' }}>{i + 1}</span>
-                    <p className="flex-1 text-[10px] leading-tight" style={{ color: st === 'done' ? '#555' : st === 'active' ? '#ddd' : '#3a3a3a' }}>
-                      {isPl ? ph.label : ph.labelEn}
-                      <span className="text-[9px] ml-1.5" style={{ color: st === 'active' ? '#888' : '#2a2a2a' }}>{ph.desc}</span>
-                    </p>
-                    <span className="text-[9px] text-[#2a2a2a] font-mono hidden sm:block shrink-0">{ph.time}</span>
-                    {st === 'done' && <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#22C55E] bg-[#22C55E]/10 px-1.5 py-0.5 rounded-full border border-[#22C55E]/20 shrink-0"><Check className="w-2 h-2" />{isPl ? 'Gotowe' : 'Done'}</span>}
-                    {st === 'active' && <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#FFD700] bg-[#FFD700]/10 px-1.5 py-0.5 rounded-full border border-[#FFD700]/20 shrink-0"><span className="w-1 h-1 bg-[#FFD700] rounded-full animate-pulse" />{isPl ? 'Trwa' : 'Live'}</span>}
-                    {st === 'pending' && <span className="text-[9px] text-[#2d2d2d] shrink-0">{isPl ? 'Oczekuje' : 'Pending'}</span>}
-                  </div>
-                );
-              })}
+            <div className="h-2 bg-[#111] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-1000"
+                style={{
+                  width: `${distPct}%`,
+                  background: isDistComplete
+                    ? 'linear-gradient(90deg,#22C55E,#00FFD1)'
+                    : 'linear-gradient(90deg,#FFD700,#FFB800)',
+                }}
+              />
+            </div>
+            <div className="flex justify-between text-[9px] text-[#333]">
+              <span>0h</span>
+              <span>50h</span>
             </div>
           </div>
         </div>
