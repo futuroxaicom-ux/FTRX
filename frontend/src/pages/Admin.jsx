@@ -48,7 +48,7 @@ export default function AdminPage() {
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      const ADMIN_HASH = 'b5053de840b7c753e96d4dc53bd092e6c668fb968b942aab0c7051c8be6a5f66';
+      const ADMIN_HASH = '5e6b32180a7e543a2ea88a9c99e9dbc4735964c055887b4cd08e855f292db7d8';
       if (hashHex === ADMIN_HASH) {
         sessionStorage.setItem('adm', pw);
         setAuthed(true);

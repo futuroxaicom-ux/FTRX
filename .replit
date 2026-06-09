@@ -65,7 +65,7 @@ externalPort = 8000
 [userenv.shared]
 SMTP_HOST = "mail.privateemail.com"
 SMTP_PORT = "587"
-ADMIN_PASSWORD = "futurox2026"
+ADMIN_PASSWORD = "futurox2026futurox2026"
 
 [userenv.production]
 FRONTEND_BASE_URL = "https://futuroxai.com"
