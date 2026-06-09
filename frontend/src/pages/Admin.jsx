@@ -1445,6 +1445,9 @@ function UpdatesDashboard({ pw, onBack }) {
   const [sending, setSending] = useState(new Set());
   const [sent, setSent] = useState(new Set());
   const [expanded, setExpanded] = useState(null);
+  const [declarations2, setDeclarations2] = useState({});
+  const [sending2, setSending2] = useState(new Set());
+  const [sent2, setSent2] = useState(new Set());
   const [manualEmail, setManualEmail] = useState('');
   const [manualWallet, setManualWallet] = useState('');
   const [manualAdding, setManualAdding] = useState(false);
@@ -1453,9 +1456,10 @@ function UpdatesDashboard({ pw, onBack }) {
 
   const fetchData = useCallback(async () => {
     try {
-      const [rReq, rDecl] = await Promise.all([
+      const [rReq, rDecl, rDecl2] = await Promise.all([
         fetch(`${API}/api/admin/update-requests`, { headers }),
         fetch(`${API}/api/admin/declarations`, { headers }),
+        fetch(`${API}/api/admin/declarations2`, { headers }),
       ]);
       if (rReq.ok) {
         const d = await rReq.json();
@@ -1466,6 +1470,12 @@ function UpdatesDashboard({ pw, onBack }) {
         const map = {};
         (d.declarations || []).forEach(decl => { map[decl.declaration_id] = decl; });
         setDeclarations(map);
+      }
+      if (rDecl2.ok) {
+        const d = await rDecl2.json();
+        const map = {};
+        (d.declarations2 || []).forEach(decl => { map[decl.declaration_id] = decl; });
+        setDeclarations2(map);
       }
     } catch {}
     setLoading(false);
@@ -1490,6 +1500,27 @@ function UpdatesDashboard({ pw, onBack }) {
       toast.error('Błąd połączenia z serwerem');
     }
     setSending(prev => { const s = new Set(prev); s.delete(id); return s; });
+  }, [pw]);
+
+  const sendEmail2 = useCallback(async (req) => {
+    const id = req.id;
+    setSending2(prev => new Set([...prev, id]));
+    try {
+      const r = await fetch(`${API}/api/admin/send-declaration2-email/${id}`, {
+        method: 'POST',
+        headers,
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast.success(`Formularz 2 wysłany do ${req.email}`);
+        setSent2(prev => new Set([...prev, id]));
+      } else {
+        toast.error(d.detail || 'Błąd wysyłania e-mail');
+      }
+    } catch {
+      toast.error('Błąd połączenia z serwerem');
+    }
+    setSending2(prev => { const s = new Set(prev); s.delete(id); return s; });
   }, [pw]);
 
   const addManualEntry = useCallback(async () => {
@@ -1659,13 +1690,16 @@ function UpdatesDashboard({ pw, onBack }) {
                       <th className="text-left py-2 px-3">Email</th>
                       <th className="text-left py-2 px-3">Adres portfela Solana</th>
                       <th className="text-left py-2 px-3">Data zgłoszenia</th>
-                      <th className="text-left py-2 px-3">Oświadczenie</th>
-                      <th className="text-left py-2 px-3">Akcja</th>
+                      <th className="text-left py-2 px-3">Ośw. 1</th>
+                      <th className="text-left py-2 px-3">Ośw. 2</th>
+                      <th className="text-left py-2 px-3">Formularz 1</th>
+                      <th className="text-left py-2 px-3">Formularz 2</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map((req, i) => {
                       const decl = declarations[req.id];
+                      const decl2 = declarations2[req.id];
                       const isExpanded = expanded === req.id;
                       return (
                         <React.Fragment key={req.id || i}>
@@ -1685,6 +1719,7 @@ function UpdatesDashboard({ pw, onBack }) {
                             <td className="py-3 px-3 text-[#666] text-xs">
                               {req.created_at ? new Date(req.created_at).toLocaleString('pl-PL') : '-'}
                             </td>
+                            {/* Ośw. 1 */}
                             <td className="py-3 px-3">
                               {decl ? (
                                 <button
@@ -1697,6 +1732,17 @@ function UpdatesDashboard({ pw, onBack }) {
                                 <span className="text-xs text-[#444]">Oczekuje</span>
                               )}
                             </td>
+                            {/* Ośw. 2 */}
+                            <td className="py-3 px-3">
+                              {decl2 ? (
+                                <span className="text-xs px-2 py-1 rounded border border-[#FFD700]/40 text-[#FFD700] flex items-center gap-1 w-fit">
+                                  <CheckCircle className="w-3 h-3" /> Złożone
+                                </span>
+                              ) : (
+                                <span className="text-xs text-[#444]">Oczekuje</span>
+                              )}
+                            </td>
+                            {/* Formularz 1 */}
                             <td className="py-3 px-3">
                               {sent.has(req.id) ? (
                                 <span className="text-xs text-green-400 flex items-center gap-1">✓ Wysłano</span>
@@ -1706,18 +1752,28 @@ function UpdatesDashboard({ pw, onBack }) {
                                   disabled={sending.has(req.id)}
                                   className="text-xs px-3 py-1.5 rounded border border-[#FFD700]/40 text-[#FFD700] hover:bg-[#FFD700]/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
                                 >
-                                  {sending.has(req.id) ? (
-                                    <><RefreshCw className="w-3 h-3 animate-spin" /> Wysyłanie...</>
-                                  ) : (
-                                    'Wyślij formularz'
-                                  )}
+                                  {sending.has(req.id) ? <><RefreshCw className="w-3 h-3 animate-spin" /> Wysyłanie...</> : 'Wyślij form. 1'}
+                                </button>
+                              )}
+                            </td>
+                            {/* Formularz 2 */}
+                            <td className="py-3 px-3">
+                              {sent2.has(req.id) ? (
+                                <span className="text-xs text-[#7B61FF] flex items-center gap-1">✓ Wysłano</span>
+                              ) : (
+                                <button
+                                  onClick={() => sendEmail2(req)}
+                                  disabled={sending2.has(req.id)}
+                                  className="text-xs px-3 py-1.5 rounded border border-[#7B61FF]/40 text-[#7B61FF] hover:bg-[#7B61FF]/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                                >
+                                  {sending2.has(req.id) ? <><RefreshCw className="w-3 h-3 animate-spin" /> Wysyłanie...</> : 'Wyślij form. 2'}
                                 </button>
                               )}
                             </td>
                           </tr>
                           {isExpanded && decl && (
                             <tr className="border-b border-[rgba(255,255,255,0.04)] bg-[#0d0d0d]">
-                              <td colSpan={6} className="px-4 py-4">
+                              <td colSpan={8} className="px-4 py-4">
                                 <div className="space-y-3 text-xs">
                                   <p className="text-[#00FFD1] font-bold uppercase tracking-wider text-[11px]">Treść oświadczenia — złożono {decl.submitted_at ? new Date(decl.submitted_at).toLocaleString('pl-PL') : '-'}</p>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

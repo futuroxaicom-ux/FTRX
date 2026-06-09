@@ -1307,6 +1307,148 @@ async def check_declaration(declaration_id: str):
     already_submitted = await db.declarations.find_one({"declaration_id": declaration_id}, {"_id": 0})
     return {"valid": True, "email": entry["email"], "wallet_v1": entry["wallet_address"], "already_submitted": bool(already_submitted)}
 
+# ── Declaration 2 ──────────────────────────────────────────────────────────────
+
+def _build_declaration2_email_html(entry_id: str, email: str, wallet: str) -> str:
+    _frontend_base = os.environ.get("FRONTEND_BASE_URL") or (
+        f"https://{os.environ.get('REPLIT_DEV_DOMAIN', '')}" if os.environ.get("REPLIT_DEV_DOMAIN") else "https://futuroxai.com"
+    )
+    link = f"{_frontend_base}/declaration2/{entry_id}"
+    return f"""<!DOCTYPE html>
+<html lang="pl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Segoe UI',Arial,sans-serif;color:#e0e0e0;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:32px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#111;border:1px solid #1f1f1f;border-radius:8px;overflow:hidden;max-width:600px;">
+  <tr><td style="background:linear-gradient(135deg,#0a0a0a,#111);padding:28px 32px;border-bottom:1px solid #1a1a1a;">
+    <div style="display:inline-block;background:#FFD700;color:#000;font-weight:900;font-size:12px;padding:6px 10px;border-radius:2px;letter-spacing:1px;">FTRX</div>
+    <span style="color:#fff;font-size:20px;font-weight:700;margin-left:10px;vertical-align:middle;">FuturoX AI</span>
+  </td></tr>
+  <tr><td style="padding:28px 32px 12px;">
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#fff;">Oświadczenie końcowe FTRX V2</h1>
+    <p style="margin:0;color:#888;font-size:14px;">Szanowny Użytkowniku ({email}),</p>
+  </td></tr>
+  <tr><td style="padding:0 32px 16px;">
+    <p style="margin:0;color:#ccc;font-size:14px;line-height:1.7;">
+      W związku z zakończeniem migracji FTRX V1 → V2 prosimy o złożenie <strong style="color:#fff;">oświadczenia końcowego</strong>,
+      w którym potwierdzisz dane swojego portfela odbiorczego, ilość przesłanych tokenów FTRX V1 oraz
+      zapoznanie się z harmonogramem i warunkami obrotu tokenem FTRX V2.
+    </p>
+  </td></tr>
+  <tr><td style="padding:0 32px;"><div style="border-top:1px solid #222;"></div></td></tr>
+  <tr><td style="padding:20px 32px;">
+    <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#FFD700;">Co zawiera oświadczenie:</h2>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #222;border-radius:6px;overflow:hidden;">
+      {"".join(f'''<tr style="background:#111;">
+        <td style="padding:9px 14px;border-bottom:1px solid #1a1a1a;font-size:13px;color:#ccc;line-height:1.5;">{item}</td>
+      </tr>''' for item in [
+          "✓ Potwierdzenie poprawności adresu portfela do odbioru FTRX V2",
+          "✓ Potwierdzenie ilości tokenów FTRX V1 wysłanych do migracji",
+          "✓ Oświadczenie dot. oficjalnego listingu FTRX V2 na PureXchange.io (10.06.2026) i uruchomienia SWAP (17.06.2026)",
+          "✓ Zgoda na wyłączny obrót FTRX V2 przez PureXchange.io w okresie 17.06–10.07.2026",
+          "✓ Zgoda na dowolne użytkowanie tokena FTRX od dnia 10.07.2026",
+      ])}
+    </table>
+  </td></tr>
+  <tr><td style="padding:0 32px 24px;">
+    <p style="margin:0 0 16px;color:#ccc;font-size:14px;line-height:1.7;">Kliknij poniższy przycisk, aby wypełnić i złożyć swoje indywidualne oświadczenie:</p>
+    <table cellpadding="0" cellspacing="0">
+      <tr><td style="background:#FFD700;border-radius:4px;padding:13px 28px;">
+        <a href="{link}" style="color:#000;font-weight:800;font-size:14px;text-decoration:none;">ZŁÓŻ OŚWIADCZENIE KOŃCOWE →</a>
+      </td></tr>
+    </table>
+    <p style="margin:14px 0 0;color:#555;font-size:12px;">Lub skopiuj link: <span style="color:#777;">{link}</span></p>
+  </td></tr>
+  <tr><td style="padding:0 32px 20px;">
+    <div style="background:#111a00;border:1px solid #FFD700;border-radius:6px;padding:14px 16px;">
+      <p style="margin:0 0 6px;font-size:12px;font-weight:800;color:#FFD700;">Ważna informacja</p>
+      <p style="margin:0;font-size:13px;color:#ccc;line-height:1.7;">
+        Złożenie oświadczenia jest <strong style="color:#fff;">wymagane</strong> do dokończenia procesu migracji FTRX V1 → V2 i przesłania tokenów na Twój portfel.
+        Twój zarejestrowany adres portfela: <code style="color:#00FFD1;font-family:monospace;">{wallet}</code>
+      </p>
+    </div>
+  </td></tr>
+  <tr><td style="padding:20px 32px;border-top:1px solid #1a1a1a;">
+    <p style="margin:0;font-size:12px;color:#555;text-align:center;">FuturoX AI · <a href="https://futuroxai.com" style="color:#555;">futuroxai.com</a> · <a href="mailto:support@futuroxai.com" style="color:#555;">support@futuroxai.com</a></p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>"""
+
+class Declaration2Submit(BaseModel):
+    wallet_confirmed: str
+    ftrx_amount: float
+    confirmed_wallet_correct: bool
+    confirmed_amount_correct: bool
+    confirmed_listing: bool
+    confirmed_purexchange_only: bool
+    confirmed_free_use: bool
+
+@api_router.get("/declaration2/{declaration_id}/check")
+async def check_declaration2(declaration_id: str):
+    entry = await db.update_requests.find_one({"id": declaration_id}, {"_id": 0})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Nieprawidłowy link")
+    already = await db.declarations2.find_one({"declaration_id": declaration_id}, {"_id": 0})
+    return {"valid": True, "email": entry["email"], "wallet_v1": entry["wallet_address"], "already_submitted": bool(already)}
+
+@api_router.post("/declaration2/{declaration_id}")
+async def submit_declaration2(declaration_id: str, body: Declaration2Submit):
+    entry = await db.update_requests.find_one({"id": declaration_id}, {"_id": 0})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Nieprawidłowy link oświadczenia")
+    already = await db.declarations2.find_one({"declaration_id": declaration_id}, {"_id": 0})
+    if already:
+        raise HTTPException(status_code=409, detail="Oświadczenie zostało już złożone")
+    if body.wallet_confirmed.strip() != entry["wallet_address"]:
+        raise HTTPException(status_code=400, detail="Adres portfela nie zgadza się z zarejestrowanym")
+    if not all([body.confirmed_wallet_correct, body.confirmed_amount_correct,
+                body.confirmed_listing, body.confirmed_purexchange_only, body.confirmed_free_use]):
+        raise HTTPException(status_code=400, detail="Musisz zaznaczyć wszystkie wymagane oświadczenia")
+    doc = {
+        "declaration_id": declaration_id,
+        "email": entry["email"],
+        "wallet_address": entry["wallet_address"],
+        "wallet_confirmed": body.wallet_confirmed.strip(),
+        "ftrx_amount": body.ftrx_amount,
+        "confirmed_wallet_correct": body.confirmed_wallet_correct,
+        "confirmed_amount_correct": body.confirmed_amount_correct,
+        "confirmed_listing": body.confirmed_listing,
+        "confirmed_purexchange_only": body.confirmed_purexchange_only,
+        "confirmed_free_use": body.confirmed_free_use,
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.declarations2.insert_one(doc)
+    return {"success": True, "message": "Oświadczenie końcowe złożone pomyślnie"}
+
+@api_router.get("/admin/declarations2")
+async def get_declarations2(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    cursor = db.declarations2.find({}, {"_id": 0}).sort("submitted_at", -1)
+    items = await cursor.to_list(length=1000)
+    return {"declarations2": items, "total": len(items)}
+
+@api_router.post("/admin/send-declaration2-email/{entry_id}")
+async def send_declaration2_email(entry_id: str, x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    entry = await db.update_requests.find_one({"id": entry_id}, {"_id": 0})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Wniosek nie znaleziony")
+    html = _build_declaration2_email_html(entry_id, entry["email"], entry["wallet_address"])
+    subject = "FuturoX AI — Oświadczenie końcowe FTRX V2 — wymagane działanie"
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _send_email_sync, entry["email"], subject, html)
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.error(f"Declaration2 email error: {e}")
+        raise HTTPException(status_code=500, detail=f"Błąd wysyłania e-mail: {str(e)}")
+    return {"success": True, "message": f"E-mail wysłany do {entry['email']}"}
+
 # Whitelist endpoints
 @api_router.post("/whitelist")
 async def add_to_whitelist(entry: WhitelistCreate):
