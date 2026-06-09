@@ -221,22 +221,6 @@ const Home = () => {
                 {t('hero.description')}
               </p>
 
-              {/* Launch Date */}
-              <div className="space-y-3 sm:space-y-4">
-                <p className="text-xs sm:text-sm text-[#4D4D4D] uppercase tracking-wider">
-                  AI SERVICES LAUNCH — 9 DZIEŃ DRUGIEGO ETAPU INFRASTRUKTURY MAKKCOIN GLOBAL
-                </p>
-                <div className="bg-[#121212] border border-[rgba(0,255,209,0.25)] p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
-                  <div className="text-3xl sm:text-5xl font-black text-[#00FFD1] tracking-tight">
-                    09.06.2026
-                  </div>
-                  <div className="border-l border-[rgba(255,255,255,0.1)] pl-4 sm:pl-6 hidden sm:block">
-                    <p className="text-xs text-[#4D4D4D] uppercase tracking-wider">Data startu</p>
-                    <p className="text-sm text-[rgba(255,255,255,0.7)] mt-1">Faza II — MakkCoin Global</p>
-                  </div>
-                </div>
-              </div>
-
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
                 <Button 
                   className="btn-primary w-full sm:w-auto text-sm sm:text-base"
@@ -314,8 +298,8 @@ const Home = () => {
               </span>
               {' — '}
               {isPl
-                ? <>Migracja zakończona: <span className="font-bold text-[#00FFD1]">09.06.2026 godz. 19:00</span> · Trwa dystrybucja tokenów FTRX V2 (50h)</>
-                : <>Migration completed: <span className="font-bold text-[#00FFD1]">09.06.2026 at 19:00</span> · FTRX V2 token distribution in progress (50h)</>
+                ? <>Migracja zakończona · Trwa dystrybucja tokenów FTRX V2 (50h)</>
+                : <>Migration completed · FTRX V2 token distribution in progress (50h)</>
               }
             </p>
           </div>
