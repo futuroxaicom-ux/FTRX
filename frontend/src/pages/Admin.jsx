@@ -105,6 +105,56 @@ export default function AdminPage() {
   return <GenericBotDashboard botType={selectedBot} pw={pw} onBack={() => setSelectedBot('volume')} />;
 }
 
+function SeedButton({ pw }) {
+  const [seeding, setSeeding] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const runSeed = async () => {
+    if (!window.confirm('Wgrać dane z db_export.json do aktualnej bazy?\n\nIstniejące rekordy zostaną pominięte (bezpieczna operacja).')) return;
+    setSeeding(true);
+    setResult(null);
+    try {
+      const r = await fetch(`${API}/api/admin/seed-production`, {
+        method: 'POST',
+        headers: { 'x-admin-password': pw },
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast.success(`Seed gotowy — wgrano: ${d.total_inserted}, pominięto: ${d.total_skipped}`);
+        setResult(d);
+      } else {
+        toast.error(d.detail || 'Błąd seed');
+      }
+    } catch {
+      toast.error('Błąd połączenia');
+    }
+    setSeeding(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={runSeed}
+        disabled={seeding}
+        className="text-xs px-2.5 py-1 rounded border transition-all whitespace-nowrap disabled:opacity-40"
+        style={{ color: '#a78bfa', borderColor: '#a78bfa44' }}
+        title="Wgraj dane z db_export.json do bazy (jednorazowo po deploy'u)"
+      >
+        {seeding ? '⏳ Seed...' : '🌱 Seed DB'}
+      </button>
+      {result && (
+        <div className="absolute top-8 right-0 z-50 bg-[#111] border border-[rgba(255,255,255,0.12)] rounded-lg p-3 text-xs text-[#ccc] shadow-xl w-52 space-y-1">
+          <p className="font-bold text-[#a78bfa] mb-1">Wynik seeda:</p>
+          {Object.entries(result.results || {}).map(([col, v]) => (
+            <p key={col}><span className="text-[#555]">{col}:</span> <span className="text-green-400">+{v.inserted}</span> / <span className="text-[#555]">{v.skipped} pom.</span></p>
+          ))}
+          <button onClick={() => setResult(null)} className="mt-2 text-[#444] hover:text-white w-full text-center">✕ zamknij</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
   const isMainVolume = botType === 'volume';
   const apiPrefix = isMainVolume ? '' : `/bot/${botType}`;
@@ -220,6 +270,7 @@ function Dashboard({ pw, onLogout, onSwitchBot, botType = 'volume' }) {
             className="text-xs px-2.5 py-1 rounded border border-[rgba(255,255,255,0.1)] hover:border-opacity-40 transition-all whitespace-nowrap text-[#FF3366] border-[#FF336633]">
             Zamówienia Botów
           </button>
+          <SeedButton pw={pw} />
         </div>
       </header>
 

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import json
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
@@ -1452,6 +1453,50 @@ async def send_declaration2_email(entry_id: str, x_admin_password: str = Header(
         logger.error(f"Declaration2 email error: {e}")
         raise HTTPException(status_code=500, detail=f"Błąd wysyłania e-mail: {str(e)}")
     return {"success": True, "message": f"E-mail wysłany do {entry['email']}"}
+
+# ── Seed produkcyjny ───────────────────────────────────────────────────────────
+
+@api_router.post("/admin/seed-production")
+async def seed_production(x_admin_password: str = Header(None)):
+    verify_admin(x_admin_password)
+    export_path = Path(__file__).parent.parent / "db_export.json"
+    if not export_path.exists():
+        raise HTTPException(status_code=404, detail="Plik db_export.json nie istnieje w katalogu projektu")
+
+    with open(export_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    upsert_keys = {
+        "update_requests": "id",
+        "declarations":    "declaration_id",
+        "declarations2":   "declaration_id",
+        "bot_orders":      "order_id",
+        "whitelist":       "wallet",
+    }
+
+    results = {}
+    for col_name, docs in data.items():
+        if not docs:
+            results[col_name] = {"inserted": 0, "skipped": 0}
+            continue
+        key = upsert_keys.get(col_name)
+        collection = getattr(db, col_name)
+        inserted = 0
+        skipped  = 0
+        for doc in docs:
+            clean = {k: v for k, v in doc.items() if k != "_id"}
+            if key and key in clean:
+                existing = await collection.find_one({key: clean[key]})
+                if existing:
+                    skipped += 1
+                    continue
+            await collection.insert_one(clean)
+            inserted += 1
+        results[col_name] = {"inserted": inserted, "skipped": skipped}
+
+    total_inserted = sum(v["inserted"] for v in results.values())
+    total_skipped  = sum(v["skipped"]  for v in results.values())
+    return {"success": True, "results": results, "total_inserted": total_inserted, "total_skipped": total_skipped}
 
 # Whitelist endpoints
 @api_router.post("/whitelist")
