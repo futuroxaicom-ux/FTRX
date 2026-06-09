@@ -1498,6 +1498,7 @@ class BotOrderCreate(BaseModel):
     sol_tier: int
     payout_interval: int
     profit_wallet: str
+    ftrx_wallet: Optional[str] = None
 
 class BotOrderEntry(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -1509,6 +1510,7 @@ class BotOrderEntry(BaseModel):
     sol_tier: int
     payout_interval: int
     profit_wallet: str
+    ftrx_wallet: Optional[str] = None
     status: str = "pending_payment"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -1629,6 +1631,7 @@ async def submit_bot_order(req: BotOrderCreate):
         sol_tier=req.sol_tier,
         payout_interval=req.payout_interval,
         profit_wallet=req.profit_wallet,
+        ftrx_wallet=req.ftrx_wallet,
     )
     doc = entry.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
@@ -1653,6 +1656,7 @@ async def submit_bot_order(req: BotOrderCreate):
         "sol_tier": entry.sol_tier,
         "payout_interval": entry.payout_interval,
         "profit_wallet": entry.profit_wallet,
+        "ftrx_wallet": entry.ftrx_wallet,
         "status": entry.status,
     }
 

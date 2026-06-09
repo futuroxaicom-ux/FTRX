@@ -84,7 +84,7 @@ export default function BotOrderPage() {
   const [order, setOrder] = useState(null);
   const [copiedAddr, setCopiedAddr] = useState('');
   const [errors, setErrors] = useState({});
-  const [form, setForm] = useState({ email: '', solTier: null, payoutInterval: null, profitWallet: '' });
+  const [form, setForm] = useState({ email: '', solTier: null, payoutInterval: null, profitWallet: '', ftrxWallet: '' });
 
   useEffect(() => {
     const fetchPrices = async () => {
@@ -116,6 +116,8 @@ export default function BotOrderPage() {
     if (form.payoutInterval === null) e.payoutInterval = 'Wybierz harmonogram wypłat';
     if (!form.profitWallet || form.profitWallet.length < 32 || form.profitWallet.length > 44)
       e.profitWallet = 'Podaj prawidłowy adres portfela Solana (32–44 znaki)';
+    if (!form.ftrxWallet || form.ftrxWallet.length < 32 || form.ftrxWallet.length > 44)
+      e.ftrxWallet = 'Podaj prawidłowy adres portfela FTRX V2 (32–44 znaki)';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -135,6 +137,7 @@ export default function BotOrderPage() {
           sol_tier: selectedTier.sol,
           payout_interval: form.payoutInterval,
           profit_wallet: form.profitWallet,
+          ftrx_wallet: form.ftrxWallet,
         }),
       });
       const data = await res.json();
@@ -330,38 +333,85 @@ export default function BotOrderPage() {
             {errors.email && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.email}</p>}
           </div>
 
+          {/* Step 5 — FTRX V2 wallet for subscription */}
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full text-xs font-black flex items-center justify-center flex-shrink-0" style={{ background: `${bot.color}20`, color: bot.color }}>5</span>
+                Portfel FTRX V2 — subskrypcja miesięczna
+              </h2>
+              <p className="text-xs text-[#555] mt-1 ml-8">Podaj adres portfela, na którym posiadasz tokeny FTRX V2</p>
+            </div>
+            <div className="relative">
+              <CircleDollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444]" />
+              <input
+                type="text"
+                placeholder="np. 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"
+                value={form.ftrxWallet}
+                onChange={e => setField('ftrxWallet', e.target.value)}
+                className="w-full pl-9 pr-4 py-3 rounded-lg border bg-[#111] text-white text-sm placeholder-[#333] outline-none font-mono transition-colors"
+                style={{ borderColor: errors.ftrxWallet ? '#ef4444' : 'rgba(255,255,255,0.1)' }}
+                onFocus={e => e.target.style.borderColor = bot.color}
+                onBlur={e => e.target.style.borderColor = errors.ftrxWallet ? '#ef4444' : 'rgba(255,255,255,0.1)'}
+              />
+            </div>
+            {errors.ftrxWallet && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.ftrxWallet}</p>}
+            <div className="ml-0 p-3.5 rounded-lg border border-[rgba(255,215,0,0.18)] bg-[rgba(255,215,0,0.04)] space-y-1.5">
+              <p className="text-xs font-bold text-[#FFD700] flex items-center gap-1.5">
+                <Star className="w-3 h-3" /> Jak działa płatność subskrypcyjna?
+              </p>
+              <p className="text-xs text-[#888] leading-relaxed">
+                Link do płatności subskrypcyjnej w FTRX zostanie wygenerowany i wysłany na Twój e-mail <strong className="text-[#aaa]">po osiągnięciu gwarantowanych progów procentowych zysków Bota</strong>.
+                Do tego czasu jedyną wymaganą płatnością jest kapitał roboczy SOL.
+              </p>
+              <p className="text-xs text-[#666] leading-relaxed">
+                Gwarantujemy prawidłowe funkcjonowanie Bota od momentu uruchomienia — opłata subskrypcyjna jest pobierana wyłącznie wtedy, gdy Bot faktycznie generuje zyski zgodnie z deklarowanymi progami.
+              </p>
+            </div>
+          </div>
+
           <div className="p-5 rounded-xl border border-[rgba(255,255,255,0.07)] bg-[#111] space-y-3">
             <h3 className="text-xs font-bold text-[#666] uppercase tracking-wider">Podsumowanie kosztów</h3>
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-[#888]">Subskrypcja miesięczna ({bot.name})</span>
-                <span className="text-sm font-bold text-white">${bot.price} USD</span>
-              </div>
-              {ftrxAmount && (
+              {selectedTier ? (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-[#888]">Odpowiednik w FTRX</span>
-                  <span className="text-sm font-bold" style={{ color: bot.color }}>≈ {formatFtrx(ftrxAmount)} FTRX</span>
+                  <span className="text-sm text-[#888]">Kapitał roboczy boota (wymagane teraz)</span>
+                  <span className="text-sm font-bold text-white">{selectedTier.sol} SOL</span>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-[#888]">Kapitał roboczy boota</span>
+                  <span className="text-sm text-[#555]">wybierz poziom powyżej</span>
                 </div>
               )}
-              {selectedTier && (
-                <>
-                  <div className="my-1 border-t border-[rgba(255,255,255,0.05)]" />
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-[#888]">Kapitał roboczy boota</span>
-                    <span className="text-sm font-bold text-white">{selectedTier.sol} SOL</span>
-                  </div>
-                  {solPrice && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-[#888]">Wartość kapitału</span>
-                      <span className="text-xs text-[#555]">≈ ${(selectedTier.sol * solPrice).toLocaleString('pl-PL')}</span>
-                    </div>
-                  )}
-                </>
+              {solPrice && selectedTier && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-[#888]">Wartość kapitału</span>
+                  <span className="text-xs text-[#555]">≈ ${(selectedTier.sol * solPrice).toLocaleString('pl-PL')}</span>
+                </div>
+              )}
+              <div className="my-1 border-t border-[rgba(255,255,255,0.05)]" />
+              <div className="flex justify-between items-start gap-3">
+                <span className="text-sm text-[#888]">Subskrypcja miesięczna ({bot.name})</span>
+                <span className="text-right">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#FFD700]/10 text-[#FFD700] whitespace-nowrap">Link po osiągnięciu zysków</span>
+                </span>
+              </div>
+              {form.ftrxWallet && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-[#888]">Portfel FTRX V2</span>
+                  <span className="text-xs font-mono text-[#666] max-w-[180px] truncate">{form.ftrxWallet}</span>
+                </div>
               )}
             </div>
-            <p className="text-xs text-[#444] pt-1 border-t border-[rgba(255,255,255,0.05)]">
-              Płatność w 2 etapach na ten sam portfel: (1) {selectedTier ? `${selectedTier.sol} SOL` : 'X SOL'} jako kapitał roboczy + (2) FTRX za subskrypcję
-            </p>
+            <div className="pt-2 border-t border-[rgba(255,255,255,0.05)] space-y-1">
+              <p className="text-xs text-[#444]">
+                Wymagana płatność: <strong className="text-[#888]">{selectedTier ? `${selectedTier.sol} SOL` : 'X SOL'}</strong> — kapitał roboczy przesyłany jednorazowo przed uruchomieniem Bota.
+              </p>
+              <p className="text-xs text-[#333]">
+                Opłata subskrypcyjna w FTRX (${ bot.price } USD/mies.) jest naliczana wyłącznie po potwierdzeniu osiągnięcia gwarantowanych progów zysku.
+              </p>
+            </div>
           </div>
 
           {errors.submit && (
@@ -469,24 +519,40 @@ export default function BotOrderPage() {
             <p className="text-xs text-[#555] mt-2">Sieć: Solana · Token: SOL natywny (nie wrapped)</p>
           </div>
 
-          <div className="p-4 rounded-xl border" style={{ borderColor: `${bot.color}30`, background: `${bot.color}06` }}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-full text-xs font-black flex items-center justify-center" style={{ background: `${bot.color}20`, color: bot.color }}>2</div>
-              <span className="text-sm font-bold" style={{ color: bot.color }}>Subskrypcja miesięczna — FTRX</span>
+          <div className="rounded-xl border border-[rgba(255,215,0,0.22)] bg-[rgba(255,215,0,0.04)] overflow-hidden">
+            <div className="flex items-center gap-2 px-4 pt-4 pb-3">
+              <div className="w-6 h-6 rounded-full text-xs font-black flex items-center justify-center bg-[#FFD700]/15 text-[#FFD700]">2</div>
+              <span className="text-sm font-bold text-[#FFD700]">Subskrypcja miesięczna — FTRX V2</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[#888]">Kwota do wysłania</span>
-              <div className="text-right">
-                <p className="text-2xl font-black" style={{ color: bot.color }}>{ftrxAmount ? formatFtrx(ftrxAmount) : '—'} FTRX</p>
-                <p className="text-xs text-[#555]">≈ ${bot.price} USD wg aktualnego kursu</p>
+            <div className="px-4 pb-4 space-y-3">
+              <div className="p-3 rounded-lg bg-[#0d0d0d] border border-[rgba(255,215,0,0.12)] space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-xs text-[#888] mt-0.5">Portfel FTRX V2 (zarejestrowany)</span>
+                  <div className="flex items-center gap-1.5">
+                    <code className="text-xs font-mono text-[#aaa] max-w-[200px] truncate text-right">{order?.ftrx_wallet || form.ftrxWallet}</code>
+                    <button onClick={() => copyText(order?.ftrx_wallet || form.ftrxWallet, 'fw')} className="text-[#555] hover:text-[#FFD700] transition-colors flex-shrink-0">
+                      {copiedAddr === 'fw' ? <Check className="w-3 h-3 text-[#FFD700]" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.05)]">
-              <p className="text-[10px] text-[#444] font-mono break-all">Token CA: {FTRX_CA}</p>
-              <button onClick={() => copyText(FTRX_CA, 'ca')} className="flex items-center gap-1 text-[10px] text-[#555] hover:text-[#00FFD1] transition-colors mt-1">
-                {copiedAddr === 'ca' ? <Check className="w-3 h-3 text-[#00FFD1]" /> : <Copy className="w-3 h-3" />}
-                {copiedAddr === 'ca' ? 'Skopiowano' : 'Kopiuj CA'}
-              </button>
+              <div className="p-3.5 rounded-lg bg-[rgba(255,215,0,0.06)] border border-[rgba(255,215,0,0.15)] space-y-2">
+                <div className="flex items-start gap-2">
+                  <Star className="w-3.5 h-3.5 text-[#FFD700] flex-shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-[#FFD700]">Kiedy zostanie wygenerowany link do subskrypcji?</p>
+                    <p className="text-xs text-[#999] leading-relaxed">
+                      Link do płatności subskrypcyjnej w FTRX (${ bot.price } USD/mies.) zostanie wygenerowany i przesłany na Twój e-mail <strong className="text-[#ccc]">po osiągnięciu gwarantowanych progów procentowych zysków Bota</strong> dla wybranego poziomu kapitału.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-[rgba(34,197,94,0.05)] border border-[rgba(34,197,94,0.15)] flex items-start gap-2">
+                <Shield className="w-3.5 h-3.5 text-[#22C55E] flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-[#888] leading-relaxed">
+                  <strong className="text-[#22C55E]">Gwarancja prawidłowego funkcjonowania Bota</strong> — opłata subskrypcyjna jest pobierana wyłącznie po potwierdzeniu, że Bot faktycznie generuje zyski zgodne z deklarowanymi progami zwrotu. Do czasu osiągnięcia progów Bot pracuje bez opłat subskrypcyjnych.
+                </p>
+              </div>
             </div>
           </div>
         </div>
