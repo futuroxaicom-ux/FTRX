@@ -1,0 +1,196 @@
+{
+  "update_requests": [
+    {
+      "id": "f18df7d7-b038-488d-a0b3-77a9290c364c",
+      "email": "test@test.com",
+      "wallet_address": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+      "created_at": "2026-05-19T10:45:21.912119+00:00"
+    },
+    {
+      "id": "7c7330d5-d03c-43bc-91eb-c298feb740a9",
+      "email": "directtest@test.com",
+      "wallet_address": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+      "created_at": "2026-05-19T12:39:02.968376+00:00"
+    },
+    {
+      "id": "12daf8e7-1587-40a0-94c5-73eb16fc5261",
+      "email": "posttest3@test.com",
+      "wallet_address": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+      "created_at": "2026-05-19T12:42:21.298002+00:00"
+    },
+    {
+      "id": "6fc8d559-d346-4ffa-b97c-ed098f41b34c",
+      "email": "technicalsupport@makkcoinglobal.org",
+      "wallet_address": "C7Y9MqJjfmEm3WDA2r76acy6gzLVsEhC8RGHV3bsAMYR",
+      "created_at": "2026-05-19T12:45:19.907493+00:00",
+      "email_sent_at": "2026-05-19T12:45:36.715847+00:00"
+    },
+    {
+      "id": "9944ee4a-531f-4ef1-81a1-3b5d4eae47b2",
+      "email": "technicalsupport@makkcoinglobal.org",
+      "wallet_address": "",
+      "created_at": "2026-05-19T13:04:07.929023+00:00",
+      "declaration_submitted": false
+    },
+    {
+      "id": "4dad347c-cc79-4555-8b3c-03c59646fbd5",
+      "email": "support@futuroxai.com",
+      "wallet_address": "C7Y9MqJjfmEm3WDA2r76acy6gzLVsEhC8RGHV3bsAMYR",
+      "created_at": "2026-05-19T13:07:23.000656+00:00",
+      "email_sent_at": "2026-05-19T13:07:37.480628+00:00",
+      "declaration_submitted": true
+    },
+    {
+      "id": "e2901195-8d50-4809-a49d-cb63234846b2",
+      "email": "diabelek.klaudia@gmail.com",
+      "wallet_address": "ALRT79PYAhacJ2ToXbRsoHtWtnNXtXNdJzVSRA7gu3qN",
+      "created_at": "2026-05-27T13:03:35+00:00"
+    },
+    {
+      "id": "ee7d458c-db69-424d-9fae-b82f10dbd84b",
+      "email": "akczeik@o2.pl",
+      "wallet_address": "7DaGS9ZNc1G1tsFauTWUjVshVE77Ta81gDUo8AEwKer2",
+      "created_at": "2026-05-26T20:41:54+00:00"
+    },
+    {
+      "id": "f43e1a5b-e59c-40b9-9914-7c5501f0dcd0",
+      "email": "akczeik@gmail.com",
+      "wallet_address": "7DaGS9ZNc1G1tsFauTWUjVshVE77Ta81gDUo8AEwKer2",
+      "created_at": "2026-05-26T20:33:37+00:00"
+    },
+    {
+      "id": "cdedba4e-8961-4660-bb11-a4db724ffa98",
+      "email": "tengu11@poczta.onet.pl",
+      "wallet_address": "5GLCmAwQ1GRUcQk9wA4V4Zv2c4xvf0ISAVBVQUFmAjS4o",
+      "created_at": "2026-05-26T18:40:28+00:00"
+    },
+    {
+      "id": "777f93ab-0c5e-46da-a654-21f8c919cc1f",
+      "email": "arek0282@proton.me",
+      "wallet_address": "GNsrQ6sJaVAeuwCg1MFdXKT2AXsrmqJd6UGEPbmZ7dWh",
+      "created_at": "2026-05-25T10:56:32+00:00"
+    },
+    {
+      "id": "e3733fd1-ebeb-4ba4-b5fc-59c712c5334c",
+      "email": "wolskimarek86@gmail.com",
+      "wallet_address": "86cNJCp7KuS4VhkkDoqSsHprNwATwK6zC7qXrmF3GDBL",
+      "created_at": "2026-05-25T07:57:00+00:00"
+    },
+    {
+      "id": "555e7c9e-8ab0-4b46-bb0f-54318cec8baf",
+      "email": "biuro@makk.pl",
+      "wallet_address": "EkbVMjFtXGD1p8mBPw3yFoK1P6H7zVkRJTKPZ2QAjrQx",
+      "created_at": "2026-05-23T10:05:42+00:00"
+    },
+    {
+      "id": "04db344d-409e-4adc-b789-dc73c0c7c8d0",
+      "email": "nowaczyk.ola@gmail.com",
+      "wallet_address": "5jQE8MD6dpN3NHdqoaK9xRQqRznSBegDKgJRGbEbUcNP",
+      "created_at": "2026-05-22T20:14:27+00:00"
+    },
+    {
+      "id": "88ebc7da-01be-42da-b9fb-d9f281e36621",
+      "email": "a.wdowiak@yahoo.com",
+      "wallet_address": "5E1eqBKgWyW3fiXXCfRCn7fVWPQFEHt1ozfSfg18Gsbo",
+      "created_at": "2026-05-22T09:22:11+00:00"
+    },
+    {
+      "id": "0bf315ef-a43e-4028-bfbb-ec4906966fb8",
+      "email": "igor.dziembor@gmail.com",
+      "wallet_address": "CUJ3wgN1b8ZAoXmovbrGUJGLU1DCp96dM4GyHeFUXa8t",
+      "created_at": "2026-05-22T09:20:23+00:00"
+    },
+    {
+      "id": "511933fd-54ee-433d-b8db-ea2d8723f2ff",
+      "email": "julia.kondera@gmail.com",
+      "wallet_address": "9BJSWMexWrGFYR4R3BLBYtdwoNGPLgA1yDvZ4zBxray",
+      "created_at": "2026-05-21T21:53:43+00:00"
+    },
+    {
+      "id": "69f007a4-a785-4190-b012-c192f2c56919",
+      "email": "LarenaGroup@proton.me",
+      "wallet_address": "Hw3Vuk3hTpZ9BNT2gQQAF4wUHNvZjZbQy6sNQymQUMYs",
+      "created_at": "2026-05-21T18:09:25+00:00"
+    },
+    {
+      "id": "a98016a4-bc78-46ef-9edc-ff437daca591",
+      "email": "maciej.mysliwski@gmail.com",
+      "wallet_address": "HyFAfG8sxF6E1tMpTy8MDZaLwAN9oFJ1nvJk59cp4K11",
+      "created_at": "2026-05-21T18:06:37+00:00"
+    },
+    {
+      "id": "e57f1039-e985-43ce-8c15-d413e5cfc7d2",
+      "email": "rapidopolonia@gmail.com",
+      "wallet_address": "J942ovRbFFdrthohHbTpZzcRD68z6fJautepAzbmSqmJ",
+      "created_at": "2026-05-21T16:24:22+00:00"
+    },
+    {
+      "id": "9a82d2d2-a51b-45a9-a678-61fc593913c5",
+      "email": "ewakocot0@gmail.com",
+      "wallet_address": "GLWsw3jDKnhu8e7Muyp3fFqN47Q8hXzDm87QSkRFirjh",
+      "created_at": "2026-05-21T15:53:39+00:00"
+    },
+    {
+      "id": "4bd0ee5e-54e7-40f2-9eea-c49678326b3f",
+      "email": "pikulmarek@gmail.com",
+      "wallet_address": "G7bX5ijU3dw6rGMrZ88oVN5FCGnE8qNama5MXz7jX8hM",
+      "created_at": "2026-05-21T13:33:21+00:00"
+    },
+    {
+      "id": "0b618c61-6c2f-41a9-8be6-6ee52365206b",
+      "email": "pawelgebal3@gmail.com",
+      "wallet_address": "9vyuzHd74mWmvfM4HcJX3kUVZ3N9GG8MkhDNKqxH2SyE",
+      "created_at": "2026-05-21T11:33:31+00:00"
+    },
+    {
+      "id": "ac9def34-29da-465a-af5c-d0ab2e0c2e48",
+      "email": "clearatmosphereee@proton.me",
+      "wallet_address": "D8Yb5QMrKM5e9GKX7oJD8rXJXPvpdKjnUFnGE1hcqFj2",
+      "created_at": "2026-05-21T11:05:36+00:00"
+    },
+    {
+      "id": "96e58eea-9057-4848-bf98-649e59014ddc",
+      "email": "crecanutola-7270@yopmail.com",
+      "wallet_address": "D8Yb5QMrKM5e9GKX7oJD8rXJXPvpdKjnUFnGE1hcqFj2",
+      "created_at": "2026-05-21T11:03:26+00:00"
+    }
+  ],
+  "declarations": [
+    {
+      "declaration_id": "4dad347c-cc79-4555-8b3c-03c59646fbd5",
+      "email": "support@futuroxai.com",
+      "wallet_v1": "C7Y9MqJjfmEm3WDA2r76acy6gzLVsEhC8RGHV3bsAMYR",
+      "wallet_v2": "C7Y9MqJjfmEm3WDA2r76acy6gzLVsEhC8RGHV3bsAMYR",
+      "submitted_at": "2026-05-19T13:08:29.351819+00:00"
+    }
+  ],
+  "declarations2": [],
+  "bot_orders": [
+    {
+      "order_id": "FTRX-1781000647-242C",
+      "email": "technicalsupport@makkcoinglobal.org",
+      "bot_id": "spread",
+      "bot_name": "AI Spread Bot",
+      "price_usd": 99.0,
+      "sol_tier": 10,
+      "payout_interval": 30,
+      "profit_wallet": "C7Y9MqJjfmEm3WDA2r76acy6gzLVsEhC8RGHV3bsAMYR",
+      "status": "pending_payment",
+      "created_at": "2026-06-09T10:24:07.923793+00:00"
+    },
+    {
+      "order_id": "FTRX-1781008359-0D43",
+      "email": "technicalsupport@makkcoinglobal.org",
+      "bot_id": "spread",
+      "bot_name": "AI Spread Bot",
+      "price_usd": 99.0,
+      "sol_tier": 10,
+      "payout_interval": 15,
+      "profit_wallet": "EjZnimV7xy3ZHqzFnfMesz3rZHza3QgCWzmuRJvkBBpB",
+      "ftrx_wallet": "EjZnimV7xy3ZHqzFnfMesz3rZHza3QgCWzmuRJvkBBpB",
+      "status": "pending_payment",
+      "created_at": "2026-06-09T12:32:39.960254+00:00"
+    }
+  ],
+  "whitelist": []
+}
