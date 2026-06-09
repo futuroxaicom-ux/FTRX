@@ -4,7 +4,8 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { ArrowRight, Zap, Sparkles, Globe, Clock, Cpu, TrendingUp, Copy, Check } from 'lucide-react';
+import { ArrowRight, Zap, Sparkles, Globe, Clock, Cpu, TrendingUp, Copy, Check, Send } from 'lucide-react';
+
 import Spline from '@splinetool/react-spline';
 import { WalletConnect } from '../components/WalletConnect';
 import { TokenPurchase } from '../components/TokenPurchase';
@@ -38,6 +39,17 @@ class SplineSafe extends React.Component {
 }
 
 const FTRX_CA = 'CLNBpgy9dkAEZawHo4hpANeFBdkJfagT7o6byDwGFtrx';
+
+const DIST_START = new Date('2026-06-09T17:00:00Z');
+const DIST_TOTAL_H = 50;
+const DIST_END = new Date(DIST_START.getTime() + DIST_TOTAL_H * 3600000);
+const DIST_PHASES = [
+  { label: 'Portfele priorytetowe',            labelEn: 'Priority wallets',           desc: '>100 000 FTRX',           start: 0,  end: 10, time: '09.06 19:00 – 10.06 05:00' },
+  { label: 'Portfele duże',                    labelEn: 'Large wallets',              desc: '10 000–100 000 FTRX',     start: 10, end: 20, time: '10.06 05:00 – 10.06 15:00' },
+  { label: 'Portfele średnie',                 labelEn: 'Medium wallets',             desc: '1 000–10 000 FTRX',       start: 20, end: 30, time: '10.06 15:00 – 11.06 01:00' },
+  { label: 'Portfele mniejsze',                labelEn: 'Smaller wallets',            desc: '100–1 000 FTRX',          start: 30, end: 40, time: '11.06 01:00 – 11.06 11:00' },
+  { label: 'Portfele minimalne + Weryfikacja', labelEn: 'Min. wallets + Verification',desc: '<100 FTRX + final check', start: 40, end: 50, time: '11.06 11:00 – 11.06 21:00' },
+];
 
 const ContractAddressBadge = () => {
   const [copied, setCopied] = useState(false);
@@ -96,6 +108,24 @@ const Home = () => {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showDirectPurchase, setShowDirectPurchase] = useState(false);
   const [showSolanaModal, setShowSolanaModal] = useState(false);
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+  const distElapsed = Math.max(0, Math.min(DIST_TOTAL_H, (now - DIST_START) / 3600000));
+  const distPct = (distElapsed / DIST_TOTAL_H) * 100;
+  const isDistStarted = now >= DIST_START;
+  const isDistComplete = now >= DIST_END;
+  const timeRemaining = isDistComplete ? 0 : Math.max(0, (DIST_END - now) / 3600000);
+  const remHours = Math.floor(timeRemaining);
+  const remMins = Math.floor((timeRemaining - remHours) * 60);
+  const phaseStatus = (ph) => {
+    if (!isDistStarted) return 'pending';
+    if (distElapsed >= ph.end) return 'done';
+    if (distElapsed >= ph.start) return 'active';
+    return 'pending';
+  };
 
   const LAUNCH_DATE = new Date('2026-06-01T00:00:00');
 
@@ -237,55 +267,168 @@ const Home = () => {
       </section>
 
       {/* FTRX V1 → V2 Update Banner */}
-      <section className="relative overflow-hidden py-8 px-4 bg-[#050505] border-y border-[#FFD700]/20">
+      <section className="relative overflow-hidden py-8 px-4 bg-[#050505] border-y border-[#00FFD1]/20">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#FFD700] via-[#FFD700]/50 to-transparent"></div>
-          <div className="absolute inset-0 bg-[#FFD700] opacity-[0.02]"></div>
-        </div>
-        <div className="relative max-w-[1400px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-[#FFD700]/15 border border-[#FFD700]/40 flex items-center justify-center rounded shrink-0">
-              <span className="text-[#FFD700] text-lg font-black">!</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-xs font-bold text-[#FFD700] uppercase tracking-wider">
-                  {isPl ? 'Ważna informacja' : 'Important Notice'}
-                </span>
-                <span className="text-xs bg-[#FFD700]/10 text-[#FFD700] px-2 py-0.5 rounded border border-[#FFD700]/30 font-bold">
-                  {isPl ? 'Aktualizacja obowiązkowa' : 'Mandatory Update'}
-                </span>
-              </div>
-              <p className="text-white font-semibold">
-                {isPl
-                  ? <>Token FTRX przechodzi aktualizację z <span className="text-[#FFD700] font-bold">V1</span> na <span className="text-[#00FFD1] font-bold">V2</span> — zgłoś swój portfel, aby zachować tokeny.</>
-                  : <>FTRX token is migrating from <span className="text-[#FFD700] font-bold">V1</span> to <span className="text-[#00FFD1] font-bold">V2</span> — register your wallet to keep your tokens.</>
-                }
-              </p>
-            </div>
-          </div>
-          <a href="/update" className="shrink-0 inline-flex items-center gap-2 px-6 py-3 font-bold text-black rounded transition-all hover:opacity-90 whitespace-nowrap" style={{ background: '#FFD700' }}>
-            {isPl ? 'Złóż wniosek o aktualizację' : 'Submit Update Request'}
-            <ArrowRight className="w-4 h-4" />
-          </a>
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#00FFD1] via-[#00FFD1]/50 to-transparent"></div>
+          <div className="absolute inset-0 bg-[#00FFD1] opacity-[0.015]"></div>
         </div>
 
-        {/* Status aktualizacji */}
-        <div className="mt-3 flex items-center gap-3 px-4 py-3 bg-[#FFD700]/5 border border-[#FFD700]/20 rounded-lg">
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FFD700] opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FFD700]"></span>
-          </span>
-          <p className="text-sm text-[#FFD700]/80">
-            <span className="font-bold text-[#FFD700]">
-              {isPl ? 'Aktualizacja w trakcie' : 'Update in progress'}
-            </span>
-            {' — '}
-            {isPl
-              ? <>Zakończenie aktualizacji dla wszystkich użytkowników: <span className="font-bold text-[#FFD700]">09.06.2026 godz. 19:00</span></>
-              : <>Update completion for all users: <span className="font-bold text-[#FFD700]">09.06.2026 at 19:00</span></>
-            }
-          </p>
+        <div className="relative max-w-[1400px] mx-auto space-y-5">
+          {/* Top row: title + button */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-[#00FFD1]/15 border border-[#00FFD1]/40 flex items-center justify-center rounded shrink-0">
+                <Check className="w-5 h-5 text-[#00FFD1]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                  <span className="text-xs font-bold text-[#00FFD1] uppercase tracking-wider">
+                    {isPl ? 'Ważna informacja' : 'Important Notice'}
+                  </span>
+                  <span className="text-xs bg-[#00FFD1]/10 text-[#00FFD1] px-2 py-0.5 rounded border border-[#00FFD1]/30 font-bold">
+                    {isPl ? 'Aktualizacja complete' : 'Update complete'}
+                  </span>
+                </div>
+                <p className="text-white font-semibold">
+                  {isPl
+                    ? <>Migracja FTRX <span className="text-[#FFD700] font-bold">V1</span> → <span className="text-[#00FFD1] font-bold">V2</span> zakończona · trwa przesyłanie tokenów na portfele</>
+                    : <>FTRX <span className="text-[#FFD700] font-bold">V1</span> → <span className="text-[#00FFD1] font-bold">V2</span> migration complete · tokens being sent to wallets</>
+                  }
+                </p>
+              </div>
+            </div>
+            <a href="/update" className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 font-bold text-black rounded transition-all hover:opacity-90 whitespace-nowrap text-sm" style={{ background: '#00FFD1' }}>
+              {isPl ? 'Sprawdź status' : 'Check status'}
+              <ArrowRight className="w-4 h-4" />
+            </a>
+          </div>
+
+          {/* Complete badge row */}
+          <div className="flex items-center gap-3 px-4 py-3 bg-[#00FFD1]/5 border border-[#00FFD1]/20 rounded-lg">
+            <div className="w-5 h-5 rounded-full bg-[#00FFD1]/20 flex items-center justify-center shrink-0">
+              <Check className="w-3 h-3 text-[#00FFD1]" />
+            </div>
+            <p className="text-sm text-[#00FFD1]/80">
+              <span className="font-bold text-[#00FFD1]">
+                {isPl ? 'Aktualizacja complete' : 'Update complete'}
+              </span>
+              {' — '}
+              {isPl
+                ? <>Migracja zakończona: <span className="font-bold text-[#00FFD1]">09.06.2026 godz. 19:00</span> · Trwa dystrybucja tokenów FTRX V2 (50h)</>
+                : <>Migration completed: <span className="font-bold text-[#00FFD1]">09.06.2026 at 19:00</span> · FTRX V2 token distribution in progress (50h)</>
+              }
+            </p>
+          </div>
+
+          {/* 50h Distribution section */}
+          <div className="bg-[#FFD700]/03 border border-[#FFD700]/15 rounded-xl p-4 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[#FFD700]/10 flex items-center justify-center shrink-0">
+                <Send className="w-3.5 h-3.5 text-[#FFD700]" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">
+                  {isPl ? 'Przesyłanie FTRX V2 na portfele indywidualnie' : 'Sending FTRX V2 to individual wallets'}
+                </p>
+                <p className="text-xs text-[#666]">
+                  {isPl ? 'Dystrybucja trwa 50 godzin od zakończenia migracji' : '50-hour distribution from migration completion'}
+                </p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-[#888]">{isPl ? 'Postęp dystrybucji' : 'Distribution progress'}</span>
+                <span className="font-bold" style={{ color: isDistComplete ? '#22C55E' : '#FFD700' }}>
+                  {isDistComplete
+                    ? (isPl ? 'Ukończono (50/50h)' : 'Completed (50/50h)')
+                    : isDistStarted
+                      ? `${distElapsed.toFixed(1)}h / 50h`
+                      : (isPl ? 'Rozpoczęcie: 09.06 godz. 19:00' : 'Starts: 09.06 at 19:00')
+                  }
+                </span>
+              </div>
+              <div className="h-2.5 bg-[#111] rounded-full overflow-hidden border border-[rgba(255,255,255,0.05)]">
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{
+                    width: `${distPct}%`,
+                    background: isDistComplete
+                      ? 'linear-gradient(90deg,#22C55E,#00FFD1)'
+                      : 'linear-gradient(90deg,#FFD700,#FFB800)',
+                  }}
+                />
+              </div>
+              {!isDistComplete && isDistStarted && (
+                <div className="flex items-center gap-1.5 text-xs text-[#666]">
+                  <Clock className="w-3 h-3" />
+                  <span>
+                    {isPl ? 'Pozostało:' : 'Remaining:'} <strong className="text-[#FFD700]">{remHours}h {remMins}m</strong>
+                    <span className="text-[#444] ml-2">· {isPl ? 'Koniec' : 'End'}: 11.06.2026 21:00</span>
+                  </span>
+                </div>
+              )}
+              {isDistComplete && (
+                <div className="flex items-center gap-1 text-xs text-[#22C55E]">
+                  <Check className="w-3 h-3" /><span className="font-semibold">{isPl ? 'Dystrybucja zakończona' : 'Distribution complete'}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Phase table */}
+            <div className="rounded-lg overflow-hidden border border-[rgba(255,255,255,0.06)]">
+              <div className="grid grid-cols-12 px-3 py-1.5 bg-[#0a0a0a] border-b border-[rgba(255,255,255,0.05)]">
+                <span className="col-span-1 text-[9px] text-[#333] uppercase">#</span>
+                <span className="col-span-4 text-[9px] text-[#333] uppercase">{isPl ? 'Faza' : 'Phase'}</span>
+                <span className="col-span-3 text-[9px] text-[#333] uppercase hidden sm:block">{isPl ? 'Warunek' : 'Condition'}</span>
+                <span className="col-span-3 text-[9px] text-[#333] uppercase hidden sm:block">{isPl ? 'Czas (CEST)' : 'Time (CEST)'}</span>
+                <span className="col-span-4 sm:col-span-2 text-[9px] text-[#333] uppercase text-right">Status</span>
+              </div>
+              {DIST_PHASES.map((ph, i) => {
+                const st = phaseStatus(ph);
+                return (
+                  <div key={i} className={`grid grid-cols-12 px-3 py-2.5 border-b border-[rgba(255,255,255,0.03)] last:border-0 ${st === 'active' ? 'bg-[#FFD700]/03' : ''}`}>
+                    <span className="col-span-1 text-xs font-bold" style={{ color: st === 'done' ? '#22C55E' : st === 'active' ? '#FFD700' : '#333' }}>{i + 1}</span>
+                    <div className="col-span-4">
+                      <p className="text-xs font-medium leading-tight" style={{ color: st === 'done' ? '#666' : st === 'active' ? '#fff' : '#444' }}>
+                        {isPl ? ph.label : ph.labelEn}
+                      </p>
+                    </div>
+                    <div className="col-span-3 hidden sm:flex items-center">
+                      <p className="text-[10px] text-[#444]">{ph.desc}</p>
+                    </div>
+                    <div className="col-span-3 hidden sm:flex items-center">
+                      <p className="text-[10px] text-[#333] font-mono">{ph.time}</p>
+                    </div>
+                    <div className="col-span-4 sm:col-span-2 flex items-center justify-end">
+                      {st === 'done' && (
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#22C55E] bg-[#22C55E]/10 px-1.5 py-0.5 rounded-full border border-[#22C55E]/20">
+                          <Check className="w-2 h-2" />{isPl ? 'Ukończono' : 'Done'}
+                        </span>
+                      )}
+                      {st === 'active' && (
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#FFD700] bg-[#FFD700]/10 px-1.5 py-0.5 rounded-full border border-[#FFD700]/20">
+                          <span className="w-1 h-1 bg-[#FFD700] rounded-full animate-pulse" />{isPl ? 'W trakcie' : 'Active'}
+                        </span>
+                      )}
+                      {st === 'pending' && (
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#333] bg-[rgba(255,255,255,0.03)] px-1.5 py-0.5 rounded-full border border-[rgba(255,255,255,0.05)]">
+                          <Clock className="w-2 h-2" />{isPl ? 'Oczekuje' : 'Pending'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[9px] text-[#333]">
+              {isPl
+                ? 'Czas podany w CEST (UTC+2). Kolejność dystrybucji zależy od salda FTRX V1 na weryfikowanym portfelu.'
+                : 'Time in CEST (UTC+2). Distribution order depends on FTRX V1 balance in the verified wallet.'
+              }
+            </p>
+          </div>
         </div>
       </section>
 
