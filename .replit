@@ -66,6 +66,8 @@ externalPort = 8000
 SMTP_HOST = "mail.privateemail.com"
 SMTP_PORT = "587"
 ADMIN_PASSWORD = "futurox2026futurox2026"
+MONGO_URL = "mongodb://localhost:27017"
+DB_NAME = "futurox_db"
 
 [userenv.production]
 FRONTEND_BASE_URL = "https://futuroxai.com"
