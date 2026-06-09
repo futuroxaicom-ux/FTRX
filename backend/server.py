@@ -1347,6 +1347,103 @@ class BotOrderEntry(BaseModel):
     status: str = "pending_payment"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+def _build_bot_order_email_html(entry) -> str:
+    frontend_url = os.environ.get("FRONTEND_BASE_URL", "https://futuroxai.com")
+    status_url = f"{frontend_url}/order-status/{entry.order_id}"
+    payment_address = "C7Y9MqJjfmEm3WDA2r76acy6gzLVsEhC8RGHV3bsAMYR"
+    return f"""
+<!DOCTYPE html>
+<html lang="pl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#080808;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#080808;padding:40px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+
+  <!-- Header -->
+  <tr><td style="background:#0d0d0d;border:1px solid rgba(255,215,0,0.15);border-radius:12px 12px 0 0;padding:32px 32px 24px;">
+    <table width="100%"><tr>
+      <td><div style="display:inline-block;background:#FFD700;color:#000;font-size:11px;font-weight:900;padding:4px 8px;border-radius:4px;letter-spacing:1px;">FTRX</div></td>
+      <td align="right"><span style="font-size:11px;color:#555;font-weight:700;text-transform:uppercase;letter-spacing:1px;">FuturoX AI</span></td>
+    </tr></table>
+    <h1 style="margin:20px 0 8px;font-size:22px;font-weight:900;color:#fff;">Zamówienie przyjęte ✅</h1>
+    <p style="margin:0;font-size:14px;color:#888;">Twój {entry.bot_name} zostanie skonfigurowany po potwierdzeniu płatności.</p>
+  </td></tr>
+
+  <!-- Order ID -->
+  <tr><td style="background:#0a0a0a;border-left:1px solid rgba(255,215,0,0.15);border-right:1px solid rgba(255,215,0,0.15);padding:16px 32px;">
+    <p style="margin:0 0 6px;font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px;">Numer zamówienia</p>
+    <code style="font-size:16px;font-weight:900;color:#FFD700;font-family:monospace;">{entry.order_id}</code>
+    <p style="margin:6px 0 0;font-size:11px;color:#444;">Zachowaj ten numer — będzie potrzebny przy weryfikacji</p>
+  </td></tr>
+
+  <!-- Details table -->
+  <tr><td style="background:#0a0a0a;border-left:1px solid rgba(255,215,0,0.15);border-right:1px solid rgba(255,215,0,0.15);padding:0 32px 20px;">
+    <table width="100%" style="border-top:1px solid rgba(255,255,255,0.06);">
+      {''.join(f'''<tr>
+        <td style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.5px;width:40%;">{label}</td>
+        <td style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;font-weight:600;color:#fff;text-align:right;">{value}</td>
+      </tr>''' for label, value in [
+          ('Bot', entry.bot_name),
+          ('E-mail', entry.email),
+          ('Kapitał SOL', f'{entry.sol_tier} SOL'),
+          ('Harmonogram wypłat', f'co {entry.payout_interval} dni'),
+          ('Subskrypcja miesięczna', f'${entry.price_usd} USD / mies.'),
+      ])}
+    </table>
+  </td></tr>
+
+  <!-- Payment instructions -->
+  <tr><td style="background:#0a0a0a;border-left:1px solid rgba(255,215,0,0.15);border-right:1px solid rgba(255,215,0,0.15);padding:0 32px 20px;">
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:16px;">
+      <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.5px;">Instrukcja płatności</p>
+      <p style="margin:0 0 10px;font-size:12px;color:#888;">Wyślij <strong style="color:#fff;">dwa przelewy</strong> na adres portfela FuturoX AI:</p>
+      <div style="background:#111;border:1px solid rgba(0,255,209,0.2);border-radius:6px;padding:10px 12px;margin-bottom:12px;">
+        <p style="margin:0 0 4px;font-size:10px;color:#555;">Adres portfela (SOL + FTRX)</p>
+        <code style="font-size:11px;color:#00FFD1;word-break:break-all;">{payment_address}</code>
+      </div>
+      <table width="100%">
+        <tr>
+          <td style="background:rgba(0,204,255,0.06);border:1px solid rgba(0,204,255,0.2);border-radius:6px;padding:10px;width:48%;vertical-align:top;">
+            <p style="margin:0 0 4px;font-size:10px;color:#00CCFF;font-weight:700;">1. Kapitał roboczy</p>
+            <p style="margin:0;font-size:18px;font-weight:900;color:#00CCFF;">{entry.sol_tier} SOL</p>
+            <p style="margin:4px 0 0;font-size:10px;color:#555;">Natywny SOL · sieć Solana</p>
+          </td>
+          <td style="width:4%;"></td>
+          <td style="background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.2);border-radius:6px;padding:10px;width:48%;vertical-align:top;">
+            <p style="margin:0 0 4px;font-size:10px;color:#FFD700;font-weight:700;">2. Subskrypcja</p>
+            <p style="margin:0;font-size:18px;font-weight:900;color:#FFD700;">wg kursu FTRX</p>
+            <p style="margin:4px 0 0;font-size:10px;color:#555;">≈ ${entry.price_usd} USD w FTRX</p>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </td></tr>
+
+  <!-- Status link CTA -->
+  <tr><td style="background:#0a0a0a;border-left:1px solid rgba(255,215,0,0.15);border-right:1px solid rgba(255,215,0,0.15);padding:0 32px 28px;">
+    <p style="margin:0 0 14px;font-size:13px;color:#888;">Śledź status swojego zamówienia w czasie rzeczywistym:</p>
+    <a href="{status_url}" style="display:inline-block;background:#FFD700;color:#000;font-size:13px;font-weight:900;padding:12px 28px;border-radius:8px;text-decoration:none;letter-spacing:.3px;">
+      Sprawdź status zamówienia →
+    </a>
+    <p style="margin:12px 0 0;font-size:11px;color:#444;">lub otwórz: <a href="{status_url}" style="color:#FFD700;text-decoration:none;">{status_url}</a></p>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="background:#060606;border:1px solid rgba(255,215,0,0.1);border-top:none;border-radius:0 0 12px 12px;padding:20px 32px;">
+    <p style="margin:0;font-size:11px;color:#333;text-align:center;">
+      © 2026 FuturoX AI · Ten email został wysłany automatycznie po złożeniu zamówienia.<br>
+      <a href="{frontend_url}" style="color:#555;text-decoration:none;">{frontend_url}</a>
+    </p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+"""
+
 @api_router.post("/bot-order")
 async def submit_bot_order(req: BotOrderCreate):
     """Submit a bot purchase order"""
@@ -1371,6 +1468,16 @@ async def submit_bot_order(req: BotOrderCreate):
     doc = entry.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     await db.bot_orders.insert_one(doc)
+
+    # Send confirmation email asynchronously (non-blocking)
+    try:
+        loop = asyncio.get_event_loop()
+        html_email = _build_bot_order_email_html(entry)
+        subject = f"✅ Zamówienie {entry.bot_name} przyjęte — #{entry.order_id}"
+        loop.run_in_executor(None, _send_email_sync, entry.email, subject, html_email)
+    except Exception as e:
+        logger.error(f"Bot order email error: {e}")
+
     return {
         "success": True,
         "order_id": entry.order_id,
@@ -1383,6 +1490,14 @@ async def submit_bot_order(req: BotOrderCreate):
         "profit_wallet": entry.profit_wallet,
         "status": entry.status,
     }
+
+@api_router.get("/bot-order/{order_id}")
+async def get_bot_order_status(order_id: str):
+    """Get bot order status by order_id (public endpoint)"""
+    order = await db.bot_orders.find_one({"order_id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Zamówienie nie zostało znalezione")
+    return {"success": True, "order": order}
 
 @api_router.get("/admin/bot-orders")
 async def get_bot_orders(x_admin_password: str = Header(None)):

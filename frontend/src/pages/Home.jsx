@@ -320,114 +320,44 @@ const Home = () => {
             </p>
           </div>
 
-          {/* 50h Distribution section */}
-          <div className="bg-[#FFD700]/03 border border-[#FFD700]/15 rounded-xl p-4 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-[#FFD700]/10 flex items-center justify-center shrink-0">
-                <Send className="w-3.5 h-3.5 text-[#FFD700]" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-white">
-                  {isPl ? 'Przesyłanie FTRX V2 na portfele indywidualnie' : 'Sending FTRX V2 to individual wallets'}
-                </p>
-                <p className="text-xs text-[#666]">
-                  {isPl ? 'Dystrybucja trwa 50 godzin od zakończenia migracji' : '50-hour distribution from migration completion'}
-                </p>
-              </div>
-            </div>
-
+          {/* 50h Distribution compact */}
+          <div className="space-y-2">
             {/* Progress bar */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-[#888]">{isPl ? 'Postęp dystrybucji' : 'Distribution progress'}</span>
-                <span className="font-bold" style={{ color: isDistComplete ? '#22C55E' : '#FFD700' }}>
-                  {isDistComplete
-                    ? (isPl ? 'Ukończono (50/50h)' : 'Completed (50/50h)')
-                    : isDistStarted
-                      ? `${distElapsed.toFixed(1)}h / 50h`
-                      : (isPl ? 'Rozpoczęcie: 09.06 godz. 19:00' : 'Starts: 09.06 at 19:00')
-                  }
-                </span>
-              </div>
-              <div className="h-2.5 bg-[#111] rounded-full overflow-hidden border border-[rgba(255,255,255,0.05)]">
-                <div
-                  className="h-full rounded-full transition-all duration-1000"
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] text-[#666] whitespace-nowrap">
+                {isPl ? 'Dystrybucja FTRX V2' : 'FTRX V2 distribution'}
+              </span>
+              <div className="flex-1 h-1.5 bg-[#111] rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-1000"
                   style={{
                     width: `${distPct}%`,
-                    background: isDistComplete
-                      ? 'linear-gradient(90deg,#22C55E,#00FFD1)'
-                      : 'linear-gradient(90deg,#FFD700,#FFB800)',
-                  }}
-                />
+                    background: isDistComplete ? 'linear-gradient(90deg,#22C55E,#00FFD1)' : 'linear-gradient(90deg,#FFD700,#FFB800)',
+                  }} />
               </div>
-              {!isDistComplete && isDistStarted && (
-                <div className="flex items-center gap-1.5 text-xs text-[#666]">
-                  <Clock className="w-3 h-3" />
-                  <span>
-                    {isPl ? 'Pozostało:' : 'Remaining:'} <strong className="text-[#FFD700]">{remHours}h {remMins}m</strong>
-                    <span className="text-[#444] ml-2">· {isPl ? 'Koniec' : 'End'}: 11.06.2026 21:00</span>
-                  </span>
-                </div>
-              )}
-              {isDistComplete && (
-                <div className="flex items-center gap-1 text-xs text-[#22C55E]">
-                  <Check className="w-3 h-3" /><span className="font-semibold">{isPl ? 'Dystrybucja zakończona' : 'Distribution complete'}</span>
-                </div>
-              )}
+              <span className="text-[10px] font-bold whitespace-nowrap" style={{ color: isDistComplete ? '#22C55E' : '#FFD700' }}>
+                {isDistComplete ? '50/50h' : isDistStarted ? `${distElapsed.toFixed(1)}/50h` : (isPl ? 'start 19:00' : 'starts 19:00')}
+              </span>
             </div>
 
-            {/* Phase table */}
-            <div className="rounded-lg overflow-hidden border border-[rgba(255,255,255,0.06)]">
-              <div className="grid grid-cols-12 px-3 py-1.5 bg-[#0a0a0a] border-b border-[rgba(255,255,255,0.05)]">
-                <span className="col-span-1 text-[9px] text-[#333] uppercase">#</span>
-                <span className="col-span-4 text-[9px] text-[#333] uppercase">{isPl ? 'Faza' : 'Phase'}</span>
-                <span className="col-span-3 text-[9px] text-[#333] uppercase hidden sm:block">{isPl ? 'Warunek' : 'Condition'}</span>
-                <span className="col-span-3 text-[9px] text-[#333] uppercase hidden sm:block">{isPl ? 'Czas (CEST)' : 'Time (CEST)'}</span>
-                <span className="col-span-4 sm:col-span-2 text-[9px] text-[#333] uppercase text-right">Status</span>
-              </div>
+            {/* Compact phase rows */}
+            <div className="rounded-lg overflow-hidden border border-[rgba(255,255,255,0.05)]">
               {DIST_PHASES.map((ph, i) => {
                 const st = phaseStatus(ph);
                 return (
-                  <div key={i} className={`grid grid-cols-12 px-3 py-2.5 border-b border-[rgba(255,255,255,0.03)] last:border-0 ${st === 'active' ? 'bg-[#FFD700]/03' : ''}`}>
-                    <span className="col-span-1 text-xs font-bold" style={{ color: st === 'done' ? '#22C55E' : st === 'active' ? '#FFD700' : '#333' }}>{i + 1}</span>
-                    <div className="col-span-4">
-                      <p className="text-xs font-medium leading-tight" style={{ color: st === 'done' ? '#666' : st === 'active' ? '#fff' : '#444' }}>
-                        {isPl ? ph.label : ph.labelEn}
-                      </p>
-                    </div>
-                    <div className="col-span-3 hidden sm:flex items-center">
-                      <p className="text-[10px] text-[#444]">{ph.desc}</p>
-                    </div>
-                    <div className="col-span-3 hidden sm:flex items-center">
-                      <p className="text-[10px] text-[#333] font-mono">{ph.time}</p>
-                    </div>
-                    <div className="col-span-4 sm:col-span-2 flex items-center justify-end">
-                      {st === 'done' && (
-                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#22C55E] bg-[#22C55E]/10 px-1.5 py-0.5 rounded-full border border-[#22C55E]/20">
-                          <Check className="w-2 h-2" />{isPl ? 'Ukończono' : 'Done'}
-                        </span>
-                      )}
-                      {st === 'active' && (
-                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#FFD700] bg-[#FFD700]/10 px-1.5 py-0.5 rounded-full border border-[#FFD700]/20">
-                          <span className="w-1 h-1 bg-[#FFD700] rounded-full animate-pulse" />{isPl ? 'W trakcie' : 'Active'}
-                        </span>
-                      )}
-                      {st === 'pending' && (
-                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#333] bg-[rgba(255,255,255,0.03)] px-1.5 py-0.5 rounded-full border border-[rgba(255,255,255,0.05)]">
-                          <Clock className="w-2 h-2" />{isPl ? 'Oczekuje' : 'Pending'}
-                        </span>
-                      )}
-                    </div>
+                  <div key={i} className={`flex items-center gap-2 px-3 py-1.5 border-b border-[rgba(255,255,255,0.03)] last:border-0 ${st === 'active' ? 'bg-[#FFD700]/04' : ''}`}>
+                    <span className="text-[10px] font-bold w-4 shrink-0" style={{ color: st === 'done' ? '#22C55E' : st === 'active' ? '#FFD700' : '#333' }}>{i + 1}</span>
+                    <p className="flex-1 text-[10px] leading-tight" style={{ color: st === 'done' ? '#555' : st === 'active' ? '#ddd' : '#3a3a3a' }}>
+                      {isPl ? ph.label : ph.labelEn}
+                      <span className="text-[9px] ml-1.5" style={{ color: st === 'active' ? '#888' : '#2a2a2a' }}>{ph.desc}</span>
+                    </p>
+                    <span className="text-[9px] text-[#2a2a2a] font-mono hidden sm:block shrink-0">{ph.time}</span>
+                    {st === 'done' && <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#22C55E] bg-[#22C55E]/10 px-1.5 py-0.5 rounded-full border border-[#22C55E]/20 shrink-0"><Check className="w-2 h-2" />{isPl ? 'Gotowe' : 'Done'}</span>}
+                    {st === 'active' && <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#FFD700] bg-[#FFD700]/10 px-1.5 py-0.5 rounded-full border border-[#FFD700]/20 shrink-0"><span className="w-1 h-1 bg-[#FFD700] rounded-full animate-pulse" />{isPl ? 'Trwa' : 'Live'}</span>}
+                    {st === 'pending' && <span className="text-[9px] text-[#2d2d2d] shrink-0">{isPl ? 'Oczekuje' : 'Pending'}</span>}
                   </div>
                 );
               })}
             </div>
-            <p className="text-[9px] text-[#333]">
-              {isPl
-                ? 'Czas podany w CEST (UTC+2). Kolejność dystrybucji zależy od salda FTRX V1 na weryfikowanym portfelu.'
-                : 'Time in CEST (UTC+2). Distribution order depends on FTRX V1 balance in the verified wallet.'
-              }
-            </p>
           </div>
         </div>
       </section>
